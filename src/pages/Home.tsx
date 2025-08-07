@@ -2,40 +2,58 @@ import { Link } from "react-router-dom";
 
 export function Home() {
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-4xl font-extrabold text-pink-600 mb-6">CakeManager</h1>
-      <p className="text-lg text-gray-700 mb-8">
-        Bienvenido al sistema de gestión de tu pastelería.
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Link
-          to="/stock"
-          className="bg-pink-600 text-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center hover:bg-pink-700 transition"
-        >
-          <span className="text-xl font-semibold mb-2">Gestión de Stock</span>
-          <p className="text-sm text-pink-200 text-center">
-            Administra tus productos y cantidades disponibles.
+    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+        <header className="mb-10 text-center">
+          <h1 className="text-5xl font-extrabold text-[#8E2DA8] mb-4">
+            CakeManager
+          </h1>
+          <p className="text-lg text-gray-700">
+            Bienvenido al sistema de gestión de tu pastelería
           </p>
-        </Link>
-        <Link
-          to="/sales"
-          className="bg-green-600 text-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center hover:bg-green-700 transition"
-        >
-          <span className="text-xl font-semibold mb-2">Gestión de Ventas</span>
-          <p className="text-sm text-green-200 text-center">
-            Registra y controla las ventas diarias.
-          </p>
-        </Link>
-        <Link
-          to="/summary"
-          className="bg-blue-600 text-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center hover:bg-blue-700 transition"
-        >
-          <span className="text-xl font-semibold mb-2">Resumen Diario</span>
-          <p className="text-sm text-blue-200 text-center">
-            Consulta el resumen de ventas y gastos por día.
-          </p>
-        </Link>
-      </div>
-    </main>
+        </header>
+
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {[
+            {
+              to: "/stock",
+              title: "Gestión de Stock",
+              desc: "Administra tus productos y cantidades disponibles.",
+            },
+            {
+              to: "/sales",
+              title: "Gestión de Ventas",
+              desc: "Registra y controla las ventas diarias.",
+            },
+            {
+              to: "/summary",
+              title: "Resumen Diario",
+              desc: "Consulta el resumen de ventas y gastos por día.",
+            },
+            {
+              to: "/payment-management",
+              title: "Gestión de Abonos",
+              desc: "Registra y finaliza abonos de pedidos.",
+            },
+          ].map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 hover:shadow-lg transition"
+            >
+              <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">
+                {item.title}
+              </h3>
+              <p className="text-gray-600 text-sm">{item.desc}</p>
+            </Link>
+          ))}
+        </section>
+      </main>
+
+      {/* Footer opcional si deseas un espacio inferior */}
+      <footer className="text-center text-sm text-gray-400 py-4">
+        © 2025 CakeManager. Todos los derechos reservados.
+      </footer>
+    </div>
   );
 }

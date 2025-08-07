@@ -11,11 +11,11 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-pink-600 text-white shadow-lg">
+    <nav className="shadow-lg" style={{ backgroundColor: "  #8E2DA8" }}>
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="text-xl font-bold">
-            CakeManager
+        <div className="flex justify-between items-center h-16 text-white">
+        <Link to="/" className="text-xl font-bold" style={{ color: "#2FE1EB" }}>
+        CakeManager
           </Link>
 
           <div className="flex space-x-6">
@@ -23,8 +23,8 @@ export function Navbar() {
               to="/"
               className={`px-3 py-2 rounded-md text-sm font-medium transition ${
                 isActive("/") && location.pathname === "/"
-                  ? "bg-pink-700 text-white"
-                  : "text-pink-200 hover:text-white hover:bg-pink-500"
+                  ? "bg-white text-[#8E2DA8]"
+                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
               }`}
             >
               Inicio
@@ -34,8 +34,8 @@ export function Navbar() {
               to="/stock"
               className={`px-3 py-2 rounded-md text-sm font-medium transition ${
                 isActive("/stock")
-                  ? "bg-pink-700 text-white"
-                  : "text-pink-200 hover:text-white hover:bg-pink-500"
+                  ? "bg-white text-[#8E2DA8]"
+                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
               }`}
             >
               Stock
@@ -45,19 +45,30 @@ export function Navbar() {
               to="/sales"
               className={`px-3 py-2 rounded-md text-sm font-medium transition ${
                 isActive("/sales")
-                  ? "bg-pink-700 text-white"
-                  : "text-pink-200 hover:text-white hover:bg-pink-500"
+                  ? "bg-white text-[#8E2DA8]"
+                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
               }`}
             >
               Ventas
             </Link>
 
             <Link
+              to="/payment-management"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition ${
+                isActive("/payment-management")
+                  ? "bg-white text-[#8E2DA8]"
+                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
+              }`}
+            >
+              Abonos
+            </Link>
+
+            <Link
               to="/summary"
               className={`px-3 py-2 rounded-md text-sm font-medium transition ${
                 isActive("/summary")
-                  ? "bg-pink-700 text-white"
-                  : "text-pink-200 hover:text-white hover:bg-pink-500"
+                  ? "bg-white text-[#8E2DA8]"
+                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
               }`}
             >
               Resumen

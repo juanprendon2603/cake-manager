@@ -2,15 +2,22 @@ import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { db } from "../../lib/firebase";
+import { DailyDetail } from "./DailyDetail";
 
 interface Sale {
   valor: number;
   paymentMethod: string;
+  cantidad: number;
+  flavor: string;
+  id: string;
+  size: string;
+  type: string;
 }
 
 interface Expense {
   value: number;
   paymentMethod: string;
+  description: string;
 }
 
 interface DailyData {
@@ -26,7 +33,13 @@ interface DailyData {
 
 export function DailySummary() {
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [rawDocs, setRawDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState<null | {
+    fecha: string;
+    sales: Sale[];
+    expenses: Expense[];
+  }>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -34,6 +47,7 @@ export function DailySummary() {
       const snapshot = await getDocs(salesCol);
 
       const data: DailyData[] = [];
+      const docs: any[] = [];
 
       snapshot.forEach((doc) => {
         const docData = doc.data();
@@ -42,12 +56,17 @@ export function DailySummary() {
         const sales: Sale[] = docData.sales || [];
         const expenses: Expense[] = docData.expenses || [];
 
+        // Guardar la data cruda para el detalle
+        docs.push({ fecha, sales, expenses });
+
         const totalSalesCash = sales
-          .filter((s) => s.paymentMethod === "cash")
-          .reduce((sum, s) => sum + (s.valor || 0), 0);
-        const totalSalesTransfer = sales
-          .filter((s) => s.paymentMethod === "transfer")
-          .reduce((sum, s) => sum + (s.valor || 0), 0);
+        .filter((s) => s.paymentMethod === "cash")
+        .reduce((sum, s) => sum + (s.valor ?? s.amount ?? 0), 0);
+      
+      const totalSalesTransfer = sales
+        .filter((s) => s.paymentMethod === "transfer")
+        .reduce((sum, s) => sum + (s.valor ?? s.amount ?? 0), 0);
+      
 
         const totalExpensesCash = expenses
           .filter((e) => e.paymentMethod === "cash")
@@ -79,8 +98,10 @@ export function DailySummary() {
 
       // Ordenar por fecha descendente (más reciente primero)
       data.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+      docs.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
 
       setDailyData(data);
+      setRawDocs(docs);
       setLoading(false);
     }
 
@@ -128,6 +149,7 @@ export function DailySummary() {
                 <th className="p-3 text-right">Disponible Efectivo</th>
                 <th className="p-3 text-right">Disponible Transferencia</th>
                 <th className="p-3 text-right">Ganancia / Pérdida</th>
+                <th className="p-3 text-center">Detalle</th>
               </tr>
             </thead>
             <tbody>
@@ -141,7 +163,7 @@ export function DailySummary() {
                   disponibleEfectivo,
                   disponibleTransfer,
                   net,
-                }) => (
+                }, idx) => (
                   <tr
                     key={fecha}
                     className={`hover:bg-pink-50 transition ${
@@ -170,6 +192,14 @@ export function DailySummary() {
                     <td className="p-3 text-right font-bold">
                       {net >= 0 ? "+" : ""}${net.toFixed(2)}
                     </td>
+                    <td className="p-3 text-center">
+                      <button
+                        className="bg-pink-500 text-white px-3 py-1 rounded hover:bg-pink-700 transition"
+                        onClick={() => setSelectedDay(rawDocs[idx])}
+                      >
+                        Ver detalle
+                      </button>
+                    </td>
                   </tr>
                 )
               )}
@@ -196,6 +226,7 @@ export function DailySummary() {
                 <td className="p-3 text-right">
                   {totalNet >= 0 ? "+" : ""}${totalNet.toFixed(2)}
                 </td>
+                <td className="p-3"></td>
               </tr>
             </tfoot>
           </table>
@@ -217,6 +248,16 @@ export function DailySummary() {
           </div>
         </div>
       )}
+      
+      {selectedDay && (
+        <DailyDetail
+          fecha={selectedDay.fecha}
+          sales={selectedDay.sales}
+          expenses={selectedDay.expenses}
+          onClose={() => setSelectedDay(null)}
+        />
+      )}
+      
       <div className="mt-6 text-center">
         <Link to="/" className="text-blue-600 hover:underline">
           Volver al inicio

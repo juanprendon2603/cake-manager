@@ -2,8 +2,19 @@ import { Link } from "react-router-dom";
 
 export function StockHome() {
   return (
-    <main className="p-8 max-w-3xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold text-green-700 mb-6">Gestión de Stock</h2>
+    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
+
+          <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+        <header className="mb-10 text-center">
+          <h1 className="text-5xl font-extrabold text-[#8E2DA8] mb-4">
+          Gestión de Stock
+          </h1>
+          <p className="text-lg text-gray-700">
+            Bienvenido al sistema de gestión de tu pastelería
+          </p>
+        </header>
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <Link
           to="/stock/agregar"
@@ -24,6 +35,10 @@ export function StockHome() {
           </p>
         </Link>
       </div>
+      </section>
+
     </main>
+    </div>
+
   );
 }

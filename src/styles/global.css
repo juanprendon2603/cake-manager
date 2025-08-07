@@ -1,0 +1,10 @@
+:root {
+    --color-primary: #8E2DA8;
+    --color-secondary: #BAA1DD;
+    --color-accent: #E3B6F4;
+    --color-cyan: #2FE1EB;
+    --color-background: #FDF8FF;
+    --color-border: #E8D4F2;
+    --color-gray-600: #4B5563; /* opcional para texto gris */
+  }
+  
