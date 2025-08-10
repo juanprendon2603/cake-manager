@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { db } from "../firebaseConfig";
+import { db } from "../../lib/firebase";
 import { collection, doc, setDoc } from "firebase/firestore";
 
 interface Person {

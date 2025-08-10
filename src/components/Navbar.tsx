@@ -4,8 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 export function Navbar() {
   const location = useLocation();
 
-  const isActive = (path) => {
-    if (path === "/" && location.pathname === "/") return true;
+  const isActive = (path: string): boolean => {    if (path === "/" && location.pathname === "/") return true;
     if (path !== "/" && location.pathname.startsWith(path)) return true;
     return false;
   };
