@@ -11,6 +11,7 @@ import { DailySummary } from "./pages/summary/DailySummary";
 import { FinalizePayment } from "./pages/payments/FinalizePayment";
 import { PaymentManagement } from "./pages/payments/PaymentManagement";
 import { AddPayment } from "./pages/payments/AddPayment";
+import Payroll from "./pages/payroll/Payroll";
 
 export default function App() {
   return (
@@ -26,8 +27,9 @@ export default function App() {
         <Route path="/sales/add-expense" element={<AddExpense />} />
         <Route path="/summary" element={<DailySummary />} />
         <Route path="/payment-management" element={<PaymentManagement />} />
-<Route path="/payment-management/add" element={<AddPayment />} />
-<Route path="/payment-management/finalize" element={<FinalizePayment />} />
+        <Route path="/payment-management/add" element={<AddPayment />} />
+        <Route path="/payment-management/finalize" element={<FinalizePayment />} />
+        <Route path="/payroll" element={<Payroll />} />
 
       </Routes>
     </BrowserRouter>

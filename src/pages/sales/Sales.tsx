@@ -2,40 +2,47 @@ import { Link } from "react-router-dom";
 
 export function Sales() {
   return (
-    <main className="p-8 max-w-3xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold text-blue-700 mb-6">Gestión de Ventas</h2>
-      <p className="text-gray-700 mb-6">Elige una acción para continuar:</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Link
-          to="/sales/add-sale"
-          className="bg-blue-600 text-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center hover:bg-blue-700 transition"
-        >
-          <span className="text-xl font-semibold mb-2">Agregar venta</span>
-          <p className="text-sm text-blue-200 text-center">
-            Registra una nueva venta en el sistema.
+    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+        <header className="mb-10 text-center">
+          <h1 className="text-5xl font-extrabold text-[#8E2DA8] mb-4">
+            Gestión de Ventas
+          </h1>
+          <p className="text-lg text-gray-700">
+            Elige una acción para continuar
           </p>
-        </Link>
+        </header>
 
-        <Link
-          to="/sales/add-payment"
-          className="bg-green-600 text-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center hover:bg-green-700 transition"
-        >
-          <span className="text-xl font-semibold mb-2">Agregar abono</span>
-          <p className="text-sm text-green-200 text-center">
-            Registra un abono sin descontar stock.
-          </p>
-        </Link>
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <Link
+            to="/sales/add-sale"
+            className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 hover:shadow-lg transition"
+          >
+            <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">
+              Agregar venta
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Registra una nueva venta en el sistema.
+            </p>
+          </Link>
 
-        <Link
-          to="/sales/add-expense"
-          className="bg-red-600 text-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center hover:bg-red-700 transition"
-        >
-          <span className="text-xl font-semibold mb-2">Agregar gasto</span>
-          <p className="text-sm text-red-200 text-center">
-            Registra un gasto relacionado con la pastelería.
-          </p>
-        </Link>
-      </div>
-    </main>
+          <Link
+            to="/sales/add-expense"
+            className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 hover:shadow-lg transition"
+          >
+            <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">
+              Agregar gasto
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Registra un gasto relacionado con la pastelería.
+            </p>
+          </Link>
+        </section>
+      </main>
+
+      <footer className="text-center text-sm text-gray-400 py-4">
+        © 2025 CakeManager. Todos los derechos reservados.
+      </footer>
+    </div>
   );
 }

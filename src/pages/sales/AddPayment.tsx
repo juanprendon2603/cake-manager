@@ -90,7 +90,7 @@ export function AddPayment() {
 
   const flavorOptions =
     productType === "cake"
-      ? ["naranja", "vainilla_chips", "vainilla_chocolate"]
+      ? ["naranja", "vainilla_chips", "vainilla_chocolate", "negra"]
       : ["vainilla"];
 
   return (
