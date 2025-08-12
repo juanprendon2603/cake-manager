@@ -1,34 +1,36 @@
 import { useState, useEffect } from "react";
 import { db } from "../../lib/firebase";
 import { collection, getDocs, updateDoc, doc, getDoc, setDoc, arrayUnion, Timestamp } from "firebase/firestore";
+import { FullScreenLoader } from "../../components/FullScreenLoader";
+import { useToast } from "../../hooks/useToast";
+import { BackButton } from "../../components/BackButton";
 
 type PaymentType = "cake" | "sponge";
 
 interface BasePayment {
   id: string;
   type: PaymentType;
-  size: string;                 // ej: "cuarto_redondo"
-  amount: number;               // valor total del pedido
-  remaining?: number;           // pendiente por pagar
-  paid?: boolean;               // ya finalizado?
-  deductedFromStock?: boolean;  // ya descontó del stock?
-  paymentMethod: string;        // "cash", "transfer", etc.
-  orderDate: string;            // ID del doc (yyyy-mm-dd)
-  date?: string;                // fecha del grupo del doc que contenía este pago
+  size: string;
+  amount: number;
+  remaining?: number;
+  paid?: boolean;
+  deductedFromStock?: boolean;
+  paymentMethod: string;
+  orderDate: string;
+  date?: string;
   isPayment?: boolean;
   totalPayment?: boolean;
 }
 
 interface CakePayment extends BasePayment {
   type: "cake";
-  flavor: string;               // ej: "vainilla_chips"
+  flavor: string;
   quantity: number;
 }
 
 interface SpongePayment extends BasePayment {
   type: "sponge";
   quantity: number;
-  // sin flavor para sponge
 }
 
 type Payment = CakePayment | SpongePayment;
@@ -55,9 +57,242 @@ export function FinalizePayment() {
   const [paymentModal, setPaymentModal] = useState<Payment | null>(null);
   const [showPartialInput, setShowPartialInput] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmKind, setConfirmKind] = useState<"full" | "partial" | null>(null);
+
+  const paymentLabel = (pm?: string) =>
+    pm === "cash" ? "Efectivo" : pm === "transfer" ? "Transferencia" : (pm ?? "-");
 
   useEffect(() => {
     async function fetchPayments() {
+      try {
+        setLoading(true);
+        const paymentsCol = collection(db, "payments");
+        const paymentsSnap = await getDocs(paymentsCol);
+
+        const allPayments: Payment[] = [];
+        paymentsSnap.forEach((snap) => {
+          const data = snap.data() as Partial<PaymentsDoc>;
+          const docDate = data.date;
+          const list = Array.isArray(data.payments) ? data.payments : [];
+
+          for (const p of list) {
+            if (p && (p as Payment).type === "cake") {
+              const cp = {
+                id: String((p as Payment).id),
+                type: "cake" as const,
+                size: String((p as Payment).size),
+                flavor: String((p as CakePayment).flavor),
+                quantity: Number((p as CakePayment).quantity),
+                amount: Number((p as Payment).amount),
+                remaining: (p as Payment).remaining !== undefined ? Number((p as Payment).remaining) : undefined,
+                paid: (p as Payment).paid,
+                deductedFromStock: (p as Payment).deductedFromStock,
+                paymentMethod: String((p as Payment).paymentMethod ?? ""),
+                orderDate: String((p as Payment).orderDate ?? ""),
+                date: docDate,
+                isPayment: (p as Payment).isPayment,
+                totalPayment: (p as Payment).totalPayment,
+              } satisfies CakePayment;
+              allPayments.push(cp);
+            } else if (p && (p as Payment).type === "sponge") {
+              const sp = {
+                id: String((p as Payment).id),
+                type: "sponge" as const,
+                size: String((p as Payment).size),
+                quantity: Number((p as SpongePayment).quantity),
+                amount: Number((p as Payment).amount),
+                remaining: (p as Payment).remaining !== undefined ? Number((p as Payment).remaining) : undefined,
+                paid: (p as Payment).paid,
+                deductedFromStock: (p as Payment).deductedFromStock,
+                paymentMethod: String((p as Payment).paymentMethod ?? ""),
+                orderDate: String((p as Payment).orderDate ?? ""),
+                date: docDate,
+                isPayment: (p as Payment).isPayment,
+                totalPayment: (p as Payment).totalPayment,
+              } satisfies SpongePayment;
+              allPayments.push(sp);
+            }
+          }
+        });
+
+        setPayments(allPayments);
+      } catch (err) {
+        console.error(err);
+
+        addToast({
+          type: "error",
+          title: "Error al cargar pagos",
+          message: "No se pudieron cargar los pagos pendientes.",
+          duration: 5000,
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPayments();
+  }, [addToast]);
+
+  const handleFinalize = (payment: Payment) => {
+    setPaymentModal(payment);
+    setShowPartialInput(false);
+    setPartialAmount("");
+  };
+
+  const isCake = (p: Payment): p is CakePayment => p.type === "cake";
+  const isSponge = (p: Payment): p is SpongePayment => p.type === "sponge";
+
+  const handleStockDiscount = async (payment: Payment) => {
+    if (payment.deductedFromStock) return;
+
+    const stockRef = doc(db, "stock", `${payment.type}_${payment.size}`);
+    const stockSnap = await getDoc(stockRef);
+    if (!stockSnap.exists()) return;
+
+    const stockData = stockSnap.data() as
+      | { type: "cake"; flavors: Record<string, number> }
+      | { type: "sponge"; quantity: number };
+
+    if (isCake(payment) && "flavors" in stockData) {
+      const currentQuantity = stockData.flavors?.[payment.flavor] ?? 0;
+      const updatedFlavors = {
+        ...stockData.flavors,
+        [payment.flavor]: currentQuantity - payment.quantity,
+      };
+      await updateDoc(stockRef, { flavors: updatedFlavors });
+    } else if (isSponge(payment) && "quantity" in stockData) {
+      const currentQuantity = stockData.quantity ?? 0;
+      await updateDoc(stockRef, { quantity: currentQuantity - payment.quantity });
+    }
+  };
+
+  const confirmFinalizeFull = async () => {
+    if (!paymentModal) return;
+    try {
+      setLoading(true);
+      await handleStockDiscount(paymentModal);
+
+      const paymentDocRef = doc(db, "payments", paymentModal.orderDate);
+      const docSnap = await getDoc(paymentDocRef);
+      if (docSnap.exists()) {
+        const currentPayments = (docSnap.data() as PaymentsDoc).payments;
+        const updatedPayments = currentPayments.map((p) =>
+          p.id === paymentModal.id
+            ? { ...p, paid: true, remaining: 0, status: "finalizado", deductedFromStock: true }
+            : p
+        );
+        await updateDoc(paymentDocRef, { payments: updatedPayments });
+      }
+
+      addToast({
+        type: "success",
+        title: "Pago finalizado",
+        message: "El pago fue finalizado correctamente.",
+        duration: 5000,
+      });
+      setPaymentModal(null);
+      await reloadPayments();
+    } catch (err) {
+      console.error(err);
+
+      addToast({
+        type: "error",
+        title: "Error al finalizar",
+        message: "No fue posible finalizar el pago. Intenta de nuevo.",
+        duration: 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmFinalizePartial = async () => {
+    if (!paymentModal) return;
+    const abono = parseFloat(partialAmount);
+    if (Number.isNaN(abono) || abono <= 0 || abono > (paymentModal.remaining ?? paymentModal.amount)) {
+      addToast({
+        type: "error",
+        title: "Monto inválido",
+        message: "Ingresa un valor válido para el abono.",
+        duration: 4000,
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Descontar stock si no se había hecho (lo haces una sola vez)
+      await handleStockDiscount(paymentModal);
+
+      // Actualizar el documento de payments (ajustar remaining y paid)
+      const paymentDocRef = doc(db, "payments", paymentModal.orderDate);
+      const docSnap = await getDoc(paymentDocRef);
+      if (docSnap.exists()) {
+        const currentPayments = (docSnap.data() as PaymentsDoc).payments;
+        const updatedPayments = currentPayments.map((p) => {
+          if (p.id !== paymentModal.id) return p;
+          const previo = p.remaining ?? p.amount;
+          const nuevoRemaining = Math.max(previo - abono, 0);
+          return {
+            ...p,
+            paid: nuevoRemaining === 0,
+            remaining: nuevoRemaining,
+            status: nuevoRemaining === 0 ? "finalizado" : "pendiente",
+            deductedFromStock: true,
+          };
+        });
+        await updateDoc(paymentDocRef, { payments: updatedPayments });
+      }
+
+      // Registrar la entrada del abono en 'sales' del día
+      const todayStr = new Date().toISOString().split("T")[0];
+      const salesRef = doc(db, "sales", todayStr);
+      const salesSnap = await getDoc(salesRef);
+
+      const saleItem: SaleItem = {
+        id: Date.now().toString(),
+        type: paymentModal.type,
+        size: paymentModal.size,
+        flavor: isCake(paymentModal) ? paymentModal.flavor : undefined,
+        quantity: paymentModal.quantity,
+        monto: abono,
+        paymentMethod: paymentModal.paymentMethod,
+        isPaymentFinalization: true,
+      };
+
+      if (salesSnap.exists()) {
+        await updateDoc(salesRef, { sales: arrayUnion(saleItem) });
+      } else {
+        await setDoc(salesRef, { fecha: todayStr, sales: [saleItem], expenses: [] });
+      }
+
+      addToast({
+        type: "success",
+        title: "Abono registrado",
+        message: "Se registró el abono y se actualizó el inventario.",
+        duration: 5000,
+      });
+      setPaymentModal(null);
+      await reloadPayments();
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: "error",
+        title: "Error al guardar",
+        message: "No pudimos guardar el abono. Inténtalo nuevamente.",
+        duration: 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reloadPayments = async () => {
+    try {
+      setLoading(true);
       const paymentsCol = collection(db, "payments");
       const paymentsSnap = await getDocs(paymentsCol);
 
@@ -66,7 +301,6 @@ export function FinalizePayment() {
         const data = snap.data() as Partial<PaymentsDoc>;
         const docDate = data.date;
         const list = Array.isArray(data.payments) ? data.payments : [];
-
         for (const p of list) {
           if (p && (p as Payment).type === "cake") {
             const cp = {
@@ -108,190 +342,45 @@ export function FinalizePayment() {
       });
 
       setPayments(allPayments);
-    }
-    fetchPayments();
-  }, []);
+    } catch (err) {
+      console.error(err);
 
-  const handleFinalize = (payment: Payment) => {
-    setPaymentModal(payment);
-    setShowPartialInput(false);
-    setPartialAmount("");
-  };
-
-  // helpers de type guard
-  const isCake = (p: Payment): p is CakePayment => p.type === "cake";
-  const isSponge = (p: Payment): p is SpongePayment => p.type === "sponge";
-
-  // Descontar stock si no se ha descontado
-  const handleStockDiscount = async (payment: Payment) => {
-    if (payment.deductedFromStock) return;
-
-    const stockRef = doc(db, "stock", `${payment.type}_${payment.size}`);
-    const stockSnap = await getDoc(stockRef);
-    if (!stockSnap.exists()) return;
-
-    const stockData = stockSnap.data() as
-      | { type: "cake"; flavors: Record<string, number> }
-      | { type: "sponge"; quantity: number };
-
-    if (isCake(payment) && "flavors" in stockData) {
-      const currentQuantity = stockData.flavors?.[payment.flavor] ?? 0;
-      const updatedFlavors = {
-        ...stockData.flavors,
-        [payment.flavor]: currentQuantity - payment.quantity,
-      };
-      await updateDoc(stockRef, { flavors: updatedFlavors });
-    } else if (isSponge(payment) && "quantity" in stockData) {
-      const currentQuantity = stockData.quantity ?? 0;
-      await updateDoc(stockRef, { quantity: currentQuantity - payment.quantity });
-    }
-  };
-
-  // Finalizar pago completo
-  const confirmFinalizeFull = async () => {
-    if (!paymentModal) return;
-
-    await handleStockDiscount(paymentModal);
-
-    const paymentDocRef = doc(db, "payments", paymentModal.orderDate);
-    const docSnap = await getDoc(paymentDocRef);
-    if (docSnap.exists()) {
-      const currentPayments = (docSnap.data() as PaymentsDoc).payments;
-      const updatedPayments = currentPayments.map((p) =>
-        p.id === paymentModal.id
-          ? { ...p, paid: true, remaining: 0, status: "finalizado", deductedFromStock: true }
-          : p
-      );
-      await updateDoc(paymentDocRef, { payments: updatedPayments });
-    }
-
-    alert("Pago finalizado correctamente.");
-    setPaymentModal(null);
-    reloadPayments();
-  };
-
-  // Finalizar pago parcial
-  const confirmFinalizePartial = async () => {
-    if (!paymentModal) return;
-    const restante = parseFloat(partialAmount);
-    if (Number.isNaN(restante) || restante <= 0 || restante > paymentModal.amount) {
-      alert("Ingresa un valor válido para el restante.");
-      return;
-    }
-
-    await handleStockDiscount(paymentModal);
-
-    const paymentDocRef = doc(db, "payments", paymentModal.orderDate);
-    const docSnap = await getDoc(paymentDocRef);
-    if (docSnap.exists()) {
-      const currentPayments = (docSnap.data() as PaymentsDoc).payments;
-      const updatedPayments = currentPayments.map((p) =>
-        p.id === paymentModal.id
-          ? { ...p, paid: true, remaining: 0, status: "finalizado", deductedFromStock: true }
-          : p
-      );
-      await updateDoc(paymentDocRef, { payments: updatedPayments });
-    }
-
-    // Agregar el restante como venta del día (sin descontar stock)
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
-    const salesRef = doc(db, "sales", todayStr);
-    const salesSnap = await getDoc(salesRef);
-
-    const saleItem: SaleItem = {
-      id: Date.now().toString(),
-      type: paymentModal.type,
-      size: paymentModal.size,
-      flavor: isCake(paymentModal) ? paymentModal.flavor : undefined,
-      quantity: paymentModal.quantity,
-      monto: restante,
-      paymentMethod: paymentModal.paymentMethod,
-      isPaymentFinalization: true,
-    };
-
-    if (salesSnap.exists()) {
-      await updateDoc(salesRef, {
-        sales: arrayUnion(saleItem),
+      addToast({
+        type: "error",
+        title: "Error al recargar",
+        message: "No se pudo actualizar la lista de pagos.",
+        duration: 5000,
       });
-    } else {
-      await setDoc(salesRef, {
-        fecha: todayStr,
-        sales: [saleItem],
-        expenses: [],
-      });
+    } finally {
+      setLoading(false);
     }
-
-    alert("Pago finalizado y restante registrado como venta.");
-    setPaymentModal(null);
-    reloadPayments();
   };
-
-  // Recargar pagos
-  const reloadPayments = async () => {
-    const paymentsCol = collection(db, "payments");
-    const paymentsSnap = await getDocs(paymentsCol);
-
-    const allPayments: Payment[] = [];
-    paymentsSnap.forEach((snap) => {
-      const data = snap.data() as Partial<PaymentsDoc>;
-      const docDate = data.date;
-      const list = Array.isArray(data.payments) ? data.payments : [];
-      for (const p of list) {
-        if (p && (p as Payment).type === "cake") {
-          const cp = {
-            id: String((p as Payment).id),
-            type: "cake" as const,
-            size: String((p as Payment).size),
-            flavor: String((p as CakePayment).flavor),
-            quantity: Number((p as CakePayment).quantity),
-            amount: Number((p as Payment).amount),
-            remaining: (p as Payment).remaining !== undefined ? Number((p as Payment).remaining) : undefined,
-            paid: (p as Payment).paid,
-            deductedFromStock: (p as Payment).deductedFromStock,
-            paymentMethod: String((p as Payment).paymentMethod ?? ""),
-            orderDate: String((p as Payment).orderDate ?? ""),
-            date: docDate,
-            isPayment: (p as Payment).isPayment,
-            totalPayment: (p as Payment).totalPayment,
-          } satisfies CakePayment;
-          allPayments.push(cp);
-        } else if (p && (p as Payment).type === "sponge") {
-          const sp = {
-            id: String((p as Payment).id),
-            type: "sponge" as const,
-            size: String((p as Payment).size),
-            quantity: Number((p as SpongePayment).quantity),
-            amount: Number((p as Payment).amount),
-            remaining: (p as Payment).remaining !== undefined ? Number((p as Payment).remaining) : undefined,
-            paid: (p as Payment).paid,
-            deductedFromStock: (p as Payment).deductedFromStock,
-            paymentMethod: String((p as Payment).paymentMethod ?? ""),
-            orderDate: String((p as Payment).orderDate ?? ""),
-            date: docDate,
-            isPayment: (p as Payment).isPayment,
-            totalPayment: (p as Payment).totalPayment,
-          } satisfies SpongePayment;
-          allPayments.push(sp);
-        }
-      }
-    });
-
-    setPayments(allPayments);
-  };
-
   const pretty = (s: string) => s?.replaceAll("_", " ") || "";
+
+  if (loading) {
+    return <FullScreenLoader message="Cargando información..." />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-8 text-center">
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-[#8E2DA8]">
-            Gestión de Abonos
-          </h2>
-          <p className="text-gray-700 mt-2">
-            Finaliza los pagos pendientes y actualiza el inventario.
-          </p>
+        <header className="mb-6 sm:mb-8">
+          <div className="sm:hidden mb-3">
+            <BackButton />
+          </div>
+          <div className="relative">
+            <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
+              <BackButton />
+            </div>
+            <div className="text-left sm:text-center">
+              <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
+                Gestión de Abonos
+              </h2>
+              <p className="text-gray-700 mt-1 sm:mt-2">
+                Finaliza los pagos pendientes y actualiza el inventario.
+              </p>
+            </div>
+          </div>
         </header>
 
         <section className="bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
@@ -321,12 +410,12 @@ export function FinalizePayment() {
                           {payment.type === "cake" ? "Torta" : "Bizcocho"}
                         </span>
                       </div>
-                      
+
                       <div className="text-lg font-semibold text-gray-900 mb-1">
-  {pretty(payment.size)}
-  {isCake(payment) ? ` - ${pretty(payment.flavor)}` : ""}
-</div>
-                      
+                        {pretty(payment.size)}
+                        {isCake(payment) ? ` - ${pretty(payment.flavor)}` : ""}
+                      </div>
+
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span>Cantidad: {payment.quantity}</span>
                         <span>•</span>
@@ -334,16 +423,16 @@ export function FinalizePayment() {
                           ${payment.amount?.toLocaleString()}
                         </span>
                         {(() => {
-  const remaining = payment.remaining ?? 0;
-  return remaining > 0 ? (
-    <>
-      <span>•</span>
-      <span className="text-yellow-600 font-medium">
-        Pendiente: ${remaining.toLocaleString()}
-      </span>
-    </>
-  ) : null;
-})()}
+                          const remaining = payment.remaining ?? 0;
+                          return remaining > 0 ? (
+                            <>
+                              <span>•</span>
+                              <span className="text-yellow-600 font-medium">
+                                Pendiente: ${remaining.toLocaleString()}
+                              </span>
+                            </>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
 
@@ -384,18 +473,17 @@ export function FinalizePayment() {
         </div>
       </main>
 
-      {/* Modal */}
       {paymentModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E8D4F2]">
             <div className="p-6 border-b border-[#E8D4F2]">
               <h3 className="text-2xl font-bold text-[#8E2DA8] mb-2">Finalizar Pago</h3>
               <div className="text-sm text-gray-600">
-  {pretty(paymentModal.size)}
-  {paymentModal && isCake(paymentModal) ? ` - ${pretty(paymentModal.flavor)}` : ""}
-</div>
+                {pretty(paymentModal.size)}
+                {paymentModal && isCake(paymentModal) ? ` - ${pretty(paymentModal.flavor)}` : ""}
+              </div>
             </div>
-            
+
             <div className="p-6">
               <div className="bg-[#FDF8FF] border border-[#E8D4F2] rounded-lg p-4 mb-6">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -418,7 +506,10 @@ export function FinalizePayment() {
                 <div className="space-y-3">
                   <button
                     className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-xl font-semibold shadow-md hover:opacity-95 transition"
-                    onClick={confirmFinalizeFull}
+                    onClick={() => {
+                      setConfirmKind("full");
+                      setShowConfirmModal(true);
+                    }}
                   >
                     Pagó todo el valor
                   </button>
@@ -454,11 +545,24 @@ export function FinalizePayment() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-3">
                     <button
                       className="flex-1 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3 rounded-xl font-semibold shadow-md hover:opacity-95 transition"
-                      onClick={confirmFinalizePartial}
+                      onClick={() => {
+                        const restante = parseFloat(partialAmount);
+                        if (Number.isNaN(restante) || restante <= 0 || !paymentModal || restante > paymentModal.amount) {
+                          addToast({
+                            type: "error",
+                            title: "Monto inválido",
+                            message: "Ingresa un valor válido para el restante.",
+                            duration: 4000,
+                          });
+                          return;
+                        }
+                        setConfirmKind("partial");
+                        setShowConfirmModal(true);
+                      }}
                     >
                       Guardar y finalizar
                     </button>
@@ -482,6 +586,101 @@ export function FinalizePayment() {
       <footer className="text-center text-sm text-gray-400 py-6">
         © 2025 CakeManager. Todos los derechos reservados.
       </footer>
+      {showConfirmModal && paymentModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E8D4F2]">
+            <div className="p-6 border-b border-[#E8D4F2]">
+              <h3 className="text-2xl font-bold text-[#8E2DA8]">Confirmar {confirmKind === "full" ? "finalización total" : "finalización parcial"}</h3>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-3 text-sm text-gray-800">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Producto</span>
+                  <span className="font-medium">{paymentModal.type === "cake" ? "Torta" : "Bizcocho"}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tamaño</span>
+                  <span className="font-medium">{pretty(paymentModal.size)}</span>
+                </div>
+
+                {isCake(paymentModal) && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Sabor</span>
+                    <span className="font-medium">{pretty(paymentModal.flavor)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Cantidad</span>
+                  <span className="font-medium">x{paymentModal.quantity}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Método de pago</span>
+                  <span className="font-medium">{paymentLabel(paymentModal.paymentMethod)}</span>
+                </div>
+
+                <div className="h-px bg-gray-200 my-2" />
+
+                <div className="flex justify-between">
+                  <span className="text-gray-700 font-semibold">Valor total</span>
+                  <span className="font-bold text-[#8E2DA8]">${Number(paymentModal.amount || 0).toLocaleString("es-CO")}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-700 font-semibold">Pendiente actual</span>
+                  <span className="font-bold text-yellow-600">${Number(paymentModal.remaining ?? 0).toLocaleString("es-CO")}</span>
+                </div>
+
+                {confirmKind === "partial" && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700 font-semibold">Pago a registrar</span>
+                      <span className="font-bold text-[#8E2DA8]">${Number(partialAmount || 0).toLocaleString("es-CO")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700 font-semibold">Nuevo pendiente</span>
+                      <span className="font-bold text-yellow-600">
+                        ${Math.max((paymentModal.remaining ?? paymentModal.amount) - Number(partialAmount || 0), 0).toLocaleString("es-CO")}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-[#E8D4F2] flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setConfirmKind(null);
+                }}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setShowConfirmModal(false);
+                  if (confirmKind === "full") {
+                    await confirmFinalizeFull();
+                  } else {
+                    await confirmFinalizePartial();
+                  }
+                  setConfirmKind(null);
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-lg hover:opacity-95 transition disabled:opacity-60"
+                disabled={loading}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

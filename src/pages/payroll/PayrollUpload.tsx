@@ -11,7 +11,7 @@ interface Person {
 }
 
 const PayrollUpload: React.FC = () => {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(false);
 
   const initialPeople: Omit<Person, "id">[] = [
@@ -59,9 +59,8 @@ const PayrollUpload: React.FC = () => {
       <button
         onClick={uploadToFirebase}
         disabled={loading}
-        className={`px-4 py-2 rounded text-white ${
-          loading ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"
-        }`}
+        className={`px-4 py-2 rounded text-white ${loading ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"
+          }`}
       >
         {loading ? "Cargando..." : "Subir a Firebase"}
       </button>

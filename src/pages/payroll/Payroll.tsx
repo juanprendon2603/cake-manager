@@ -19,7 +19,7 @@ interface Person {
 }
 
 const Payroll: React.FC = () => {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -75,7 +75,6 @@ const Payroll: React.FC = () => {
     await updateDoc(personRef, { attendance: updatedAttendance });
   };
 
-  // 🔹 Calcular el total del mes de una persona
   const calculateMonthlyTotal = (p: Person) => {
     const monthData = p.attendance[month] || {};
     let total = 0;
@@ -85,7 +84,6 @@ const Payroll: React.FC = () => {
     return total;
   };
 
-  // 🔹 Calcular total general
   const calculateGeneralTotal = () => {
     return people.reduce((sum, p) => sum + calculateMonthlyTotal(p), 0);
   };
@@ -137,7 +135,7 @@ const Payroll: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={() => markAttendance(p.id, "completo")}
@@ -161,9 +159,8 @@ const Payroll: React.FC = () => {
                       {Object.entries(p.attendance[month]).map(([date, shift]) => (
                         <div key={date} className="bg-[#FDF8FF] border border-[#E8D4F2] rounded-lg p-3">
                           <p className="font-semibold text-gray-800">{date}</p>
-                          <p className={`text-sm font-medium ${
-                            shift === "completo" ? "text-green-600" : "text-yellow-600"
-                          }`}>
+                          <p className={`text-sm font-medium ${shift === "completo" ? "text-green-600" : "text-yellow-600"
+                            }`}>
                             {shift === "completo" ? "Turno Completo" : "Medio Turno"}
                           </p>
                         </div>
@@ -174,7 +171,6 @@ const Payroll: React.FC = () => {
               </div>
             ))}
 
-            {/* Total general */}
             <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-6 shadow-lg">
               <div className="text-center">
                 <h2 className="text-2xl font-bold mb-2">Total a Pagar</h2>

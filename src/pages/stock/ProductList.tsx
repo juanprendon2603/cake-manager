@@ -2,7 +2,8 @@ import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "../../lib/firebase";
 import type { StockDoc } from "../../types/stock";
-import { FullScreenLoader } from "../../components/FullScreenLoader"; // ajusta la ruta si es necesario
+import { FullScreenLoader } from "../../components/FullScreenLoader";
+import { BackButton } from "../../components/BackButton";
 
 const isSpongeStock = (item: StockDoc): item is StockDoc & { type: "sponge"; quantity: number } => {
   return item.type === "sponge";
@@ -62,12 +63,27 @@ export function ProductList() {
   return (
     <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-8 text-center">
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-[#8E2DA8]">
-            Inventario por Tamaño
-          </h2>
-          <p className="text-gray-700 mt-2">Consulta y gestiona los sabores disponibles por tamaño.</p>
+        <header className="mb-6 sm:mb-8">
+          <div className="sm:hidden mb-3">
+            <BackButton />
+          </div>
+
+          <div className="relative">
+            <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
+              <BackButton />
+            </div>
+
+            <div className="text-left sm:text-center">
+              <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
+                Inventario por Tamaño
+              </h2>
+              <p className="text-gray-700 mt-1 sm:mt-2">
+                Consulta y gestiona los sabores disponibles por tamaño.
+              </p>
+            </div>
+          </div>
         </header>
+
 
         <section className="bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
           {stocks.length === 0 ? (
@@ -82,9 +98,8 @@ export function ProductList() {
               {stocks.map((item) => (
                 <div
                   key={item.id}
-                  className={`group rounded-xl bg-white border border-[#E8D4F2] shadow-sm p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${
-                    vaciarId === item.id ? "ring-2 ring-red-300 scale-[0.99]" : ""
-                  }`}
+                  className={`group rounded-xl bg-white border border-[#E8D4F2] shadow-sm p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${vaciarId === item.id ? "ring-2 ring-red-300 scale-[0.99]" : ""
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>

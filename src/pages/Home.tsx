@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import logoUrl from "../assets/logo.png"; // ajusta esta ruta si es necesario
+import logoUrl from "../assets/logo.png";
 
 export function Home() {
   return (
@@ -28,7 +28,7 @@ export function Home() {
           {[
             { to: "/stock", title: "Gestión de Stock", desc: "Administra tus productos y cantidades disponibles." },
             { to: "/sales", title: "Gestión de Ventas", desc: "Registra y controla las ventas diarias." },
-            { to: "/summary", title: "Resumen Diario", desc: "Consulta el resumen de ventas y gastos por día." },
+            { to: "/daily", title: "Resumen Diario", desc: "Consulta el resumen de ventas y gastos por día." },
             { to: "/payment-management", title: "Gestión de Abonos", desc: "Registra y finaliza abonos de pedidos." },
           ].map((item) => (
             <Link

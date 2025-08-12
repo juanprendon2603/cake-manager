@@ -1,8 +1,11 @@
 import { useForm, useFieldArray, type Control, type UseFormRegister } from "react-hook-form";
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { FullScreenLoader } from "../../components/FullScreenLoader"; // ajusta la ruta si es necesario
+import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useState } from "react";
+import { useToast } from "../../hooks/useToast";
+import { BackButton } from "../../components/BackButton";
+import { useNavigate } from "react-router-dom";
 
 
 const cakeSizes = [
@@ -19,7 +22,6 @@ const cakeSizes = [
 const flavors = ["Naranja", "Vainilla Chips", "Vainilla Chocolate", "Negra"];
 const spongeSizes = ["Media", "Libra"];
 
-// Tipos del formulario
 type CakeEntry = { flavor: string; quantity: string };
 type CakesBySize = Record<string, CakeEntry[]>;
 type SpongesBySize = Record<string, string>;
@@ -29,7 +31,6 @@ interface FormValues {
   sponges: SpongesBySize;
 }
 
-// Subcomponente para cumplir reglas de hooks: cada hook se llama siempre en el mismo orden
 function CakeSizeFields({ size, control, register }: { size: string; control: Control<FormValues>; register: UseFormRegister<FormValues> }) {
   const key = size.toLowerCase().replace(/ /g, "_");
   const { fields, append } = useFieldArray<FormValues>({
@@ -37,7 +38,7 @@ function CakeSizeFields({ size, control, register }: { size: string; control: Co
     name: `cakes.${key}` as const,
   });
 
- 
+
 
   return (
     <div className="rounded-xl border border-[#E8D4F2] bg-[#FDF8FF] p-4 sm:p-5">
@@ -103,11 +104,20 @@ export function AddStockForm() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<FormValues | null>(null);
+  const { addToast } = useToast();
+  const navigate = useNavigate();
 
+
+
+  const handleFormSubmit = (formData: FormValues) => {
+    setPendingFormData(formData);
+    setShowConfirmModal(true);
+  };
 
   const onSubmit = async (formData: FormValues) => {
     try {
-      // Tortas
       setLoading(true)
       for (const size of cakeSizes) {
         const key = size.toLowerCase().replace(/ /g, "_");
@@ -143,7 +153,6 @@ export function AddStockForm() {
         }
       }
 
-      // Bizcochos
       for (const size of spongeSizes) {
         const key = size.toLowerCase().replace(/ /g, "_");
         const qty = parseInt(formData?.sponges?.[key] ?? "0", 10);
@@ -166,11 +175,22 @@ export function AddStockForm() {
 
       reset();
       setLoading(false)
-      alert("Stock actualizado correctamente.");
+      addToast({
+        type: "success",
+        title: "Stock actualizado!",
+        message: "Stock actualizado exitosamente.",
+        duration: 5000,
+      });
+      setTimeout(() => navigate("/sales"), 800);
     } catch (error) {
       console.error("Error al guardar:", error);
       setLoading(false)
-      alert("Ocurrió un error al guardar el stock.");
+      addToast({
+        type: "error",
+        title: "Ups, algo salió mal",
+        message: (error as Error).message ?? "Error al actualizar el stock.",
+        duration: 5000,
+      });
     }
   };
 
@@ -181,15 +201,33 @@ export function AddStockForm() {
   return (
     <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-8 text-center">
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-[#8E2DA8]">
-            Inventario de Productos
-          </h2>
-          <p className="text-gray-700 mt-2">Agrega o incrementa el stock de tortas y bizcochos.</p>
+
+
+        <header className="mb-6 sm:mb-8">
+          <div className="sm:hidden mb-3">
+            <BackButton />
+          </div>
+
+          <div className="relative">
+            <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
+              <BackButton />
+            </div>
+
+            <div className="text-left sm:text-center">
+              <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
+                Inventario de Productos
+              </h2>
+              <p className="text-gray-700 mt-1 sm:mt-2">
+                Agrega o incrementa el stock de tortas y bizcochos.
+              </p>
+            </div>
+          </div>
         </header>
 
+
+
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(handleFormSubmit)}
           className="bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8 space-y-10"
         >
           <section>
@@ -257,6 +295,113 @@ export function AddStockForm() {
       <footer className="text-center text-sm text-gray-400 py-6">
         © 2025 CakeManager. Todos los derechos reservados.
       </footer>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-xl font-bold text-[#8E2DA8] mb-4">
+              ¿Confirmar actualización de inventario?
+            </h3>
+            <div className="mb-6 space-y-4 max-h-80 overflow-auto pr-1">
+              {!pendingFormData ? (
+                <p className="text-gray-600">No hay datos para mostrar.</p>
+              ) : (
+                <>
+                  {cakeSizes.some((size) => {
+                    const key = size.toLowerCase().replace(/ /g, "_");
+                    const entries = pendingFormData?.cakes?.[key] || [];
+                    return entries.some(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
+                  }) && (
+                      <div>
+                        <h4 className="font-semibold text-[#8E2DA8] mb-2">Tortas</h4>
+                        <ul className="space-y-1 text-sm text-gray-700">
+                          {cakeSizes.map((size) => {
+                            const key = size.toLowerCase().replace(/ /g, "_");
+                            const entries = pendingFormData?.cakes?.[key] || [];
+                            const valid = entries
+                              .filter(e => e.flavor && parseInt(e.quantity || "0", 10) > 0)
+                              .map((e, idx) => (
+                                <li key={`${key}-${idx}`} className="flex items-center justify-between">
+                                  <span>{size} — {e.flavor}</span>
+                                  <span className="font-medium">+{parseInt(e.quantity, 10)}</span>
+                                </li>
+                              ));
+                            return valid.length ? (
+                              <div key={key} className="mb-2">
+                                <div className="text-xs uppercase tracking-wide text-gray-500">{size}</div>
+                                <ul className="pl-2 border-l border-violet-200 space-y-1 mt-1">
+                                  {valid}
+                                </ul>
+                              </div>
+                            ) : null;
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
+                  {spongeSizes.some((size) => {
+                    const key = size.toLowerCase().replace(/ /g, "_");
+                    const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
+                    return qty > 0;
+                  }) && (
+                      <div>
+                        <h4 className="font-semibold text-[#8E2DA8] mb-2">Bizcochos</h4>
+                        <ul className="space-y-1 text-sm text-gray-700">
+                          {spongeSizes.map((size) => {
+                            const key = size.toLowerCase().replace(/ /g, "_");
+                            const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
+                            return qty > 0 ? (
+                              <li key={key} className="flex items-center justify-between">
+                                <span>{size}</span>
+                                <span className="font-medium">+{qty}</span>
+                              </li>
+                            ) : null;
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
+                  {!cakeSizes.some((size) => {
+                    const key = size.toLowerCase().replace(/ /g, "_");
+                    const entries = pendingFormData?.cakes?.[key] || [];
+                    return entries.some(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
+                  }) && !spongeSizes.some((size) => {
+                    const key = size.toLowerCase().replace(/ /g, "_");
+                    const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
+                    return qty > 0;
+                  }) && (
+                      <p className="text-gray-600">No hay cantidades válidas para agregar.</p>
+                    )}
+                </>
+              )}
+            </div>
+            <p className="text-gray-600 mb-6">
+              Esta acción agregará los productos al inventario existente. ¿Estás seguro de continuar?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setPendingFormData(null);
+                }}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  if (pendingFormData) onSubmit(pendingFormData);
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-lg hover:opacity-95 transition"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

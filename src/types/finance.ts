@@ -1,4 +1,3 @@
-// src/types/finance.ts
 export interface Sale {
     id: string;
     flavor: string;
@@ -7,14 +6,12 @@ export interface Sale {
   
     paymentMethod: "cash" | "transfer" | string;
   
-    // Monto y cantidad pueden venir en dos campos distintos según el origen del dato
-    valor?: number;      // ej. 30000
-    amount?: number;     // ej. 20000
+    valor?: number;      
+    amount?: number;     
   
-    cantidad?: number;   // ej. 1
-    quantity?: number;   // ej. 1
+    cantidad?: number;   
+    quantity?: number;   
   
-    // Campos opcionales que ya vi en tus datos
     isPayment?: boolean;
     deductedFromStock?: boolean;
     orderDate?: string;
