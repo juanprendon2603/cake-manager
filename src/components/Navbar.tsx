@@ -41,30 +41,33 @@ export function Navbar() {
           </div>
 
           <button
-            className="md:hidden p-2 rounded hover:bg-[#a14bb8] focus:outline-none"
+            className="md:hidden p-3 rounded-lg bg-white/20 border border-white/30 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white"
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Abrir menú"
+            aria-expanded={menuOpen}
           >
             {menuOpen ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
+                className="h-6 w-6 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
-                stroke="#8E2DA8"
+                stroke="currentColor"
+                strokeWidth={3}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             ) : (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
+                className="h-6 w-6 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
-                stroke="#8E2DA8"
+                stroke="currentColor"
+                strokeWidth={3}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-
             )}
           </button>
         </div>
@@ -77,7 +80,7 @@ export function Navbar() {
             { to: "/stock", label: "Stock" },
             { to: "/sales", label: "Ventas" },
             { to: "/payment-management", label: "Abonos" },
-            { to: "/summary", label: "Resumen" },
+            { to: "/daily", label: "Resumen" }, 
           ].map((item) => (
             <Link
               key={item.to}
