@@ -13,30 +13,37 @@ export function Sales() {
           </p>
         </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <Link
-            to="/sales/add-sale"
-            className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 hover:shadow-lg transition"
-          >
-            <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">
-              Agregar venta
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Registra una nueva venta en el sistema.
-            </p>
-          </Link>
-
-          <Link
-            to="/sales/add-expense"
-            className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 hover:shadow-lg transition"
-          >
-            <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">
-              Agregar gasto
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Registra un gasto relacionado con la pastelería.
-            </p>
-          </Link>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            {
+              to: "/sales/add-sale",
+              title: "Agregar venta",
+              description: "Registra una nueva venta en el sistema.",
+            },
+            {
+              to: "/sales/add-expense",
+              title: "Agregar gasto",
+              description: "Registra un gasto relacionado con la pastelería.",
+            },
+            {
+              to: "/sales/add-general-expense",
+              title: "Agregar gasto general",
+              description: "Registra un gasto general de la pastelería.",
+            },
+          ].map((item, idx) => (
+            <Link
+              key={idx}
+              to={item.to}
+              className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 flex flex-col justify-between min-h-[160px] hover:shadow-lg transition"
+            >
+              <div>
+                <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-gray-600 text-sm">{item.description}</p>
+              </div>
+            </Link>
+          ))}
         </section>
       </main>
 

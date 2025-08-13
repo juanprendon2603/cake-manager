@@ -7,16 +7,16 @@ import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
 import { db } from "../../lib/firebase";
 
-export function AddExpense() {
+export function AddGeneralExpense() {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState<number | "">("");
   const [message, setMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
   const { addToast } = useToast();
   const navigate = useNavigate();
-
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const paymentLabel = (pm: string) =>
     pm === "cash" ? "Efectivo" : pm === "transfer" ? "Transferencia" : pm;
@@ -34,31 +34,33 @@ export function AddExpense() {
 
     setLoading(true);
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const docRef = doc(db, "sales", today);
+      const currentMonth = format(new Date(), "yyyy-MM");
+      const docRef = doc(db, "generalExpenses", currentMonth);
       const docSnap = await getDoc(docRef);
 
       const expense = {
         description: description.trim(),
         value: Number(amount),
         paymentMethod,
+        date: format(new Date(), "yyyy-MM-dd"),
       };
 
       if (docSnap.exists()) {
         await updateDoc(docRef, { expenses: arrayUnion(expense) });
       } else {
-        await setDoc(docRef, { fecha: today, sales: [], expenses: [expense] });
+        await setDoc(docRef, { month: currentMonth, expenses: [expense] });
       }
 
       addToast({
         type: "success",
-        title: "Gasto registrado!",
+        title: "Gasto general registrado!",
         message: "Gasto registrado correctamente.",
         duration: 5000,
       });
+
       setDescription("");
       setAmount("");
-      setTimeout(() => navigate("/sales"), 800);
+      setTimeout(() => navigate("/general-expenses"), 800);
     } catch (error) {
       addToast({
         type: "error",
@@ -75,7 +77,7 @@ export function AddExpense() {
     "w-full border border-[#E8D4F2] rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent placeholder:text-gray-400";
 
   if (loading) {
-    return <FullScreenLoader message="Cargando inventario..." />;
+    return <FullScreenLoader message="Guardando gasto general..." />;
   }
 
   return (
@@ -93,10 +95,10 @@ export function AddExpense() {
 
             <div className="text-left sm:text-center">
               <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
-                Registrar Gasto
+                Registrar Gasto General
               </h2>
               <p className="text-gray-700 mt-1 sm:mt-2">
-                Añade un gasto del día con su método de pago.
+                Añade un gasto general del mes.
               </p>
             </div>
           </div>
@@ -126,7 +128,7 @@ export function AddExpense() {
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ej: Harina, transporte, envíos…"
+                placeholder="Ej: Servicios públicos, arriendo, insumos generales..."
                 className={inputBase}
               />
             </div>
@@ -143,10 +145,11 @@ export function AddExpense() {
                   type="number"
                   min="0"
                   value={amount}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^\d]/g, "");
-                    setAmount(raw === "" ? "" : Number(raw));
-                  }}
+                  onChange={(e) =>
+                    setAmount(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
                   className={`${inputBase} pl-8`}
                   placeholder="0"
                 />
@@ -191,7 +194,7 @@ export function AddExpense() {
           <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-5 shadow-lg text-center">
             <p className="text-sm opacity-90">Tip</p>
             <p className="text-base">
-              Usa descripciones claras para facilitar tu resumen diario.
+              Usa descripciones claras para facilitar tu resumen mensual.
             </p>
           </div>
         </div>
@@ -206,7 +209,7 @@ export function AddExpense() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="p-6 border-b">
               <h3 className="text-xl font-bold text-[#8E2DA8]">
-                Confirmar gasto
+                Confirmar gasto general
               </h3>
             </div>
 
