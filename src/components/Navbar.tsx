@@ -26,13 +26,15 @@ export function Navbar() {
               { to: "/sales", label: "Ventas" },
               { to: "/payment-management", label: "Abonos" },
               { to: "/daily", label: "Resumen" },
+              { to: "/payroll-simple", label: "Asistencia" },
+
             ].map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition ${isActive(item.to)
-                    ? "bg-white text-[#8E2DA8]"
-                    : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
+                  ? "bg-white text-[#8E2DA8]"
+                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
                   }`}
               >
                 {item.label}
@@ -80,15 +82,16 @@ export function Navbar() {
             { to: "/stock", label: "Stock" },
             { to: "/sales", label: "Ventas" },
             { to: "/payment-management", label: "Abonos" },
-            { to: "/daily", label: "Resumen" }, 
+            { to: "/daily", label: "Resumen" },
+            { to: "/payroll-simple", label: "Asistencia" },
           ].map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={() => setMenuOpen(false)}
               className={`block px-3 py-2 rounded-md text-sm font-medium transition ${isActive(item.to)
-                  ? "bg-white text-[#8E2DA8]"
-                  : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
+                ? "bg-white text-[#8E2DA8]"
+                : "hover:text-white hover:bg-[#E3B6F4] text-[#BAA1DD]"
                 }`}
             >
               {item.label}

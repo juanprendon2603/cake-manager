@@ -30,6 +30,7 @@ export function Home() {
             { to: "/sales", title: "Gestión de Ventas", desc: "Registra y controla las ventas diarias." },
             { to: "/daily", title: "Resumen Diario", desc: "Consulta el resumen de ventas y gastos por día." },
             { to: "/payment-management", title: "Gestión de Abonos", desc: "Registra y finaliza abonos de pedidos." },
+            { to: "/payroll-simple", title: "Gestión de Asistencia", desc: "Registra la asistencia." },
           ].map((item) => (
             <Link
               key={item.to}

@@ -16,6 +16,7 @@ import { StockHome } from "./pages/stock/StockHome";
 import { DailyDetailPage } from "./pages/summary/DailyDetailPage";
 import { DailySummary } from "./pages/summary/DailySummary";
 import { DailyTodayRedirect } from "./pages/summary/DailyTodayRedirect";
+import PayrollSimple from "./pages/payroll/PayrollSimple";
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
             element={<FinalizePayment />}
           />
           <Route path="/payroll" element={<Payroll />} />
+          <Route path="/payroll-simple" element={<PayrollSimple />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
