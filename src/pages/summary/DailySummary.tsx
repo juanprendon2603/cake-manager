@@ -144,7 +144,7 @@ export function DailySummary() {
         }[] = [];
 
         snapshot.forEach((docSnap) => {
-          const data = docSnap.data() as any;
+          const data = docSnap.data();
           const expenses: Array<{
             value?: number;
             paymentMethod?: string;
@@ -169,6 +169,7 @@ export function DailySummary() {
         setGeneralExpensesCash(0);
         setGeneralExpensesTransfer(0);
         setGeneralExpensesList([]);
+        console.error(e)
       }
     }
 
@@ -196,7 +197,9 @@ export function DailySummary() {
   const transferDisponible = totalSalesTransfer - totalExpensesTransfer;
 
   const totalIngresos = totalSalesCash + totalSalesTransfer;
-  const totalGastos = generalExpensesCash + generalExpensesTransfer;
+  const totalGastosDiarios = totalExpensesCash + totalExpensesTransfer;
+  const totalGastosGenerales = generalExpensesCash + generalExpensesTransfer;
+  const totalGastos = totalGastosDiarios + totalGastosGenerales;
   const totalNeto = totalIngresos - totalGastos;
 
   if (loading) {
