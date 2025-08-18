@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { db } from "../../lib/firebase";
+import { parseISO, getDate, lastDayOfMonth } from "date-fns";
 import { DailyDetail } from "./DailyDetail";
 
 interface Sale {
@@ -55,6 +56,8 @@ export function DailySummary() {
   }>(null);
   const [generalExpensesCash, setGeneralExpensesCash] = useState(0);
   const [generalExpensesTransfer, setGeneralExpensesTransfer] = useState(0);
+  const [selectedQuincena, setSelectedQuincena] = useState("Q1"); 
+
 
   useEffect(() => {
     async function fetchData() {
@@ -134,34 +137,49 @@ export function DailySummary() {
     async function fetchGeneralExpenses() {
       try {
         const snapshot = await getDocs(collection(db, "generalExpenses"));
-
+  
         let cash = 0;
         let transfer = 0;
         const expensesList: {
           description: string;
           paymentMethod: string;
           value: number;
+          date: string;
         }[] = [];
-
+  
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           const expenses: Array<{
             value?: number;
             paymentMethod?: string;
             description?: string;
+            date?: string; // 👈 fecha del gasto
           }> = Array.isArray(data?.expenses) ? data.expenses : [];
-
+  
           expenses.forEach((e) => {
             const value = Number(e?.value ?? 0);
             const pm = e?.paymentMethod || "";
             const desc = e?.description || "";
-            expensesList.push({ description: desc, paymentMethod: pm, value });
-
+            const date = e?.date || ""; // 👈
+  
+            // ---- FILTRO POR QUINCENA ----
+            const d = new Date(date);
+            const day = d.getDate();
+  
+            const isInQuincena =
+              selectedQuincena === "Q1"
+                ? day >= 1 && day <= 15
+                : day >= 16; // hasta fin de mes
+  
+            if (!isInQuincena) return;
+  
+            expensesList.push({ description: desc, paymentMethod: pm, value, date });
+  
             if (pm === "cash") cash += value;
             if (pm === "transfer") transfer += value;
           });
         });
-
+  
         setGeneralExpensesCash(cash);
         setGeneralExpensesTransfer(transfer);
         setGeneralExpensesList(expensesList);
@@ -169,38 +187,46 @@ export function DailySummary() {
         setGeneralExpensesCash(0);
         setGeneralExpensesTransfer(0);
         setGeneralExpensesList([]);
-        console.error(e)
+        console.error(e);
       }
     }
-
+  
     fetchGeneralExpenses();
-  }, []);
+  }, [selectedQuincena]); 
+  
 
-  const totalSalesCash = dailyData.reduce(
-    (sum, d) => sum + d.totalSalesCash,
-    0
-  );
-  const totalSalesTransfer = dailyData.reduce(
-    (sum, d) => sum + d.totalSalesTransfer,
-    0
-  );
-  const totalExpensesCash = dailyData.reduce(
-    (sum, d) => sum + d.totalExpensesCash,
-    0
-  );
-  const totalExpensesTransfer = dailyData.reduce(
-    (sum, d) => sum + d.totalExpensesTransfer,
-    0
-  );
-  const totalNet = dailyData.reduce((sum, d) => sum + d.net, 0);
+
+  const filteredData = dailyData.filter((row) => {
+    const date = parseISO(row.fecha);
+    const dia = getDate(date);
+    const ultimoDia = getDate(lastDayOfMonth(date));
+  
+    if (selectedQuincena === "Q1") {
+      return dia >= 1 && dia <= 15;
+    } else {
+      return dia >= 16 && dia <= ultimoDia;
+    }
+  });
+  
+
+
+  const totalSalesCash = filteredData.reduce((sum, d) => sum + d.totalSalesCash, 0);
+  const totalSalesTransfer = filteredData.reduce((sum, d) => sum + d.totalSalesTransfer, 0);
+  const totalExpensesCash = filteredData.reduce((sum, d) => sum + d.totalExpensesCash, 0);
+  const totalExpensesTransfer = filteredData.reduce((sum, d) => sum + d.totalExpensesTransfer, 0);
+  
+  const totalNet = filteredData.reduce((sum, d) => sum + d.net, 0);
+  
   const efectivoDisponible = totalSalesCash - totalExpensesCash;
   const transferDisponible = totalSalesTransfer - totalExpensesTransfer;
-
+  
   const totalIngresos = totalSalesCash + totalSalesTransfer;
   const totalGastosDiarios = totalExpensesCash + totalExpensesTransfer;
-  const totalGastosGenerales = generalExpensesCash + generalExpensesTransfer;
+  const totalGastosGenerales = generalExpensesCash + generalExpensesTransfer; 
   const totalGastos = totalGastosDiarios + totalGastosGenerales;
   const totalNeto = totalIngresos - totalGastos;
+  
+
 
   if (loading) {
     return <FullScreenLoader message="Cargando resumen diario..." />;
@@ -216,6 +242,18 @@ export function DailySummary() {
             Consulta las ventas, gastos y disponibilidad por día.
           </p>
         </header>
+
+        <div className="mb-6 flex justify-center">
+  <select
+    value={selectedQuincena}
+    onChange={(e) => setSelectedQuincena(e.target.value)}
+    className="border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:ring-[#8E2DA8] focus:border-[#8E2DA8]"
+  >
+    <option value="Q1">Quincena 1 (1 - 15)</option>
+    <option value="Q2">Quincena 2 (16 - fin)</option>
+  </select>
+</div>
+
 
         {dailyData.length === 0 ? (
           <p className="text-center text-gray-500">No hay datos disponibles.</p>
@@ -236,7 +274,7 @@ export function DailySummary() {
                 </tr>
               </thead>
               <tbody>
-                {dailyData.map((row, idx) => (
+                {filteredData.map((row, idx) => (
                   <tr
                     key={row.fecha}
                     className={`hover:bg-[#FDF8FF] transition ${
@@ -317,7 +355,7 @@ export function DailySummary() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:hidden">
-          {dailyData.map((row, idx) => (
+          {filteredData.map((row, idx) => (
             <div
               key={row.fecha}
               className={`p-4 rounded-xl shadow-md border ${
