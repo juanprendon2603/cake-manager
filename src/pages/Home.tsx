@@ -2,11 +2,20 @@ import { Link } from "react-router-dom";
 import logoUrl from "../assets/logo.png";
 
 export function Home() {
+  const cards = [
+    { to: "/stock", title: "Gestión de Stock", desc: "Administra tus productos y cantidades disponibles.", icon: "📦", gradient: "from-purple-500 to-indigo-500" },
+    { to: "/sales", title: "Gestión de Ventas", desc: "Registra y controla las ventas diarias.", icon: "🧾", gradient: "from-pink-500 to-rose-500" },
+    { to: "/daily", title: "Resumen Diario", desc: "Consulta el resumen de ventas y gastos por día.", icon: "📊", gradient: "from-cyan-500 to-blue-500" },
+    { to: "/payment-management", title: "Gestión de Abonos", desc: "Registra y finaliza abonos de pedidos.", icon: "💳", gradient: "from-emerald-500 to-teal-500" },
+    { to: "/payroll-simple", title: "Gestión de Asistencia", desc: "Registra la asistencia.", icon: "🕒", gradient: "from-amber-500 to-orange-500" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-10 text-center">
-          <div className="mx-auto mb-5 w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-white border border-[#E8D4F2] shadow flex items-center justify-center overflow-hidden">
+        {/* Header */}
+        <header className="mb-12 text-center relative">
+          <div className="mx-auto mb-6 w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white/70 backdrop-blur border border-white/60 shadow-[0_10px_30px_rgba(142,45,168,0.15)] flex items-center justify-center overflow-hidden ring-2 ring-purple-200">
             <img
               src={logoUrl}
               alt="CakeManager logo"
@@ -16,35 +25,89 @@ export function Home() {
             />
           </div>
 
-          <h1 className="text-5xl font-extrabold text-[#8E2DA8] mb-4">
+          <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-3 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
             CakeManager
           </h1>
           <p className="text-lg text-gray-700">
             Bienvenido al sistema de gestión de tu pastelería
           </p>
+
+          {/* Quick KPIs style mini-cards */}
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <div className="text-2xl">🎂</div>
+              <div className="text-xs text-gray-600">Productos</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">Stock</div>
+            </div>
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <div className="text-2xl">💵</div>
+              <div className="text-xs text-gray-600">Ventas</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">Diarias</div>
+            </div>
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <div className="text-2xl">📈</div>
+              <div className="text-xs text-gray-600">Resumen</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">General</div>
+            </div>
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <div className="text-2xl">🧍</div>
+              <div className="text-xs text-gray-600">Asistencia</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">Equipo</div>
+            </div>
+          </div>
         </header>
 
+        {/* Action Cards */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {[
-            { to: "/stock", title: "Gestión de Stock", desc: "Administra tus productos y cantidades disponibles." },
-            { to: "/sales", title: "Gestión de Ventas", desc: "Registra y controla las ventas diarias." },
-            { to: "/daily", title: "Resumen Diario", desc: "Consulta el resumen de ventas y gastos por día." },
-            { to: "/payment-management", title: "Gestión de Abonos", desc: "Registra y finaliza abonos de pedidos." },
-            { to: "/payroll-simple", title: "Gestión de Asistencia", desc: "Registra la asistencia." },
-          ].map((item) => (
+          {cards.map((item) => (
             <Link
               key={item.to}
               to={item.to}
-              className="bg-white border border-[#E8D4F2] shadow-md rounded-xl p-6 hover:shadow-lg transition"
+              className="group relative rounded-2xl overflow-hidden"
             >
-              <h3 className="text-xl font-semibold text-[#8E2DA8] mb-2">{item.title}</h3>
-              <p className="text-gray-600 text-sm">{item.desc}</p>
+              {/* background gradient header strip */}
+              <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${item.gradient} opacity-90`} />
+              <div className="relative bg-white/80 backdrop-blur-xl border border-white/70 rounded-2xl p-6 shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:shadow-[0_16px_45px_rgba(142,45,168,0.25)] transition-all duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 -mt-10 rounded-2xl p-3 bg-white shadow-md ring-2 ring-white/80">
+                    <span className="text-2xl">{item.icon}</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-extrabold text-[#8E2DA8] mb-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-gray-600 text-sm">{item.desc}</p>
+                  </div>
+                  <div className="hidden sm:flex items-center">
+                    <span className="text-[#8E2DA8] group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                </div>
+
+                {/* bottom pill CTA */}
+                <div className="mt-5">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold text-white px-3 py-1 rounded-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] shadow">
+                    Ir ahora
+                    <span className="group-hover:translate-x-0.5 transition-transform">›</span>
+                  </span>
+                </div>
+              </div>
             </Link>
           ))}
         </section>
+
+        {/* Bonus section: quick links row */}
+        <section className="mt-8">
+          <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow flex flex-wrap items-center gap-3 justify-center">
+            <Link to="/sales" className="text-[#8E2DA8] font-semibold hover:underline">Ir a Ventas</Link>
+            <span className="text-gray-300">•</span>
+            <Link to="/daily" className="text-[#8E2DA8] font-semibold hover:underline">Ver Resumen</Link>
+            <span className="text-gray-300">•</span>
+            <Link to="/payment-management" className="text-[#8E2DA8] font-semibold hover:underline">Abonos</Link>
+          </div>
+        </section>
       </main>
 
-      <footer className="text-center text-sm text-gray-400 py-4">
+      <footer className="text-center text-sm text-white py-6 bg-gradient-to-r from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]">
         © 2025 CakeManager. Todos los derechos reservados.
       </footer>
     </div>

@@ -8,7 +8,7 @@ export interface Sale {
   
     valor?: number;      
     amount?: number;     
-  
+    partialAmount?: number;
     cantidad?: number;   
     quantity?: number;   
   

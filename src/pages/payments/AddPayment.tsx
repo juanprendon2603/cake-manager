@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../lib/firebase";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
@@ -15,6 +15,7 @@ export function AddPayment() {
   const [selectedSpongeType, setSelectedSpongeType] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [totalAmount, setTotalAmount] = useState("");
+  const [partialAmount, setPartialAmount] = useState(""); // Nuevo estado para abono
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer">("cash");
   const [deductFromStock, setDeductFromStock] = useState(false);
   const [isTotalPayment, setIsTotalPayment] = useState(false);
@@ -56,6 +57,19 @@ export function AddPayment() {
       return;
     }
 
+    // Validar abono solo si no es pago total
+    if (!isTotalPayment) {
+      const partialAmountNumber = parseFloat(partialAmount);
+      if (isNaN(partialAmountNumber) || partialAmountNumber <= 0) {
+        setErrorMessage("Ingresa un valor válido para el abono.");
+        return;
+      }
+      if (partialAmountNumber > totalAmountNumber) {
+        setErrorMessage("El abono no puede ser mayor al valor total.");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (deductFromStock) {
@@ -95,6 +109,7 @@ export function AddPayment() {
         flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
         quantity: parseInt(quantity),
         amount: parseFloat(totalAmount),
+        partialAmount: isTotalPayment ? totalAmountNumber : parseFloat(partialAmount),
         paymentMethod,
         isPayment: true,
         deductedFromStock: deductFromStock,
@@ -131,18 +146,27 @@ export function AddPayment() {
     }
   };
 
+  // Ejemplo: actualizar isTotalPayment según alguna condición
+useEffect(() => {
+  if (totalAmount && partialAmount) {
+    setIsTotalPayment(parseFloat(partialAmount) === parseFloat(totalAmount));
+  } else {
+    setIsTotalPayment(false);
+  }
+}, [totalAmount, partialAmount]);
+
   const sizeOptions =
     productType === "cake"
       ? [
-        "octavo",
-        "cuarto_redondo",
-        "cuarto_cuadrado",
-        "por_dieciocho",
-        "media",
-        "libra",
-        "libra_y_media",
-        "dos_libras",
-      ]
+          "octavo",
+          "cuarto_redondo",
+          "cuarto_cuadrado",
+          "por_dieciocho",
+          "media",
+          "libra",
+          "libra_y_media",
+          "dos_libras",
+        ]
       : ["media", "libra"];
 
   const flavorOptions =
@@ -154,36 +178,36 @@ export function AddPayment() {
     "w-full border border-[#E8D4F2] rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent";
 
   const pretty = (s: string) => s.replaceAll("_", " ");
+
   if (loading) {
     return <FullScreenLoader message="Guardando abono..." />;
   }
 
   return (
-    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+        <header className="mb-12 text-center relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10"></div>
 
-        <header className="mb-6 sm:mb-8">
-          <div className="sm:hidden mb-3">
-            <BackButton />
-          </div>
-
-          <div className="relative">
-            <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
-              <BackButton />
+          <div className="relative z-10 py-8">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
+                💳
+              </div>
             </div>
 
-            <div className="text-left sm:text-center">
-              <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
-                Registrar Abono/Pago
-              </h2>
-              <p className="text-gray-700 mt-1 sm:mt-2">
-                Registra abonos o pagos totales y actualiza el inventario si lo deseas.
-              </p>
+            <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
+              Registrar Abono/Pago
+            </h1>
+            <p className="text-xl text-gray-700 font-medium mb-8">
+              Registra abonos o pagos totales y actualiza el inventario si lo deseas.
+            </p>
+
+            <div className="absolute top-4 left-4">
+              <BackButton />
             </div>
           </div>
         </header>
-
-
 
         <section className="max-w-xl mx-auto bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
           {errorMessage && (
@@ -282,6 +306,8 @@ export function AddPayment() {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className={inputBase}
+                onWheel={(e) => e.currentTarget.blur()} 
+
               />
             </div>
 
@@ -299,10 +325,35 @@ export function AddPayment() {
                   onChange={(e) => setTotalAmount(e.target.value)}
                   className={`${inputBase} pl-8`}
                   placeholder="0"
+                  onWheel={(e) => e.currentTarget.blur()} 
+
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">En pesos colombianos.</p>
             </div>
+
+            {!isTotalPayment && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Monto abonado
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={partialAmount}
+                    onChange={(e) => setPartialAmount(e.target.value)}
+                    className={`${inputBase} pl-8`}
+                    placeholder="0"
+                    onWheel={(e) => e.currentTarget.blur()} 
+
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Ingresa cuánto abona el cliente.</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -343,18 +394,7 @@ export function AddPayment() {
               </label>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="totalPayment"
-                checked={isTotalPayment}
-                onChange={(e) => setIsTotalPayment(e.target.checked)}
-                className="accent-[#8E2DA8] h-4 w-4"
-              />
-              <label htmlFor="totalPayment" className="text-sm font-semibold text-gray-700">
-                Pago total
-              </label>
-            </div>
+      
 
             <button
               type="button"
@@ -368,8 +408,12 @@ export function AddPayment() {
                 const amt = parseFloat(totalAmount);
                 if (isNaN(qty) || qty <= 0) return setErrorMessage("Ingresa una cantidad válida.");
                 if (isNaN(amt) || amt <= 0) return setErrorMessage("Ingresa un valor total válido.");
-                setShowConfirmModal(true);
-              }}
+                if (!isTotalPayment) {
+                  const partialAmt = parseFloat(partialAmount);
+                  if (isNaN(partialAmt) || partialAmt <= 0) return setErrorMessage("Ingresa un valor válido para el abono.");
+                  if (partialAmt > amt) return setErrorMessage("El abono no puede ser mayor al valor total.");
+                }
+                setShowConfirmModal(true);              }}
               disabled={loading}
             >
               Registrar pago
@@ -439,10 +483,7 @@ export function AddPayment() {
                   <span className="font-medium">{deductFromStock ? "Sí" : "No"}</span>
                 </div>
 
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Pago total</span>
-                  <span className="font-medium">{isTotalPayment ? "Sí" : "No"}</span>
-                </div>
+             
 
                 <div className="h-px bg-gray-200 my-2" />
 
@@ -452,6 +493,12 @@ export function AddPayment() {
                     ${Number(totalAmount || 0).toLocaleString("es-CO")}
                   </span>
                 </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Monto abonado</span>
+                  <span className="font-medium">${Number(partialAmount || 0).toLocaleString("es-CO")}</span>
+                </div>
+                
               </div>
             </div>
 

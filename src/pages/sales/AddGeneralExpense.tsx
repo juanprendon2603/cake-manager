@@ -81,25 +81,27 @@ export function AddGeneralExpense() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-6 sm:mb-8">
-          <div className="sm:hidden mb-3">
-            <BackButton />
-          </div>
-
-          <div className="relative">
-            <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
-              <BackButton />
+        <header className="mb-12 text-center relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10"></div>
+          
+          <div className="relative z-10 py-8">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
+                💸
+              </div>
             </div>
-
-            <div className="text-left sm:text-center">
-              <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
-                Registrar Gasto General
-              </h2>
-              <p className="text-gray-700 mt-1 sm:mt-2">
-                Añade un gasto general del mes.
-              </p>
+            
+            <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
+              Registrar Gasto General
+            </h1>
+            <p className="text-xl text-gray-700 font-medium mb-8">
+              Añade un gasto general del mes
+            </p>
+            
+            <div className="absolute top-4 left-4">
+              <BackButton />
             </div>
           </div>
         </header>

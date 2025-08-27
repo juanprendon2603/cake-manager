@@ -18,7 +18,7 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
       exit={{ opacity: 0, y: -50, x: 50, scale: 0.9 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`relative max-w-sm w-full flex items-start gap-3 ${colors.bg} ${colors.border} border px-4 py-3 rounded-xl shadow-lg`}
+      className={`pointer-events-auto relative max-w-sm w-full flex items-start gap-3 ${colors.bg} ${colors.border} border px-4 py-3 rounded-xl shadow-lg`}
     >
       <div className={`flex-shrink-0 ${colors.icon}`}>
         {toast.type === "success" && (

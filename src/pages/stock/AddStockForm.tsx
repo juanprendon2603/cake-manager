@@ -10,17 +10,39 @@ import { useNavigate } from "react-router-dom";
 
 const cakeSizes = [
   "Octavo",
-  "Cuarto redondo",
+  "Cuarto redondo", 
   "Cuarto cuadrado",
   "Por dieciocho",
   "Media",
   "Libra",
   "Libra y media",
   "Dos libras",
-];
+] as const;
 
-const flavors = ["Naranja", "Vainilla Chips", "Vainilla Chocolate", "Negra"];
+type SizeKey = typeof cakeSizes[number];
+
+const flavors = ["Naranja", "Vainilla Chips", "Vainilla Chocolate", "Negra"] as const;
+type FlavorKey = typeof flavors[number];
+
 const spongeSizes = ["Media", "Libra"];
+
+const sizeIcons: Record<SizeKey, string> = {
+  "Octavo": "🧁",
+  "Cuarto redondo": "🎂", 
+  "Cuarto cuadrado": "🍰",
+  "Por dieciocho": "🎂",
+  "Media": "🍰",
+  "Libra": "🎂",
+  "Libra y media": "🎂",
+  "Dos libras": "🎂",
+};
+
+const flavorIcons: Record<FlavorKey, string> = {
+  "Naranja": "🍊",
+  "Vainilla Chips": "🍦",
+  "Vainilla Chocolate": "🍫", 
+  "Negra": "🖤",
+};
 
 type CakeEntry = { flavor: string; quantity: string };
 type CakesBySize = Record<string, CakeEntry[]>;
@@ -33,57 +55,89 @@ interface FormValues {
 
 function CakeSizeFields({ size, control, register }: { size: string; control: Control<FormValues>; register: UseFormRegister<FormValues> }) {
   const key = size.toLowerCase().replace(/ /g, "_");
-  const { fields, append } = useFieldArray<FormValues>({
+  const { fields, append, remove } = useFieldArray<FormValues>({
     control,
     name: `cakes.${key}` as const,
   });
 
-
-
   return (
-    <div className="rounded-xl border border-[#E8D4F2] bg-[#FDF8FF] p-4 sm:p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="font-semibold text-lg text-gray-800">{size}</p>
+    <div className="group relative rounded-2xl border-2 border-purple-200/50 bg-gradient-to-br from-white/80 to-purple-50/50 backdrop-blur-sm p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-purple-300">
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10"></div>
+      
+      <div className="relative z-10 flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow-lg">
+            {sizeIcons[size as SizeKey] || "🎂"}
+          </div>
+          <div>
+            <p className="font-bold text-xl text-gray-800">{size}</p>
+            <p className="text-sm text-gray-600">Tortas disponibles</p>
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => append({ flavor: "", quantity: "" })}
-          className="inline-flex items-center gap-2 text-[#8E2DA8] hover:text-[#7a2391] font-medium"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold"
         >
-          <span className="text-xl leading-none">＋</span>
+          <span className="text-lg">＋</span>
           Agregar sabor
         </button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {fields.map((field, index) => (
-          <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-3">
-            <select
-              {...register(`cakes.${key}.${index}.flavor` as const)}
-              className="border border-[#E8D4F2] rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent"
-            >
-              <option value="">Seleccionar sabor</option>
-              {flavors.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+          <div key={field.id} className="relative group/item">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_40px] gap-3 p-4 rounded-xl bg-white/70 backdrop-blur border border-purple-200/50 hover:border-purple-300 transition-all duration-200">
+              <div className="relative">
+                <select
+                  {...register(`cakes.${key}.${index}.flavor` as const)}
+                  className="w-full border-2 border-purple-200 rounded-xl p-3 bg-white/90 backdrop-blur focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-medium"
+                >
+                  <option value="">🎨 Seleccionar sabor</option>
+                  {flavors.map((f) => (
+                    <option key={f} value={f}>
+                      {flavorIcons[f]} {f}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <input
-              type="number"
-              min={0}
-              {...register(`cakes.${key}.${index}.quantity` as const)}
-              placeholder="Cantidad"
-              className="border border-[#E8D4F2] rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent"
-            />
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  onWheel={(e) => e.currentTarget.blur()} 
+                  {...register(`cakes.${key}.${index}.quantity` as const)}
+                  placeholder="Cantidad"
+                  className="w-full border-2 border-purple-200 rounded-xl p-3 bg-white/90 backdrop-blur focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-medium text-center"
+                />
+              </div>
+
+              {fields.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => remove(index)}
+                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-100 hover:bg-red-200 text-red-600 transition-all duration-200 hover:scale-110"
+                  title="Eliminar sabor"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         ))}
+        
+        {fields.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">🎂</div>
+            <p>No hay sabores agregados</p>
+            <p className="text-sm">Haz clic en "Agregar sabor" para comenzar</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-
 export function AddStockForm() {
   const {
     register,
@@ -99,7 +153,12 @@ export function AddStockForm() {
           [{ flavor: "", quantity: "" }],
         ])
       ) as CakesBySize,
-      sponges: {},
+      sponges: Object.fromEntries(
+        spongeSizes.map((size) => [
+          size.toLowerCase().replace(/ /g, "_"),
+          "",
+        ])
+      ) as SpongesBySize,
     },
   });
 
@@ -109,8 +168,6 @@ export function AddStockForm() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-
-
   const handleFormSubmit = (formData: FormValues) => {
     setPendingFormData(formData);
     setShowConfirmModal(true);
@@ -118,7 +175,8 @@ export function AddStockForm() {
 
   const onSubmit = async (formData: FormValues) => {
     try {
-      setLoading(true)
+      setLoading(true);
+      
       for (const size of cakeSizes) {
         const key = size.toLowerCase().replace(/ /g, "_");
         const entries = formData?.cakes?.[key] || [];
@@ -153,41 +211,46 @@ export function AddStockForm() {
         }
       }
 
-      for (const size of spongeSizes) {
-        const key = size.toLowerCase().replace(/ /g, "_");
-        const qty = parseInt(formData?.sponges?.[key] ?? "0", 10);
-        if (qty <= 0) continue;
+      // Process sponges
+   // Process sponges (bizcochos)
+for (const size of spongeSizes) {
+  const key = size.toLowerCase().replace(/ /g, "_");
+  const qty = parseInt(formData?.sponges?.[key] ?? "0", 10);
 
-        const docId = `sponge_${key}`;
-        const docRef = doc(db, "stock", docId);
-        const docSnap = await getDoc(docRef);
+  // 👇 importante: si no hay cantidad, no hagas nada
+  if (!qty || qty <= 0) continue;
 
-        let total = docSnap.exists() ? (docSnap.data().quantity as number) || 0 : 0;
-        total += qty;
+  const docId = `sponge_${key}`;
+  const docRef = doc(db, "stock", docId);
+  const docSnap = await getDoc(docRef);
 
-        await setDoc(docRef, {
-          type: "sponge",
-          size,
-          quantity: total,
-          last_update: Timestamp.now(),
-        });
-      }
+  let total = docSnap.exists() ? (docSnap.data().quantity as number) || 0 : 0;
+  total += qty;
+
+  await setDoc(docRef, {
+    type: "sponge",
+    size,
+    quantity: total,
+    last_update: Timestamp.now(),
+  });
+}
+
 
       reset();
-      setLoading(false)
+      setLoading(false);
       addToast({
         type: "success",
-        title: "Stock actualizado!",
-        message: "Stock actualizado exitosamente.",
+        title: "¡Stock actualizado! 🎉",
+        message: "Inventario actualizado exitosamente.",
         duration: 5000,
       });
       setTimeout(() => navigate("/sales"), 800);
     } catch (error) {
       console.error("Error al guardar:", error);
-      setLoading(false)
+      setLoading(false);
       addToast({
         type: "error",
-        title: "Ups, algo salió mal",
+        title: "Ups, algo salió mal 😞",
         message: (error as Error).message ?? "Error al actualizar el stock.",
         duration: 5000,
       });
@@ -195,81 +258,148 @@ export function AddStockForm() {
   };
 
   if (loading) {
-    return <FullScreenLoader message="Cargando inventario..." />;
+    return <FullScreenLoader message="🚀 Actualizando inventario..." />;
   }
 
   return (
-    <div className="min-h-screen bg-[#FDF8FF] flex flex-col">
-      <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
+        <header className="mb-12 relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10"></div>
+          
+          <div className="relative z-10 py-8">
+            <div className="sm:hidden mb-4">
+              <BackButton />
+            </div>
 
-
-        <header className="mb-6 sm:mb-8">
-          <div className="sm:hidden mb-3">
-            <BackButton />
-          </div>
-
-          <div className="relative">
             <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
               <BackButton />
             </div>
 
-            <div className="text-left sm:text-center">
-              <h2 className="text-3xl sm:text-5xl font-extrabold text-[#8E2DA8]">
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl shadow-lg">
+                  📦
+                </div>
+              </div>
+              <h2 className="text-4xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
                 Inventario de Productos
               </h2>
-              <p className="text-gray-700 mt-1 sm:mt-2">
-                Agrega o incrementa el stock de tortas y bizcochos.
+              <p className="text-xl text-gray-700 font-medium">
+                Agrega o incrementa el stock de tortas y bizcochos
               </p>
+              
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+                <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+                  <div className="text-2xl">🎂</div>
+                  <div className="text-xs text-gray-600">Tortas</div>
+                  <div className="text-sm font-semibold text-purple-600">{cakeSizes.length} tamaños</div>
+                </div>
+                <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+                  <div className="text-2xl">🎨</div>
+                  <div className="text-xs text-gray-600">Sabores</div>
+                  <div className="text-sm font-semibold text-purple-600">{flavors.length} opciones</div>
+                </div>
+                <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+                  <div className="text-2xl">🧁</div>
+                  <div className="text-xs text-gray-600">Bizcochos</div>
+                  <div className="text-sm font-semibold text-purple-600">{spongeSizes.length} tamaños</div>
+                </div>
+                <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+                  <div className="text-2xl">⚡</div>
+                  <div className="text-xs text-gray-600">Rápido</div>
+                  <div className="text-sm font-semibold text-purple-600">Fácil uso</div>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
-
-
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
-          className="bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8 space-y-10"
+          className="space-y-12"
         >
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-[#8E2DA8]">Tortas</h3>
-              <span className="text-sm text-gray-500">
-                Selecciona sabor y cantidad por tamaño
-              </span>
-            </div>
+          <section className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5"></div>
+            <div className="relative z-10 p-8 rounded-3xl bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl shadow-lg">
+                    🎂
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      Tortas
+                    </h3>
+                    <p className="text-gray-600">Selecciona sabor y cantidad por tamaño</p>
+                  </div>
+                </div>
+                <div className="hidden sm:block px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl border border-purple-200">
+                  <span className="text-sm font-semibold text-purple-700">
+                    {cakeSizes.length} tamaños disponibles
+                  </span>
+                </div>
+              </div>
 
-            <div className="space-y-8">
-              {cakeSizes.map((size) => (
-                <CakeSizeFields key={size} size={size} control={control} register={register} />
-              ))}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {cakeSizes.map((size) => (
+                  <CakeSizeFields key={size} size={size} control={control} register={register} />
+                ))}
+              </div>
             </div>
           </section>
 
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-[#8E2DA8]">Bizcochos</h3>
-              <span className="text-sm text-gray-500">Ingresa la cantidad por tamaño</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {spongeSizes.map((size) => {
-                const key = size.toLowerCase().replace(/ /g, "_");
-                return (
-                  <div
-                    key={size}
-                    className="rounded-xl border border-[#E8D4F2] bg-[#FDF8FF] p-4 sm:p-5"
-                  >
-                    <label className="block font-semibold text-gray-800 mb-2">{size}</label>
-                    <input
-                      type="number"
-                      min={0}
-                      {...register(`sponges.${key}` as const)}
-                      placeholder="Cantidad"
-                      className="w-full border border-[#E8D4F2] rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent"
-                    />
+          <section className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl opacity-5"></div>
+            <div className="relative z-10 p-8 rounded-3xl bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-2xl shadow-lg">
+                    🧁
                   </div>
-                );
-              })}
+                  <div>
+                    <h3 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                      Bizcochos
+                    </h3>
+                    <p className="text-gray-600">Ingresa la cantidad por tamaño</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {spongeSizes.map((size) => {
+                  const key = size.toLowerCase().replace(/ /g, "_");
+                  return (
+                    <div
+                      key={size}
+                      className="group relative rounded-2xl border-2 border-amber-200/50 bg-gradient-to-br from-white/80 to-amber-50/50 backdrop-blur-sm p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:border-amber-300"
+                    >
+                      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl opacity-10"></div>
+                      
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-xl shadow-lg">
+                            🧁
+                          </div>
+                          <div>
+                            <label className="block font-bold text-xl text-gray-800">{size}</label>
+                            <p className="text-sm text-gray-600">Bizcochos disponibles</p>
+                          </div>
+                        </div>
+                        
+                        <input
+                          type="number"
+                          onWheel={(e) => e.currentTarget.blur()} 
+                          min={0}
+                          {...register(`sponges.${key}` as const)}
+                          placeholder="Cantidad a agregar"
+                          className="w-full border-2 border-amber-200 rounded-xl p-4 bg-white/90 backdrop-blur focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 font-medium text-center text-lg"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
@@ -277,131 +407,200 @@ export function AddStockForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 px-10 rounded-xl hover:opacity-95 transition shadow-md font-semibold disabled:opacity-60"
+              className="group relative px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 font-bold text-lg disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Guardando..." : "Guardar Productos"}
+              <span className="relative z-10 flex items-center gap-3">
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">💾</span>
+                    Guardar Productos
+                  </>
+                )}
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-pink-700 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </button>
           </div>
         </form>
 
-        <div className="mt-8">
-          <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-5 shadow-lg text-center">
-            <p className="text-sm opacity-90">Tip</p>
-            <p className="text-base">Puedes agregar varios sabores por tamaño antes de guardar.</p>
+        <div className="mt-12">
+          <div className="relative rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600"></div>
+            <div className="relative z-10 p-6 text-white text-center">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <span className="text-2xl">💡</span>
+                <p className="text-lg font-bold">Tip Profesional</p>
+              </div>
+              <p className="text-purple-100">
+                Puedes agregar varios sabores por tamaño antes de guardar. ¡El sistema sumará todo automáticamente!
+              </p>
+            </div>
           </div>
         </div>
       </main>
 
-      <footer className="text-center text-sm text-gray-400 py-6">
-        © 2025 CakeManager. Todos los derechos reservados.
+      <footer className="text-center py-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+        <div className="text-lg font-semibold">🎂 CakeManager Pro</div>
+        <div className="text-sm opacity-80 mt-1">© 2025 - Sistema de Inventario Avanzado</div>
       </footer>
 
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-xl font-bold text-[#8E2DA8] mb-4">
-              ¿Confirmar actualización de inventario?
-            </h3>
-            <div className="mb-6 space-y-4 max-h-80 overflow-auto pr-1">
-              {!pendingFormData ? (
-                <p className="text-gray-600">No hay datos para mostrar.</p>
-              ) : (
-                <>
-                  {cakeSizes.some((size) => {
-                    const key = size.toLowerCase().replace(/ /g, "_");
-                    const entries = pendingFormData?.cakes?.[key] || [];
-                    return entries.some(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
-                  }) && (
-                      <div>
-                        <h4 className="font-semibold text-[#8E2DA8] mb-2">Tortas</h4>
-                        <ul className="space-y-1 text-sm text-gray-700">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-purple-500 to-pink-500 opacity-10"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl">
+                  ✅
+                </div>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  ¿Confirmar actualización de inventario?
+                </h3>
+              </div>
+              
+              <div className="mb-8 space-y-6 max-h-80 overflow-auto pr-2">
+                {!pendingFormData ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">📦</div>
+                    <p>No hay datos para mostrar.</p>
+                  </div>
+                ) : (
+                  <>
+                    {cakeSizes.some((size) => {
+                      const key = size.toLowerCase().replace(/ /g, "_");
+                      const entries = pendingFormData?.cakes?.[key] || [];
+                      return entries.some(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
+                    }) && (
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
+                            🎂
+                          </div>
+                          <h4 className="font-bold text-xl text-purple-700">Tortas</h4>
+                        </div>
+                        <div className="space-y-3">
                           {cakeSizes.map((size) => {
                             const key = size.toLowerCase().replace(/ /g, "_");
                             const entries = pendingFormData?.cakes?.[key] || [];
-                            const valid = entries
-                              .filter(e => e.flavor && parseInt(e.quantity || "0", 10) > 0)
-                              .map((e, idx) => (
-                                <li key={`${key}-${idx}`} className="flex items-center justify-between">
-                                  <span>{size} — {e.flavor}</span>
-                                  <span className="font-medium">+{parseInt(e.quantity, 10)}</span>
-                                </li>
-                              ));
-                            return valid.length ? (
-                              <div key={key} className="mb-2">
-                                <div className="text-xs uppercase tracking-wide text-gray-500">{size}</div>
-                                <ul className="pl-2 border-l border-violet-200 space-y-1 mt-1">
-                                  {valid}
-                                </ul>
+                            const validEntries = entries.filter(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
+                            
+                            if (validEntries.length === 0) return null;
+                            
+                            return (
+                              <div key={key} className="bg-white/70 rounded-xl p-4 border border-purple-200/50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-lg">{sizeIcons[size]}</span>
+                                  <span className="font-semibold text-purple-700">{size}</span>
+                                </div>
+                                <div className="space-y-2">
+                                  {validEntries.map((e, idx) => (
+                                    <div key={idx} className="flex items-center justify-between text-sm">
+                                      <span className="flex items-center gap-2">
+                                        <span>{flavorIcons[e.flavor as FlavorKey]}</span>
+                                        <span>{e.flavor}</span>
+                                      </span>
+                                      <span className="font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">
+                                        +{parseInt(e.quantity, 10)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            ) : null;
+                            );
                           })}
-                        </ul>
+                        </div>
                       </div>
                     )}
 
-                  {spongeSizes.some((size) => {
-                    const key = size.toLowerCase().replace(/ /g, "_");
-                    const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
-                    return qty > 0;
-                  }) && (
-                      <div>
-                        <h4 className="font-semibold text-[#8E2DA8] mb-2">Bizcochos</h4>
-                        <ul className="space-y-1 text-sm text-gray-700">
+                    {spongeSizes.some((size) => {
+                      const key = size.toLowerCase().replace(/ /g, "_");
+                      const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
+                      return qty > 0;
+                    }) && (
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white">
+                            🧁
+                          </div>
+                          <h4 className="font-bold text-xl text-amber-700">Bizcochos</h4>
+                        </div>
+                        <div className="space-y-2">
                           {spongeSizes.map((size) => {
                             const key = size.toLowerCase().replace(/ /g, "_");
                             const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
                             return qty > 0 ? (
-                              <li key={key} className="flex items-center justify-between">
-                                <span>{size}</span>
-                                <span className="font-medium">+{qty}</span>
-                              </li>
+                              <div key={key} className="flex items-center justify-between bg-white/70 rounded-xl p-3 border border-amber-200/50">
+                                <span className="flex items-center gap-2">
+                                  <span className="text-lg">🧁</span>
+                                  <span className="font-medium">{size}</span>
+                                </span>
+                                <span className="font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-lg">
+                                  +{qty}
+                                </span>
+                              </div>
                             ) : null;
                           })}
-                        </ul>
+                        </div>
                       </div>
                     )}
 
-                  {!cakeSizes.some((size) => {
-                    const key = size.toLowerCase().replace(/ /g, "_");
-                    const entries = pendingFormData?.cakes?.[key] || [];
-                    return entries.some(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
-                  }) && !spongeSizes.some((size) => {
-                    const key = size.toLowerCase().replace(/ /g, "_");
-                    const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
-                    return qty > 0;
-                  }) && (
-                      <p className="text-gray-600">No hay cantidades válidas para agregar.</p>
+                    {!cakeSizes.some((size) => {
+                      const key = size.toLowerCase().replace(/ /g, "_");
+                      const entries = pendingFormData?.cakes?.[key] || [];
+                      return entries.some(e => e.flavor && parseInt(e.quantity || "0", 10) > 0);
+                    }) && !spongeSizes.some((size) => {
+                      const key = size.toLowerCase().replace(/ /g, "_");
+                      const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
+                      return qty > 0;
+                    }) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">⚠️</div>
+                        <p className="font-medium">No hay cantidades válidas para agregar.</p>
+                        <p className="text-sm">Verifica que hayas ingresado sabores y cantidades.</p>
+                      </div>
                     )}
-                </>
-              )}
-            </div>
-            <p className="text-gray-600 mb-6">
-              Esta acción agregará los productos al inventario existente. ¿Estás seguro de continuar?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  setPendingFormData(null);
-                }}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  if (pendingFormData) onSubmit(pendingFormData);
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-lg hover:opacity-95 transition"
-              >
-                Confirmar
-              </button>
+                  </>
+                )}
+              </div>
+              
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 mb-6 border border-blue-200">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <span className="text-lg">ℹ️</span>
+                  <p className="font-medium">
+                    Esta acción agregará los productos al inventario existente. ¿Estás seguro de continuar?
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-4 justify-end">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setPendingFormData(null);
+                  }}
+                  className="px-6 py-3 text-gray-600 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    if (pendingFormData) onSubmit(pendingFormData);
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold"
+                >
+                  ✅ Confirmar
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
