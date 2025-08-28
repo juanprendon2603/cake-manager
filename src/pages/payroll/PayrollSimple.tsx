@@ -2,6 +2,8 @@ import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { db } from "../../lib/firebase";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
+import { useNavigate } from "react-router-dom";
+
 
 interface AttendanceRecord {
     [date: string]: "completo" | "medio";
@@ -89,6 +91,8 @@ const SummaryModal: React.FC<SummaryModalProps> = ({ month, people, onClose }) =
                             Resumen por quincena
                         </h3>
                     </div>
+
+
                     <button
                         onClick={onClose}
                         className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-all duration-200"
@@ -205,6 +209,8 @@ const PayrollSimple: React.FC = () => {
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
     const [selectedShift, setSelectedShift] = useState<"completo" | "medio" | null>(null);
+    const navigate = useNavigate();
+
 
     const today = getLocalTodayString(); // fecha local YYYY-MM-DD
 
@@ -286,21 +292,36 @@ const PayrollSimple: React.FC = () => {
                 <h1 className="text-4xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
                     Registro de Asistencia
                 </h1>
-                <p className="text-gray-600 max-w-md mx-auto">
+                <p className="text-gray-600 max-w-md mb-2">
                     Marca la asistencia diaria del equipo de trabajo
                 </p>
             </div>
 
             {/* Summary Button */}
-            <div className="mb-8">
+            <div className="mb-8 flex flex-wrap justify-center gap-4">
+                {/* Botón resumen */}
                 <button
                     onClick={() => setShowSummaryModal(true)}
-                    className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-3"
+                    className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-medium text-white shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                 >
-                    <span className="text-xl group-hover:scale-110 transition-transform duration-200">📊</span>
+                    <span className="text-xl group-hover:scale-110 transition-transform duration-200">
+                        📊
+                    </span>
                     Ver resumen por quincenas
                 </button>
+
+                {/* Botón registrar */}
+                <button
+                    onClick={() => navigate("/fridgeTemperature")}
+                    className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-medium text-white shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                >
+                    <span className="text-xl group-hover:scale-110 transition-transform duration-200">
+                        ❄️
+                    </span>
+                    Registrar temperatura
+                </button>
             </div>
+
 
             {/* People Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl px-4">
@@ -311,11 +332,10 @@ const PayrollSimple: React.FC = () => {
                     return (
                         <div
                             key={p.id}
-                            className={`relative bg-white/80 backdrop-blur-xl shadow-lg rounded-2xl p-6 flex flex-col items-center border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
-                                hasMarkedToday
+                            className={`relative bg-white/80 backdrop-blur-xl shadow-lg rounded-2xl p-6 flex flex-col items-center border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${hasMarkedToday
                                     ? "border-green-200 bg-gradient-to-br from-green-50/50 to-emerald-50/50"
                                     : "border-white/60 hover:border-purple-200"
-                            }`}
+                                }`}
                         >
                             {hasMarkedToday && (
                                 <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white text-sm shadow-lg">
@@ -338,11 +358,10 @@ const PayrollSimple: React.FC = () => {
                             {hasMarkedToday ? (
                                 <div className="mb-4">
                                     <span
-                                        className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                                            todayShift === "completo"
+                                        className={`px-4 py-2 rounded-full text-sm font-semibold ${todayShift === "completo"
                                                 ? "bg-green-100 text-green-700"
                                                 : "bg-yellow-100 text-yellow-700"
-                                        }`}
+                                            }`}
                                     >
                                         {todayShift === "completo" ? "🕐 Turno Completo" : "⏰ Medio Turno"}
                                     </span>
@@ -356,11 +375,10 @@ const PayrollSimple: React.FC = () => {
                                 <button
                                     onClick={() => handleConfirmClick(p, "completo")}
                                     disabled={hasMarkedToday}
-                                    className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-                                        hasMarkedToday
+                                    className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${hasMarkedToday
                                             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                                             : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                                    }`}
+                                        }`}
                                 >
                                     <span>🕐</span>
                                     Turno Completo
@@ -368,11 +386,10 @@ const PayrollSimple: React.FC = () => {
                                 <button
                                     onClick={() => handleConfirmClick(p, "medio")}
                                     disabled={hasMarkedToday}
-                                    className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-                                        hasMarkedToday
+                                    className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${hasMarkedToday
                                             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                                             : "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                                    }`}
+                                        }`}
                                 >
                                     <span>⏰</span>
                                     Medio Turno
@@ -421,9 +438,8 @@ const PayrollSimple: React.FC = () => {
                                 <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
                                     <span className="text-gray-600 font-medium">Turno</span>
                                     <span
-                                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                            selectedShift === "completo" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                                        }`}
+                                        className={`px-3 py-1 rounded-full text-sm font-semibold ${selectedShift === "completo" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                                            }`}
                                     >
                                         {selectedShift === "completo" ? "🕐 Completo" : "⏰ Medio"}
                                     </span>

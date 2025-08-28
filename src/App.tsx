@@ -18,6 +18,7 @@ import { DailySummary } from "./pages/summary/DailySummary";
 import { DailyTodayRedirect } from "./pages/summary/DailyTodayRedirect";
 import PayrollSimple from "./pages/payroll/PayrollSimple";
 import { Inform } from "./pages/inform/Inform";
+import FridgeTemperature from "./pages/payroll/FridgeTemperature";
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/payroll" element={<Payroll />} />
           <Route path="/payroll-simple" element={<PayrollSimple />} />
           <Route path="/inform" element={<Inform />} />
+          <Route path="/fridgeTemperature" element={<FridgeTemperature />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
