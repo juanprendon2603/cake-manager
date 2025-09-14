@@ -1,5 +1,20 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from "firebase/firestore";
+// src/pages/payments/FinalizePayment.tsx
 import React, { useEffect, useState, useCallback } from "react";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import type {
+  CollectionReference,
+  DocumentReference,
+  QueryDocumentSnapshot,
+} from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 
@@ -8,6 +23,7 @@ const getLocalTodayString = () => {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
+const monthKeyFromDateStr = (dateStr: string) => dateStr.slice(0, 7); // yyyy-mm
 
 type Shift = "morning" | "afternoon";
 
@@ -20,6 +36,9 @@ interface MonthlyRecord extends TemperatureRecord {
   date: string; // yyyy-mm-dd
 }
 
+
+
+
 const FridgeTemperature: React.FC = () => {
   const today = getLocalTodayString();
   const [loading, setLoading] = useState(false);
@@ -28,15 +47,20 @@ const FridgeTemperature: React.FC = () => {
   const [inputValue, setInputValue] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [monthlyRecords, setMonthlyRecords] = useState<MonthlyRecord[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>(monthKeyFromDateStr(today)); // yyyy-mm
 
+  /** ====== 1) Cargar temperaturas del día ====== */
   const loadTemperatures = useCallback(async () => {
     setLoading(true);
     try {
-      const ref = doc(db, "fridgeTemperatures", today);
+      const ref = doc(db, "fridgeTemperatures", today) as DocumentReference<TemperatureRecord>;
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        setTemperatures(snap.data() as TemperatureRecord);
+        setTemperatures(snap.data());
+      } else {
+        setTemperatures({});
       }
+      // console.log("[FRIDGE] Loaded daily", today, snap.exists() ? snap.data() : "(no doc)");
     } catch (err) {
       console.error("Error cargando temperaturas:", err);
     } finally {
@@ -44,27 +68,38 @@ const FridgeTemperature: React.FC = () => {
     }
   }, [today]);
 
+  useEffect(() => {
+    loadTemperatures();
+  }, [loadTemperatures]);
+
+  /** ====== 2) Cargar historial mensual (subcolección days) ====== */
   const loadMonthlyRecords = async () => {
     setLoading(true);
     try {
-      const ref = collection(db, "fridgeTemperatures");
-      const snaps = await getDocs(ref);
-      const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+      const monthKey = selectedMonth; // yyyy-mm
+
+      const daysRef = collection(
+        db,
+        "fridgeTemperatures_monthly",
+        monthKey,
+        "days"
+      ) as CollectionReference<MonthlyRecord>;
+
+      const snaps = await getDocs(query(daysRef, orderBy("date", "asc")));
 
       const data: MonthlyRecord[] = [];
-      snaps.forEach((docSnap) => {
-        const id = docSnap.id; // yyyy-mm-dd
-        if (id.startsWith(currentMonth)) {
-          const record = docSnap.data() as TemperatureRecord;
-          data.push({ date: id, ...record });
-        }
+      snaps.forEach((docSnap: QueryDocumentSnapshot<MonthlyRecord>) => {
+        const d = docSnap.data();
+        data.push({
+          date: d.date ?? docSnap.id,
+          morning: typeof d.morning === "number" ? d.morning : undefined,
+          afternoon: typeof d.afternoon === "number" ? d.afternoon : undefined,
+        });
       });
 
-      // ordenar por fecha ascendente
-      data.sort((a, b) => (a.date < b.date ? -1 : 1));
       setMonthlyRecords(data);
       setShowHistory(true);
+      // console.log("[FRIDGE] Monthly records loaded", data.length);
     } catch (err) {
       console.error("Error cargando registros del mes:", err);
     } finally {
@@ -72,29 +107,54 @@ const FridgeTemperature: React.FC = () => {
     }
   };
 
-
-  // ✅ Ahora el warning desaparece
-  useEffect(() => {
-    loadTemperatures();
-  }, [loadTemperatures]);
-
-
+  /** ====== 3) Guardar temperatura (diario + mensual) ====== */
   const handleSave = async () => {
     if (!currentShift || !inputValue) return;
     setLoading(true);
     try {
-      const ref = doc(db, "fridgeTemperatures", today);
       const tempValue = parseFloat(inputValue);
+      const dailyRef = doc(db, "fridgeTemperatures", today) as DocumentReference<TemperatureRecord>;
+      const monthKey = monthKeyFromDateStr(today);
 
-      if (!temperatures.morning && !temperatures.afternoon) {
-        await setDoc(ref, { [currentShift]: tempValue });
+      type MonthlyContainer = { month: string };
+      const monthlyDocRef = doc(
+        db,
+        "fridgeTemperatures_monthly",
+        monthKey
+      ) as DocumentReference<MonthlyContainer>;
+
+      const dayInMonthRef = doc(
+        db,
+        "fridgeTemperatures_monthly",
+        monthKey,
+        "days",
+        today
+      ) as DocumentReference<MonthlyRecord>;
+
+      // 3.1 Diario (fridgeTemperatures/{yyyy-mm-dd})
+      const dailySnap = await getDoc(dailyRef);
+      if (dailySnap.exists()) {
+        await updateDoc(dailyRef, { [currentShift]: tempValue });
       } else {
-        await updateDoc(ref, { [currentShift]: tempValue });
+        await setDoc(dailyRef, { [currentShift]: tempValue });
       }
 
+      // 3.2 Mensual: contenedor + day
+      await setDoc(monthlyDocRef, { month: monthKey }, { merge: true });
+
+      const daySnap = await getDoc(dayInMonthRef);
+      if (daySnap.exists()) {
+        await updateDoc(dayInMonthRef, { [currentShift]: tempValue, date: today });
+      } else {
+        await setDoc(dayInMonthRef, { date: today, [currentShift]: tempValue });
+      }
+
+      // Estado local
       setTemperatures((prev) => ({ ...prev, [currentShift]: tempValue }));
       setInputValue("");
       setCurrentShift(null);
+
+      // console.log("[FRIDGE] Saved", { date: today, shift: currentShift, value: tempValue, monthKey });
     } catch (err) {
       console.error("Error guardando temperatura:", err);
     } finally {
@@ -121,13 +181,22 @@ const FridgeTemperature: React.FC = () => {
         </p>
       </div>
 
-      {/* Botón historial */}
-      <button
-        onClick={loadMonthlyRecords}
-        className="mb-8 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-      >
-        📊 Ver registros del mes
-      </button>
+      {/* Controles de historial */}
+      <div className="mb-4 flex items-center gap-3">
+        <label className="text-sm text-gray-600">Mes</label>
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium text-blue-700"
+        />
+        <button
+          onClick={loadMonthlyRecords}
+          className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+        >
+          📊 Ver registros del mes
+        </button>
+      </div>
 
       {/* Grid turnos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl px-4">
@@ -199,7 +268,7 @@ const FridgeTemperature: React.FC = () => {
       {showHistory && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-3xl w-full overflow-y-auto max-h-[80vh]">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">📅 Registros del mes</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">📅 Registros: {selectedMonth}</h2>
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white">

@@ -1,18 +1,22 @@
 import { motion } from "framer-motion";
 import type { Toast } from "../../../types/toast";
+import type { Dispatch, SetStateAction } from "react";
+
+type ProductType = "cake" | "sponge";
+type PaymentMethod = "cash" | "transfer";
 
 type Props = {
-  productType: string | null;
+  productType: ProductType | null;            // antes: string | null
   size: string | null;
   flavor: string | null;
   quantity: string;
-  setQuantity: (v: string) => void;
+  setQuantity: Dispatch<SetStateAction<string>>;      // antes: (v: string) => void
   totalPrice: string;
-  setTotalPrice: (v: string) => void;
-  paymentMethod: string;
-  setPaymentMethod: (v: string) => void;
-  setStep: (n: number) => void;
-  setShowConfirmModal: (v: boolean) => void;
+  setTotalPrice: Dispatch<SetStateAction<string>>;    // antes: (v: string) => void
+  paymentMethod: PaymentMethod;                        // antes: string
+  setPaymentMethod: Dispatch<SetStateAction<PaymentMethod>>; // antes: (v: string) => void
+  setStep: Dispatch<SetStateAction<number>>;           // antes: (n: number) => void
+  setShowConfirmModal: Dispatch<SetStateAction<boolean>>; // antes: (v: boolean) => void
   isLoading: boolean;
   addToast: (t: Omit<Toast, "id">) => void;
   humanize: (s?: string | null) => string;
@@ -72,7 +76,7 @@ export default function Step4Details({
             step="1"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-500 transition-all duration-200 bg-white/70 backdrop-blur"
+            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-500 transition-all duración-200 bg-white/70 backdrop-blur"
             required
           />
         </div>
@@ -90,7 +94,7 @@ export default function Step4Details({
             step="0.01"
             value={totalPrice}
             onChange={(e) => setTotalPrice(e.target.value)}
-            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-500 transition-all duration-200 bg-white/70 backdrop-blur"
+            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-500 transition-all duración-200 bg-white/70 backdrop-blur"
             required
           />
         </div>
@@ -103,8 +107,8 @@ export default function Step4Details({
           <motion.select
             whileFocus={{ scale: 1.02, boxShadow: "0 0 0 4px rgba(142,45,168,.15)" }}
             value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-500 transition-all duration-200 bg-white/70 backdrop-blur"
+            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-500 transition-all duración-200 bg-white/70 backdrop-blur"
           >
             <option value="cash">💵 Efectivo</option>
             <option value="transfer">🏦 Transferencia</option>
@@ -117,7 +121,7 @@ export default function Step4Details({
           type="button"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duración-200"
           onClick={() => setStep(3)}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -130,7 +134,7 @@ export default function Step4Details({
           type="button"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.98 }}
-          className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200"
+          className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duración-200"
           onClick={() => {
             if (!productType) {
               addToast({ type: "error", title: "Falta info", message: "Selecciona el tipo de producto.", duration: 4000 });

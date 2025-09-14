@@ -1,5 +1,8 @@
 import { format } from "date-fns";
-import { arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import {
+  collection, addDoc, doc, setDoc,
+  serverTimestamp, increment
+} from "firebase/firestore";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -39,34 +42,52 @@ export function AddExpense() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validate()) return;
-
+  
     setLoading(true);
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const docRef = doc(db, "sales", today);
-      const docSnap = await getDoc(docRef);
-
+      const now = new Date();
+      const dayKey = format(now, "yyyy-MM-dd");
+      const monthKey = dayKey.slice(0, 7);
+  
+      // refs
+      const expensesColRef = collection(db, "sales_monthly", monthKey, "expenses");
+      const monthRef = doc(db, "sales_monthly", monthKey);
+  
       const expense = {
+        day: dayKey,
+        createdAt: serverTimestamp(),
         description: description.trim(),
-        value: Number(amount),
-        paymentMethod,
+        paymentMethod,               // 'cash' | 'transfer' | ...
+        valueCOP: Number(amount),    // normalizado en COP
       };
-
-      if (docSnap.exists()) {
-        await updateDoc(docRef, { expenses: arrayUnion(expense) });
-      } else {
-        await setDoc(docRef, { fecha: today, sales: [], expenses: [expense] });
-      }
-
+  
+      // 1) guardar gasto como documento individual
+      await addDoc(expensesColRef, expense);
+  
+      // 2) (opcional recomendado) actualizar agregados del mes
+      //    crea el doc del mes si no existe y suma con increment()
+      await setDoc(
+        monthRef,
+        {
+          month: monthKey,
+          updatedAt: serverTimestamp(),
+          totals: {
+            expensesAmount: increment(Number(amount)),
+            expensesCount: increment(1),
+          },
+        },
+        { merge: true }
+      );
+  
+      // listo UI
       addToast({
         type: "success",
         title: "¡Gasto registrado! 💸",
         message: "Se guardó correctamente.",
         duration: 5000,
       });
-
+  
       setDescription("");
       setAmount("");
       setTimeout(() => navigate("/sales"), 700);
@@ -81,6 +102,7 @@ export function AddExpense() {
       setLoading(false);
     }
   };
+  
 
   const inputBase =
     "w-full border-2 border-purple-200/70 rounded-xl px-4 py-3 bg-white/70 backdrop-blur focus:outline-none focus:border-purple-500 transition-all duration-200 placeholder:text-gray-400";

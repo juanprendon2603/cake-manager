@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../lib/firebase";
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  arrayUnion,
+  collection, // ⬅️ importado para crear el doc mensual (autoId)
+} from "firebase/firestore";
 import { format } from "date-fns";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
@@ -15,7 +22,7 @@ export function AddPayment() {
   const [selectedSpongeType, setSelectedSpongeType] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [totalAmount, setTotalAmount] = useState("");
-  const [partialAmount, setPartialAmount] = useState(""); // Nuevo estado para abono
+  const [partialAmount, setPartialAmount] = useState(""); // abono
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer">("cash");
   const [deductFromStock, setDeductFromStock] = useState(false);
   const [isTotalPayment, setIsTotalPayment] = useState(false);
@@ -57,9 +64,9 @@ export function AddPayment() {
       return;
     }
 
-    // Validar abono solo si no es pago total
+    let partialAmountNumber = 0;
     if (!isTotalPayment) {
-      const partialAmountNumber = parseFloat(partialAmount);
+      partialAmountNumber = parseFloat(partialAmount);
       if (isNaN(partialAmountNumber) || partialAmountNumber <= 0) {
         setErrorMessage("Ingresa un valor válido para el abono.");
         return;
@@ -72,6 +79,7 @@ export function AddPayment() {
 
     setLoading(true);
     try {
+      // 1) Descontar inventario (opcional)
       if (deductFromStock) {
         const stockRef = doc(db, "stock", `${productType}_${selectedSize}`);
         const stockSnap = await getDoc(stockRef);
@@ -100,16 +108,17 @@ export function AddPayment() {
       }
 
       const today = format(new Date(), "yyyy-MM-dd");
-      const salesRef = doc(db, "sales", today);
+      const monthKey = today.slice(0, 7);
 
+      // 2) Item de pago (shape legacy p/ sales diarios)
       const paymentItem = {
         id: Date.now().toString(),
         type: productType,
         size: selectedSize,
         flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
-        quantity: parseInt(quantity),
-        amount: parseFloat(totalAmount),
-        partialAmount: isTotalPayment ? totalAmountNumber : parseFloat(partialAmount),
+        quantity: quantityNumber,
+        amount: totalAmountNumber, // valor total del pedido
+        partialAmount: isTotalPayment ? totalAmountNumber : partialAmountNumber, // lo efectivamente pagado hoy
         paymentMethod,
         isPayment: true,
         deductedFromStock: deductFromStock,
@@ -117,6 +126,8 @@ export function AddPayment() {
         orderDate,
       };
 
+      // 3) Guardar en 'sales/{today}' (array legacy)
+      const salesRef = doc(db, "sales", today);
       const salesSnap = await getDoc(salesRef);
       if (salesSnap.exists()) {
         await updateDoc(salesRef, { sales: arrayUnion(paymentItem) });
@@ -124,6 +135,7 @@ export function AddPayment() {
         await setDoc(salesRef, { date: today, sales: [paymentItem], expenses: [] });
       }
 
+      // 4) Guardar en 'payments/{orderDate}' (seguimiento por fecha de pedido)
       const paymentsRef = doc(db, "payments", orderDate);
       const paymentsSnap = await getDoc(paymentsRef);
       if (paymentsSnap.exists()) {
@@ -131,6 +143,71 @@ export function AddPayment() {
       } else {
         await setDoc(paymentsRef, { date: orderDate, payments: [paymentItem] });
       }
+
+      // 5) 🔥 Nuevo: Guardar también en 'sales_monthly/{yyyy-MM}/entries/{autoId}'
+      //    Este es el origen que ya consumen tus reportes con collectionGroup("entries") por campo 'day'
+      const monthlyDocRef = doc(db, "sales_monthly", monthKey);
+      await setDoc(monthlyDocRef, { month: monthKey }, { merge: true });
+
+      const entryRef = doc(collection(db, "sales_monthly", monthKey, "entries")); // autoId
+      const entryData = {
+        kind: "payment" as const,
+        day: today, // el día del abono (lo que filtras en los informes por 'day')
+        type: productType,
+        size: selectedSize,
+        flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
+        quantity: quantityNumber,
+        amountCOP: isTotalPayment ? totalAmountNumber : partialAmountNumber, // lo que entra hoy
+        paymentMethod,
+        deductedFromStock: deductFromStock,
+        totalPayment: isTotalPayment,
+        orderDate, // info adicional para trazabilidad
+      };
+      await setDoc(entryRef, entryData);
+
+      // Logs para depurar end-to-end
+      console.log("[PAYMENT] Saved daily sales item → sales/%s", today, paymentItem);
+      console.log("[PAYMENT] Saved payments by orderDate → payments/%s", orderDate, paymentItem);
+      console.log("[PAYMENT] Saved monthly entry → sales_monthly/%s/entries/%s", monthKey, entryRef.id, entryData);
+
+      // 5b) 🔄 También guardar en 'payments_monthly/{yyyy-MM}/entries/{autoId}'
+//     Indexado por MES del *orderDate* (el pedido pertenece a ese mes)
+const orderMonth = orderDate.slice(0, 7);
+
+// Crea/merge el contenedor mensual
+await setDoc(doc(db, "payments_monthly", orderMonth), { month: orderMonth }, { merge: true });
+
+// Crea el entry del pago
+const pEntryRef = doc(collection(db, "payments_monthly", orderMonth, "entries"));
+const paymentEntry = {
+  kind: "payment" as const,
+  // fechas
+  orderDay: orderDate,            // fecha del pedido (a este mes agrupa el doc)
+  paidDay: today,                 // fecha en la que efectivamente registras el pago
+  // montos
+  amountCOP: isTotalPayment ? totalAmountNumber : partialAmountNumber, // lo que entra hoy
+  totalAmountCOP: totalAmountNumber,                                   // total del pedido
+  // detalle
+  paymentMethod,
+  type: productType,
+  size: selectedSize,
+  flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
+  quantity: quantityNumber,
+  totalPayment: isTotalPayment,
+  deductedFromStock: deductFromStock,
+};
+
+// guarda
+await setDoc(pEntryRef, paymentEntry);
+
+// logs
+console.log(
+  "[PAYMENT] Saved monthly payment → payments_monthly/%s/entries/%s",
+  orderMonth,
+  pEntryRef.id,
+  paymentEntry
+);
+
 
       addToast({
         type: "success",
@@ -140,20 +217,21 @@ export function AddPayment() {
       });
       navigate("/payment-management");
     } catch (err) {
+      console.error("[PAYMENT] Error", err);
       setErrorMessage((err as Error).message ?? "Error al registrar el abono.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Ejemplo: actualizar isTotalPayment según alguna condición
-useEffect(() => {
-  if (totalAmount && partialAmount) {
-    setIsTotalPayment(parseFloat(partialAmount) === parseFloat(totalAmount));
-  } else {
-    setIsTotalPayment(false);
-  }
-}, [totalAmount, partialAmount]);
+  // Actualiza isTotalPayment automáticamente
+  useEffect(() => {
+    if (totalAmount && partialAmount) {
+      setIsTotalPayment(parseFloat(partialAmount) === parseFloat(totalAmount));
+    } else {
+      setIsTotalPayment(false);
+    }
+  }, [totalAmount, partialAmount]);
 
   const sizeOptions =
     productType === "cake"
@@ -306,8 +384,7 @@ useEffect(() => {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className={inputBase}
-                onWheel={(e) => e.currentTarget.blur()} 
-
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
 
@@ -325,8 +402,7 @@ useEffect(() => {
                   onChange={(e) => setTotalAmount(e.target.value)}
                   className={`${inputBase} pl-8`}
                   placeholder="0"
-                  onWheel={(e) => e.currentTarget.blur()} 
-
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">En pesos colombianos.</p>
@@ -347,8 +423,7 @@ useEffect(() => {
                     onChange={(e) => setPartialAmount(e.target.value)}
                     className={`${inputBase} pl-8`}
                     placeholder="0"
-                    onWheel={(e) => e.currentTarget.blur()} 
-
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
                 <p className="mt-1 text-xs text-gray-500">Ingresa cuánto abona el cliente.</p>
@@ -394,8 +469,6 @@ useEffect(() => {
               </label>
             </div>
 
-      
-
             <button
               type="button"
               className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-md hover:opacity-95 transition disabled:opacity-60"
@@ -413,7 +486,8 @@ useEffect(() => {
                   if (isNaN(partialAmt) || partialAmt <= 0) return setErrorMessage("Ingresa un valor válido para el abono.");
                   if (partialAmt > amt) return setErrorMessage("El abono no puede ser mayor al valor total.");
                 }
-                setShowConfirmModal(true);              }}
+                setShowConfirmModal(true);
+              }}
               disabled={loading}
             >
               Registrar pago
@@ -483,8 +557,6 @@ useEffect(() => {
                   <span className="font-medium">{deductFromStock ? "Sí" : "No"}</span>
                 </div>
 
-             
-
                 <div className="h-px bg-gray-200 my-2" />
 
                 <div className="flex justify-between text-base">
@@ -496,9 +568,10 @@ useEffect(() => {
 
                 <div className="flex justify-between">
                   <span className="text-gray-500">Monto abonado</span>
-                  <span className="font-medium">${Number(partialAmount || 0).toLocaleString("es-CO")}</span>
+                  <span className="font-medium">
+                    ${Number((!isTotalPayment ? partialAmount : totalAmount) || 0).toLocaleString("es-CO")}
+                  </span>
                 </div>
-                
               </div>
             </div>
 
@@ -513,7 +586,7 @@ useEffect(() => {
               <button
                 onClick={() => {
                   setShowConfirmModal(false);
-                  const fakeEvent = { preventDefault: () => { } } as unknown as React.FormEvent;
+                  const fakeEvent = { preventDefault: () => {} } as unknown as React.FormEvent;
                   handleSubmit(fakeEvent);
                 }}
                 className="px-4 py-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-lg hover:opacity-95 transition disabled:opacity-60"
