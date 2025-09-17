@@ -1,0 +1,130 @@
+// src/components/BaseModal.tsx
+import { AnimatePresence, motion } from "framer-motion";
+import { easeM3 } from "../pages/sales/animations";
+import React from "react";
+
+type Accent = "purple" | "amber" | "indigo" | "pink" | "blue" | "green";
+type Size = "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
+
+const accentMap: Record<Accent, string> = {
+  purple: "from-purple-500 to-pink-500",
+  amber: "from-amber-500 to-orange-500",
+  indigo: "from-indigo-500 to-blue-500",
+  pink: "from-pink-500 to-rose-500",
+  blue: "from-blue-500 to-cyan-500",
+  green: "from-green-500 to-emerald-500",
+};
+
+const sizeMap: Record<Size, string> = {
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
+  "4xl": "max-w-4xl",
+  "5xl": "max-w-5xl",
+};
+
+interface Action {
+  label: string;
+  onClick: () => void;
+}
+
+interface BaseModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  headerAccent?: Accent;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  primaryAction?: Action;
+  secondaryAction?: Action;
+  /** nuevo: controla el ancho máximo del modal */
+  size?: Size;
+  /** nuevo: clases extra para el cuerpo (para poner scroll, etc.) */
+  bodyClassName?: string;
+  children?: React.ReactNode;
+}
+
+export default function BaseModal({
+  isOpen,
+  onClose,
+  headerAccent = "purple",
+  title,
+  description,
+  primaryAction,
+  secondaryAction,
+  size = "md",
+  bodyClassName,
+  children,
+}: BaseModalProps) {
+  const accent = accentMap[headerAccent];
+  const width = sizeMap[size];
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.96, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.96, opacity: 0 }}
+            transition={{ duration: 0.2, ease: easeM3 }}
+            className={`bg-white rounded-3xl w-full ${width} shadow-2xl overflow-hidden`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            {(title || description) && (
+              <div className="relative p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50">
+                <div className={`absolute inset-x-0 top-0 h-16 bg-gradient-to-r ${accent} opacity-10`} />
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center text-white text-lg`}>
+                    📌
+                  </div>
+                  <div>
+                    {title && (
+                      <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+                    )}
+                    {description && (
+                      <p className="text-gray-600 mt-1 text-sm">{description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Body */}
+            <div className={`p-6 ${bodyClassName ?? ""}`}>{children}</div>
+
+            {/* Footer */}
+            {(primaryAction || secondaryAction) && (
+              <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                {secondaryAction && (
+                  <button
+                    onClick={secondaryAction.onClick}
+                    className="px-5 py-3 text-gray-700 border-2 border-gray-300 rounded-xl hover:bg-gray-100 transition font-semibold"
+                  >
+                    {secondaryAction.label}
+                  </button>
+                )}
+                {primaryAction && (
+                  <button
+                    onClick={primaryAction.onClick}
+                    className={`px-5 py-3 bg-gradient-to-r ${accent} text-white rounded-xl hover:shadow-lg transition font-bold`}
+                  >
+                    {primaryAction.label}
+                  </button>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

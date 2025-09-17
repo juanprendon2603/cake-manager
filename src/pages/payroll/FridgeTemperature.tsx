@@ -1,105 +1,56 @@
 // src/pages/payments/FinalizePayment.tsx
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  getDocs,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import type {
-  CollectionReference,
-  DocumentReference,
-  QueryDocumentSnapshot,
-} from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
-
-const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-const getLocalTodayString = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-const monthKeyFromDateStr = (dateStr: string) => dateStr.slice(0, 7); // yyyy-mm
-
-type Shift = "morning" | "afternoon";
-
-interface TemperatureRecord {
-  morning?: number;
-  afternoon?: number;
-}
-
-interface MonthlyRecord extends TemperatureRecord {
-  date: string; // yyyy-mm-dd
-}
-
-
-
+import BaseModal from "../../components/BaseModal";
+import type { Shift, TemperatureRecord, MonthlyRecord } from "../../types/fridge";
+import {
+  FRIDGES,
+  getLocalTodayString,
+  monthKeyFromDateStr,
+  loadDailyTemperature,
+  loadMonthlyRecords,
+  saveTemperature,
+} from "./fridge.service";
 
 const FridgeTemperature: React.FC = () => {
   const today = getLocalTodayString();
+
   const [loading, setLoading] = useState(false);
   const [temperatures, setTemperatures] = useState<TemperatureRecord>({});
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [monthlyRecords, setMonthlyRecords] = useState<MonthlyRecord[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>(monthKeyFromDateStr(today)); // yyyy-mm
+  const [selectedMonth, setSelectedMonth] = useState<string>(monthKeyFromDateStr(today)); // yyyy-MM
 
-  /** ====== 1) Cargar temperaturas del día ====== */
+  // 🔹 Nuevo: selección de nevera
+  const [fridgeId, setFridgeId] = useState<string>(FRIDGES[0].id);
+  const selectedFridge = FRIDGES.find((f) => f.id === fridgeId)!;
+
+  /** 1) Cargar temperaturas del día para la nevera seleccionada */
   const loadTemperatures = useCallback(async () => {
     setLoading(true);
     try {
-      const ref = doc(db, "fridgeTemperatures", today) as DocumentReference<TemperatureRecord>;
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        setTemperatures(snap.data());
-      } else {
-        setTemperatures({});
-      }
-      // console.log("[FRIDGE] Loaded daily", today, snap.exists() ? snap.data() : "(no doc)");
+      const data = await loadDailyTemperature(today, fridgeId);
+      setTemperatures(data);
     } catch (err) {
       console.error("Error cargando temperaturas:", err);
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, [today, fridgeId]);
 
   useEffect(() => {
     loadTemperatures();
   }, [loadTemperatures]);
 
-  /** ====== 2) Cargar historial mensual (subcolección days) ====== */
-  const loadMonthlyRecords = async () => {
+  /** 2) Cargar historial mensual (por nevera) */
+  const handleOpenMonthly = async () => {
     setLoading(true);
     try {
-      const monthKey = selectedMonth; // yyyy-mm
-
-      const daysRef = collection(
-        db,
-        "fridgeTemperatures_monthly",
-        monthKey,
-        "days"
-      ) as CollectionReference<MonthlyRecord>;
-
-      const snaps = await getDocs(query(daysRef, orderBy("date", "asc")));
-
-      const data: MonthlyRecord[] = [];
-      snaps.forEach((docSnap: QueryDocumentSnapshot<MonthlyRecord>) => {
-        const d = docSnap.data();
-        data.push({
-          date: d.date ?? docSnap.id,
-          morning: typeof d.morning === "number" ? d.morning : undefined,
-          afternoon: typeof d.afternoon === "number" ? d.afternoon : undefined,
-        });
-      });
-
+      const data = await loadMonthlyRecords(selectedMonth, fridgeId);
       setMonthlyRecords(data);
       setShowHistory(true);
-      // console.log("[FRIDGE] Monthly records loaded", data.length);
     } catch (err) {
       console.error("Error cargando registros del mes:", err);
     } finally {
@@ -107,54 +58,18 @@ const FridgeTemperature: React.FC = () => {
     }
   };
 
-  /** ====== 3) Guardar temperatura (diario + mensual) ====== */
+  /** 3) Guardar temperatura (diario + mensual) */
   const handleSave = async () => {
     if (!currentShift || !inputValue) return;
     setLoading(true);
     try {
-      const tempValue = parseFloat(inputValue);
-      const dailyRef = doc(db, "fridgeTemperatures", today) as DocumentReference<TemperatureRecord>;
-      const monthKey = monthKeyFromDateStr(today);
-
-      type MonthlyContainer = { month: string };
-      const monthlyDocRef = doc(
-        db,
-        "fridgeTemperatures_monthly",
-        monthKey
-      ) as DocumentReference<MonthlyContainer>;
-
-      const dayInMonthRef = doc(
-        db,
-        "fridgeTemperatures_monthly",
-        monthKey,
-        "days",
-        today
-      ) as DocumentReference<MonthlyRecord>;
-
-      // 3.1 Diario (fridgeTemperatures/{yyyy-mm-dd})
-      const dailySnap = await getDoc(dailyRef);
-      if (dailySnap.exists()) {
-        await updateDoc(dailyRef, { [currentShift]: tempValue });
-      } else {
-        await setDoc(dailyRef, { [currentShift]: tempValue });
-      }
-
-      // 3.2 Mensual: contenedor + day
-      await setDoc(monthlyDocRef, { month: monthKey }, { merge: true });
-
-      const daySnap = await getDoc(dayInMonthRef);
-      if (daySnap.exists()) {
-        await updateDoc(dayInMonthRef, { [currentShift]: tempValue, date: today });
-      } else {
-        await setDoc(dayInMonthRef, { date: today, [currentShift]: tempValue });
-      }
+      const value = parseFloat(inputValue);
+      await saveTemperature({ date: today, fridgeId, shift: currentShift, value });
 
       // Estado local
-      setTemperatures((prev) => ({ ...prev, [currentShift]: tempValue }));
+      setTemperatures((prev) => ({ ...prev, [currentShift]: value }));
       setInputValue("");
       setCurrentShift(null);
-
-      // console.log("[FRIDGE] Saved", { date: today, shift: currentShift, value: tempValue, monthKey });
     } catch (err) {
       console.error("Error guardando temperatura:", err);
     } finally {
@@ -173,17 +88,33 @@ const FridgeTemperature: React.FC = () => {
             ❄️
           </div>
         </div>
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-2">
+        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">
           Registro de Temperatura
         </h1>
         <p className="text-gray-600 max-w-md mx-auto">
-          Registra la temperatura del enfriador en la mañana y en la tarde
+          Registra la temperatura de tus enfriadores en la mañana y en la tarde.
+        </p>
+        <p className="text-sm text-gray-500 mt-1">
+          Nevera actual: <span className="font-semibold">{selectedFridge.name}</span> • {selectedFridge.brand}
         </p>
       </div>
 
       {/* Controles de historial */}
-      <div className="mb-4 flex items-center gap-3">
-        <label className="text-sm text-gray-600">Mes</label>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <label className="text-sm text-gray-600">Nevera</label>
+        <select
+          value={fridgeId}
+          onChange={(e) => setFridgeId(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium text-blue-700"
+        >
+          {FRIDGES.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name} — {f.brand}
+            </option>
+          ))}
+        </select>
+
+        <label className="text-sm text-gray-600 ml-2">Mes</label>
         <input
           type="month"
           value={selectedMonth}
@@ -191,7 +122,7 @@ const FridgeTemperature: React.FC = () => {
           className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium text-blue-700"
         />
         <button
-          onClick={loadMonthlyRecords}
+          onClick={handleOpenMonthly}
           className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium shadow-lg hover:shadow-xl transition-all"
         >
           📊 Ver registros del mes
@@ -228,6 +159,7 @@ const FridgeTemperature: React.FC = () => {
                 <div className="flex flex-col items-center gap-3 w-full">
                   <input
                     type="number"
+                    step="0.1"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Ej: 4.5"
@@ -264,43 +196,50 @@ const FridgeTemperature: React.FC = () => {
         })}
       </div>
 
-      {/* Modal historial */}
-      {showHistory && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-3xl w-full overflow-y-auto max-h-[80vh]">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">📅 Registros: {selectedMonth}</h2>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
-                  <th className="p-2 rounded-l-lg">Fecha</th>
-                  <th className="p-2">Mañana</th>
-                  <th className="p-2 rounded-r-lg">Tarde</th>
+      {/* Modal historial (BaseModal) */}
+      <BaseModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        headerAccent="indigo"
+        title={`📅 Registros — ${selectedMonth}`}
+        description={
+          <>
+            {selectedFridge.name} • {selectedFridge.brand}
+          </>
+        }
+        secondaryAction={{
+          label: "Cerrar",
+          onClick: () => setShowHistory(false),
+        }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
+                <th className="p-2 rounded-l-lg text-left">Fecha</th>
+                <th className="p-2">Mañana</th>
+                <th className="p-2 rounded-r-lg">Tarde</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyRecords.map((rec) => (
+                <tr key={rec.date} className="odd:bg-gray-50 even:bg-white hover:bg-blue-50 transition">
+                  <td className="p-2 font-medium text-gray-700">{rec.date}</td>
+                  <td className="p-2 text-center">{rec.morning ?? "-"}</td>
+                  <td className="p-2 text-center">{rec.afternoon ?? "-"}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {monthlyRecords.map((rec) => (
-                  <tr
-                    key={rec.date}
-                    className="odd:bg-gray-50 even:bg-white hover:bg-blue-50 transition"
-                  >
-                    <td className="p-2 font-medium text-gray-700">{rec.date}</td>
-                    <td className="p-2 text-center">{rec.morning ?? "-"}</td>
-                    <td className="p-2 text-center">{rec.afternoon ?? "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="text-right mt-4">
-              <button
-                onClick={() => setShowHistory(false)}
-                className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md hover:shadow-lg"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
+              ))}
+              {monthlyRecords.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="p-4 text-center text-gray-500">
+                    No hay registros para este mes.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </BaseModal>
     </div>
   );
 };

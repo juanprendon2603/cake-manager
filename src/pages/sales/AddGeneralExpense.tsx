@@ -1,59 +1,56 @@
-import { format } from "date-fns";
-import { arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
-import { db } from "../../lib/firebase";
+import { paymentLabel } from "../../utils/formatters";
+import BaseModal from "../../components/BaseModal";
+import {
+  registerGeneralExpense,
+  type PaymentMethod,
+} from "../sales/sales.service"; // ajusta la ruta si tu service está en otra carpeta
 
 export function AddGeneralExpense() {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState<number | "">("");
   const [message, setMessage] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const paymentLabel = (pm: string) =>
-    pm === "cash" ? "Efectivo" : pm === "transfer" ? "Transferencia" : pm;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-
+  const validate = () => {
     if (!description.trim() || !amount || Number(amount) <= 0) {
       setMessage(
         "Todos los campos son obligatorios y el valor debe ser mayor a 0."
       );
-      return;
+      return false;
     }
+    setMessage("");
+    return true;
+  };
+
+  // helper para errores sin 'any'
+  const getErrorMessage = (e: unknown): string =>
+    e instanceof Error ? e.message : "Error al registrar el gasto.";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
 
     setLoading(true);
     try {
-      const currentMonth = format(new Date(), "yyyy-MM");
-      const docRef = doc(db, "generalExpenses", currentMonth);
-      const docSnap = await getDoc(docRef);
-
-      const expense = {
-        description: description.trim(),
-        value: Number(amount),
+      await registerGeneralExpense({
+        description,
+        valueCOP: Number(amount),
         paymentMethod,
-        date: format(new Date(), "yyyy-MM-dd"),
-      };
-
-      if (docSnap.exists()) {
-        await updateDoc(docRef, { expenses: arrayUnion(expense) });
-      } else {
-        await setDoc(docRef, { month: currentMonth, expenses: [expense] });
-      }
+      });
 
       addToast({
         type: "success",
-        title: "Gasto general registrado!",
+        title: "¡Gasto general registrado!",
         message: "Gasto registrado correctamente.",
         duration: 5000,
       });
@@ -61,11 +58,11 @@ export function AddGeneralExpense() {
       setDescription("");
       setAmount("");
       setTimeout(() => navigate("/general-expenses"), 800);
-    } catch (error) {
+    } catch (error: unknown) {
       addToast({
         type: "error",
         title: "Ups, algo salió mal",
-        message: (error as Error).message ?? "Error al registrar el gasto.",
+        message: getErrorMessage(error),
         duration: 5000,
       });
     } finally {
@@ -84,22 +81,19 @@ export function AddGeneralExpense() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
         <header className="mb-12 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10"></div>
-          
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
           <div className="relative z-10 py-8">
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
                 💸
               </div>
             </div>
-            
             <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
               Registrar Gasto General
             </h1>
             <p className="text-xl text-gray-700 font-medium mb-8">
               Añade un gasto general del mes
             </p>
-            
             <div className="absolute top-4 left-4">
               <BackButton />
             </div>
@@ -115,7 +109,9 @@ export function AddGeneralExpense() {
               <select
                 className={inputBase}
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+                onChange={(e) =>
+                  setPaymentMethod(e.target.value as PaymentMethod)
+                }
               >
                 <option value="cash">Efectivo</option>
                 <option value="transfer">Transferencia</option>
@@ -148,9 +144,7 @@ export function AddGeneralExpense() {
                   min="0"
                   value={amount}
                   onChange={(e) =>
-                    setAmount(
-                      e.target.value === "" ? "" : Number(e.target.value)
-                    )
+                    setAmount(e.target.value === "" ? "" : Number(e.target.value))
                   }
                   className={`${inputBase} pl-8`}
                   placeholder="0"
@@ -165,12 +159,7 @@ export function AddGeneralExpense() {
               type="button"
               className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-md hover:opacity-95 transition disabled:opacity-60"
               onClick={() => {
-                if (!description.trim() || !amount || Number(amount) <= 0) {
-                  setMessage(
-                    "Todos los campos son obligatorios y el valor debe ser mayor a 0."
-                  );
-                  return;
-                }
+                if (!validate()) return;
                 setShowConfirmModal(true);
               }}
               disabled={loading}
@@ -206,71 +195,55 @@ export function AddGeneralExpense() {
         © 2025 CakeManager. Todos los derechos reservados.
       </footer>
 
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="p-6 border-b">
-              <h3 className="text-xl font-bold text-[#8E2DA8]">
-                Confirmar gasto general
-              </h3>
-            </div>
-
-            <div className="p-6">
-              <p className="text-gray-600 mb-4">
-                Revisa los detalles antes de registrar:
-              </p>
-
-              <div className="space-y-3 text-sm text-gray-800">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Método de pago</span>
-                  <span className="font-medium">
-                    {paymentLabel(paymentMethod)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Descripción</span>
-                  <span className="font-medium text-right">
-                    {description || "-"}
-                  </span>
-                </div>
-
-                <div className="h-px bg-gray-200 my-2" />
-
-                <div className="flex justify-between text-base">
-                  <span className="text-gray-700 font-semibold">Valor</span>
-                  <span className="font-bold text-[#8E2DA8]">
-                    ${Number(amount || 0).toLocaleString("es-CO")}
-                  </span>
-                </div>
+      {/* Modal reutilizable */}
+      <BaseModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        headerAccent="purple"
+        title="Confirmar gasto general"
+        description="Revisa los detalles antes de registrar:"
+        secondaryAction={{
+          label: "Cancelar",
+          onClick: () => setShowConfirmModal(false),
+        }}
+        primaryAction={{
+          label: "Registrar gasto",
+          onClick: () => {
+            setShowConfirmModal(false);
+            const fakeEvent = {
+              preventDefault: () => {},
+            } as unknown as React.FormEvent;
+            handleSubmit(fakeEvent);
+          },
+        }}
+      >
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500 block">Método de pago</span>
+                <span className="font-semibold text-gray-800">
+                  {paymentLabel(paymentMethod)}
+                </span>
               </div>
-            </div>
-
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  const fakeEvent = {
-                    preventDefault: () => {},
-                  } as unknown as React.FormEvent;
-                  handleSubmit(fakeEvent);
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-lg hover:opacity-95 transition disabled:opacity-60"
-                disabled={loading}
-              >
-                Registrar gasto
-              </button>
+              <div>
+                <span className="text-gray-500 block">Valor</span>
+                <span className="font-bold text-[#8E2DA8]">
+                  ${Number(amount || 0).toLocaleString("es-CO")}
+                </span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-gray-500 block">Descripción</span>
+                <span className="font-medium text-gray-800">
+                  {description || "-"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </BaseModal>
     </div>
   );
 }
+
+export default AddGeneralExpense;

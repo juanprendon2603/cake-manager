@@ -1,129 +1,51 @@
-import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
+// src/pages/payroll/Payroll.tsx
 import React, { useEffect, useState } from "react";
-import { db } from "../../lib/firebase";
-
-interface AttendanceRecord {
-  [date: string]: "completo" | "medio";
-}
-
-interface AttendanceByMonth {
-  [month: string]: AttendanceRecord;
-}
-
-interface Person {
-  id: string;
-  firstName: string;
-  lastName: string;
-  valuePerDay: number;
-  attendance: AttendanceByMonth;
-  fixedFortnightPay?: number;
-}
+import type { Fortnight, Person } from "../../types/payroll";
+import {
+  loadPeopleWithNancy,
+  markAttendanceForPerson,
+  calculateFortnightTotal,
+  calculateGeneralTotal,
+} from "./payroll.service";
 
 const Payroll: React.FC = () => {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [fortnight, setFortnight] = useState<1 | 2>(() => {
+  const [fortnight, setFortnight] = useState<Fortnight>(() => {
     const today = new Date().getDate();
-    return today <= 15 ? 1 : 2;
+    return (today <= 15 ? 1 : 2) as Fortnight;
   });
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadPeople = async () => {
+  const load = async () => {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, "payroll"));
-      const peopleData: Person[] = [];
-      querySnapshot.forEach((d) => {
-        peopleData.push({
-          id: d.id,
-          ...(d.data() as Omit<Person, "id">),
-        });
-      });
-
-      // Agregar a Nancy aquí para que nunca se pierda
-      const nancy: Person = {
-        id: "local-nancy-canas",
-        firstName: "Nancy",
-        lastName: "Cañas",
-        valuePerDay: 0,
-        attendance: {},
-        fixedFortnightPay: 500000,
-      };
-
-      const exists = peopleData.some((p) => p.id === nancy.id);
-      if (!exists) {
-        peopleData.unshift(nancy);
-      }
-
-      setPeople(peopleData);
-    } catch (error) {
-      console.error("Error cargando personas:", error);
+      const items = await loadPeopleWithNancy();
+      setPeople(items);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPeople();
+    load();
   }, []);
 
-  const markAttendance = async (
-    personId: string,
-    shift: "completo" | "medio"
-  ) => {
+  const markAttendance = async (personId: string, shift: "completo" | "medio") => {
     const today = new Date().toISOString().slice(0, 10);
     const person = people.find((p) => p.id === personId);
     if (!person) return;
 
-    const updatedAttendance: AttendanceByMonth = {
-      ...person.attendance,
-      [month]: {
-        ...(person.attendance?.[month] || {}),
-        [today]: shift,
-      },
-    };
+    const updated = await markAttendanceForPerson({
+      person,
+      month,
+      date: today,
+      shift,
+    });
 
     setPeople((curr) =>
-      curr.map((p) =>
-        p.id === personId ? { ...p, attendance: updatedAttendance } : p
-      )
+      curr.map((p) => (p.id === personId ? { ...p, attendance: updated } : p))
     );
-
-    if (personId.startsWith("local-")) return;
-
-    try {
-      const personRef = doc(db, "payroll", personId);
-      await updateDoc(personRef, { attendance: updatedAttendance });
-    } catch (err) {
-      console.error("Error actualizando asistencia:", err);
-    }
-  };
-
-  const calculateFortnightTotal = (p: Person) => {
-    if (p.fixedFortnightPay && p.fixedFortnightPay > 0) {
-      return p.fixedFortnightPay;
-    }
-
-    const monthData = p.attendance?.[month] || {};
-    let total = 0;
-
-    for (const [date, shift] of Object.entries(monthData)) {
-      const day = parseInt(date.split("-")[2], 10);
-      const isFirstFortnight = day <= 15;
-
-      if (
-        (fortnight === 1 && isFirstFortnight) ||
-        (fortnight === 2 && !isFirstFortnight)
-      ) {
-        total += shift === "completo" ? p.valuePerDay : p.valuePerDay / 2;
-      }
-    }
-
-    return total;
-  };
-
-  const calculateGeneralTotal = () => {
-    return people.reduce((sum, p) => sum + calculateFortnightTotal(p), 0);
   };
 
   return (
@@ -163,7 +85,7 @@ const Payroll: React.FC = () => {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#8E2DA8]"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#8E2DA8]" />
             <p className="mt-4 text-lg text-gray-600">Cargando personal...</p>
           </div>
         ) : (
@@ -200,7 +122,7 @@ const Payroll: React.FC = () => {
                         <span className="font-semibold">
                           Total {month} ({fortnight === 1 ? "1-15" : "16-fin"}):
                         </span>{" "}
-                        ${calculateFortnightTotal(p).toLocaleString()}
+                        ${calculateFortnightTotal(p, month, fortnight).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -270,7 +192,7 @@ const Payroll: React.FC = () => {
                   Mes: {month} ({fortnight === 1 ? "1-15" : "16-fin"})
                 </p>
                 <p className="text-4xl font-extrabold">
-                  ${calculateGeneralTotal().toLocaleString()}
+                  ${calculateGeneralTotal(people, month, fortnight).toLocaleString()}
                 </p>
               </div>
             </div>

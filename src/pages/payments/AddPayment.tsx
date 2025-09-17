@@ -1,213 +1,116 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../../lib/firebase";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  arrayUnion,
-  collection, // ⬅️ importado para crear el doc mensual (autoId)
-} from "firebase/firestore";
 import { format } from "date-fns";
+import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
-import { BackButton } from "../../components/BackButton";
+import type { PaymentFormState } from "../../types/payments";
+import AddPaymentForm from "./AddPaymentForm";
+import PaymentConfirmModal from "./components/PaymentConfirmModal";
+import { deductStockIfRequested, registerPayment } from "./payment.service";
 
 export function AddPayment() {
   const navigate = useNavigate();
-  const [productType, setProductType] = useState<"cake" | "sponge">("cake");
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedFlavor, setSelectedFlavor] = useState("");
-  const [selectedSpongeType, setSelectedSpongeType] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [totalAmount, setTotalAmount] = useState("");
-  const [partialAmount, setPartialAmount] = useState(""); // abono
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer">("cash");
-  const [deductFromStock, setDeductFromStock] = useState(false);
-  const [isTotalPayment, setIsTotalPayment] = useState(false);
-  const [orderDate, setOrderDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const paymentLabel = (pm: "cash" | "transfer") => (pm === "cash" ? "Efectivo" : "Transferencia");
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const spongeTypes = ["fría", "genovesa"];
+  const [state, setState] = useState<PaymentFormState>(() => ({
+    productType: "cake",
+    selectedSize: "",
+    selectedFlavor: "",
+    selectedSpongeType: "",
+    quantity: "1",
+    totalAmount: "",
+    partialAmount: "",
+    paymentMethod: "cash",
+    deductFromStock: false,
+    isTotalPayment: false,
+    orderDate: format(new Date(), "yyyy-MM-dd"),
+  }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto toggle pago total
+  useEffect(() => {
+    if (state.totalAmount && state.partialAmount) {
+      setState((s) => ({
+        ...s,
+        isTotalPayment: parseFloat(s.partialAmount) === parseFloat(s.totalAmount),
+      }));
+    } else {
+      setState((s) => ({ ...s, isTotalPayment: false }));
+    }
+  }, [state.totalAmount, state.partialAmount]);
+
+  // Helpers
+  const prettyFlavorOrSponge = useMemo(
+    () => (state.productType === "cake" ? state.selectedFlavor : state.selectedSpongeType),
+    [state.productType, state.selectedFlavor, state.selectedSpongeType]
+  );
+
+  // Validación simple previa al modal
+  const validateBeforeConfirm = (): string | null => {
+    if (!state.selectedSize) return "Selecciona un tamaño.";
+    if (state.productType === "cake" && !state.selectedFlavor) return "Selecciona un sabor.";
+    if (state.productType === "sponge" && !state.selectedSpongeType) return "Selecciona el tipo de bizcocho.";
+
+    const qty = parseInt(state.quantity, 10);
+    if (!Number.isFinite(qty) || qty <= 0) return "Ingresa una cantidad válida.";
+
+    const total = parseFloat(state.totalAmount);
+    if (!Number.isFinite(total) || total <= 0) return "Ingresa un valor total válido.";
+
+    if (!state.isTotalPayment) {
+      const part = parseFloat(state.partialAmount);
+      if (!Number.isFinite(part) || part <= 0) return "Ingresa un valor válido para el abono.";
+      if (part > total) return "El abono no puede ser mayor al valor total.";
+    }
+
+    return null;
+  };
+
+  const openConfirm = () => {
+    const err = validateBeforeConfirm();
+    if (err) {
+      setErrorMessage(err);
+      return;
+    }
     setErrorMessage("");
+    setShowConfirm(true);
+  };
 
-    if (!selectedSize) {
-      setErrorMessage("Selecciona un tamaño.");
-      return;
-    }
-    if (productType === "cake" && !selectedFlavor) {
-      setErrorMessage("Selecciona un sabor.");
-      return;
-    }
-    if (productType === "sponge" && !selectedSpongeType) {
-      setErrorMessage("Selecciona el tipo de bizcocho.");
-      return;
-    }
-
-    const quantityNumber = parseInt(quantity);
-    if (isNaN(quantityNumber) || quantityNumber <= 0) {
-      setErrorMessage("Ingresa una cantidad válida.");
-      return;
-    }
-
-    const totalAmountNumber = parseFloat(totalAmount);
-    if (isNaN(totalAmountNumber) || totalAmountNumber <= 0) {
-      setErrorMessage("Ingresa un valor total válido.");
-      return;
-    }
-
-    let partialAmountNumber = 0;
-    if (!isTotalPayment) {
-      partialAmountNumber = parseFloat(partialAmount);
-      if (isNaN(partialAmountNumber) || partialAmountNumber <= 0) {
-        setErrorMessage("Ingresa un valor válido para el abono.");
-        return;
-      }
-      if (partialAmountNumber > totalAmountNumber) {
-        setErrorMessage("El abono no puede ser mayor al valor total.");
-        return;
-      }
-    }
+  const onConfirm = async () => {
+    const qty = parseInt(state.quantity, 10);
+    const total = parseFloat(state.totalAmount);
+    const paid = state.isTotalPayment ? total : parseFloat(state.partialAmount);
+    const flavorOrSponge = prettyFlavorOrSponge;
 
     setLoading(true);
     try {
-      // 1) Descontar inventario (opcional)
-      if (deductFromStock) {
-        const stockRef = doc(db, "stock", `${productType}_${selectedSize}`);
-        const stockSnap = await getDoc(stockRef);
-        if (!stockSnap.exists()) {
-          throw new Error("El producto no se encuentra en el inventario.");
-        }
-        const stockData = stockSnap.data();
+      // 1) stock (opcional)
+      await deductStockIfRequested(
+        state.productType,
+        state.selectedSize,
+        flavorOrSponge,
+        qty,
+        state.deductFromStock
+      );
 
-        if (productType === "cake") {
-          const currentQuantity = stockData.flavors?.[selectedFlavor] || 0;
-          if (currentQuantity < quantityNumber) {
-            throw new Error("No hay suficiente stock para este sabor.");
-          }
-          const updatedFlavors = {
-            ...stockData.flavors,
-            [selectedFlavor]: currentQuantity - quantityNumber,
-          };
-          await updateDoc(stockRef, { flavors: updatedFlavors });
-        } else {
-          const currentQuantity = stockData.quantity || 0;
-          if (currentQuantity < quantityNumber) {
-            throw new Error("No hay suficiente stock para este tamaño.");
-          }
-          await updateDoc(stockRef, { quantity: currentQuantity - quantityNumber });
-        }
-      }
-
+      // 2) persistencias
       const today = format(new Date(), "yyyy-MM-dd");
-      const monthKey = today.slice(0, 7);
-
-      // 2) Item de pago (shape legacy p/ sales diarios)
-      const paymentItem = {
-        id: Date.now().toString(),
-        type: productType,
-        size: selectedSize,
-        flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
-        quantity: quantityNumber,
-        amount: totalAmountNumber, // valor total del pedido
-        partialAmount: isTotalPayment ? totalAmountNumber : partialAmountNumber, // lo efectivamente pagado hoy
-        paymentMethod,
-        isPayment: true,
-        deductedFromStock: deductFromStock,
-        totalPayment: isTotalPayment,
-        orderDate,
-      };
-
-      // 3) Guardar en 'sales/{today}' (array legacy)
-      const salesRef = doc(db, "sales", today);
-      const salesSnap = await getDoc(salesRef);
-      if (salesSnap.exists()) {
-        await updateDoc(salesRef, { sales: arrayUnion(paymentItem) });
-      } else {
-        await setDoc(salesRef, { date: today, sales: [paymentItem], expenses: [] });
-      }
-
-      // 4) Guardar en 'payments/{orderDate}' (seguimiento por fecha de pedido)
-      const paymentsRef = doc(db, "payments", orderDate);
-      const paymentsSnap = await getDoc(paymentsRef);
-      if (paymentsSnap.exists()) {
-        await updateDoc(paymentsRef, { payments: arrayUnion(paymentItem) });
-      } else {
-        await setDoc(paymentsRef, { date: orderDate, payments: [paymentItem] });
-      }
-
-      // 5) 🔥 Nuevo: Guardar también en 'sales_monthly/{yyyy-MM}/entries/{autoId}'
-      //    Este es el origen que ya consumen tus reportes con collectionGroup("entries") por campo 'day'
-      const monthlyDocRef = doc(db, "sales_monthly", monthKey);
-      await setDoc(monthlyDocRef, { month: monthKey }, { merge: true });
-
-      const entryRef = doc(collection(db, "sales_monthly", monthKey, "entries")); // autoId
-      const entryData = {
-        kind: "payment" as const,
-        day: today, // el día del abono (lo que filtras en los informes por 'day')
-        type: productType,
-        size: selectedSize,
-        flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
-        quantity: quantityNumber,
-        amountCOP: isTotalPayment ? totalAmountNumber : partialAmountNumber, // lo que entra hoy
-        paymentMethod,
-        deductedFromStock: deductFromStock,
-        totalPayment: isTotalPayment,
-        orderDate, // info adicional para trazabilidad
-      };
-      await setDoc(entryRef, entryData);
-
-      // Logs para depurar end-to-end
-      console.log("[PAYMENT] Saved daily sales item → sales/%s", today, paymentItem);
-      console.log("[PAYMENT] Saved payments by orderDate → payments/%s", orderDate, paymentItem);
-      console.log("[PAYMENT] Saved monthly entry → sales_monthly/%s/entries/%s", monthKey, entryRef.id, entryData);
-
-      // 5b) 🔄 También guardar en 'payments_monthly/{yyyy-MM}/entries/{autoId}'
-//     Indexado por MES del *orderDate* (el pedido pertenece a ese mes)
-const orderMonth = orderDate.slice(0, 7);
-
-// Crea/merge el contenedor mensual
-await setDoc(doc(db, "payments_monthly", orderMonth), { month: orderMonth }, { merge: true });
-
-// Crea el entry del pago
-const pEntryRef = doc(collection(db, "payments_monthly", orderMonth, "entries"));
-const paymentEntry = {
-  kind: "payment" as const,
-  // fechas
-  orderDay: orderDate,            // fecha del pedido (a este mes agrupa el doc)
-  paidDay: today,                 // fecha en la que efectivamente registras el pago
-  // montos
-  amountCOP: isTotalPayment ? totalAmountNumber : partialAmountNumber, // lo que entra hoy
-  totalAmountCOP: totalAmountNumber,                                   // total del pedido
-  // detalle
-  paymentMethod,
-  type: productType,
-  size: selectedSize,
-  flavor: productType === "cake" ? selectedFlavor : selectedSpongeType,
-  quantity: quantityNumber,
-  totalPayment: isTotalPayment,
-  deductedFromStock: deductFromStock,
-};
-
-// guarda
-await setDoc(pEntryRef, paymentEntry);
-
-// logs
-console.log(
-  "[PAYMENT] Saved monthly payment → payments_monthly/%s/entries/%s",
-  orderMonth,
-  pEntryRef.id,
-  paymentEntry
-);
-
+      await registerPayment({
+        today,
+        productType: state.productType,
+        size: state.selectedSize,
+        flavorOrSponge,
+        quantity: qty,
+        totalAmount: total,
+        paidAmountToday: paid,
+        paymentMethod: state.paymentMethod,
+        totalPayment: state.isTotalPayment,
+        deductedFromStock: state.deductFromStock,
+        orderDate: state.orderDate,
+      });
 
       addToast({
         type: "success",
@@ -216,46 +119,22 @@ console.log(
         duration: 5000,
       });
       navigate("/payment-management");
-    } catch (err) {
-      console.error("[PAYMENT] Error", err);
-      setErrorMessage((err as Error).message ?? "Error al registrar el abono.");
+    } catch (e) {
+      const msg = (e as Error).message ?? "Error al registrar el abono.";
+      setErrorMessage(msg);
+      addToast({
+        type: "error",
+        title: "Ups, algo salió mal",
+        message: msg,
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
+      setShowConfirm(false);
     }
   };
 
-  // Actualiza isTotalPayment automáticamente
-  useEffect(() => {
-    if (totalAmount && partialAmount) {
-      setIsTotalPayment(parseFloat(partialAmount) === parseFloat(totalAmount));
-    } else {
-      setIsTotalPayment(false);
-    }
-  }, [totalAmount, partialAmount]);
-
-  const sizeOptions =
-    productType === "cake"
-      ? [
-          "octavo",
-          "cuarto_redondo",
-          "cuarto_cuadrado",
-          "por_dieciocho",
-          "media",
-          "libra",
-          "libra_y_media",
-          "dos_libras",
-        ]
-      : ["media", "libra"];
-
-  const flavorOptions =
-    productType === "cake"
-      ? ["naranja", "vainilla_chips", "vainilla_chocolate", "negra"]
-      : [];
-
-  const inputBase =
-    "w-full border border-[#E8D4F2] rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent";
-
-  const pretty = (s: string) => s.replaceAll("_", " ");
+  const patch = (p: Partial<PaymentFormState>) => setState((s) => ({ ...s, ...p }));
 
   if (loading) {
     return <FullScreenLoader message="Guardando abono..." />;
@@ -265,235 +144,32 @@ console.log(
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
         <header className="mb-12 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10"></div>
-
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
           <div className="relative z-10 py-8">
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
                 💳
               </div>
             </div>
-
             <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
               Registrar Abono/Pago
             </h1>
             <p className="text-xl text-gray-700 font-medium mb-8">
               Registra abonos o pagos totales y actualiza el inventario si lo deseas.
             </p>
-
             <div className="absolute top-4 left-4">
               <BackButton />
             </div>
           </div>
         </header>
 
-        <section className="max-w-xl mx-auto bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
-          {errorMessage && (
-            <div className="mb-4 rounded-lg px-4 py-3 text-sm bg-red-50 text-red-700 border border-red-200">
-              {errorMessage}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Tipo de producto
-              </label>
-              <select
-                value={productType}
-                onChange={(e) => {
-                  const val = e.target.value as "cake" | "sponge";
-                  setProductType(val);
-                  setSelectedSize("");
-                  setSelectedFlavor("");
-                  setSelectedSpongeType("");
-                }}
-                className={inputBase}
-              >
-                <option value="cake">Torta</option>
-                <option value="sponge">Bizcocho</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Tamaño
-              </label>
-              <select
-                value={selectedSize}
-                onChange={(e) => setSelectedSize(e.target.value)}
-                className={inputBase}
-              >
-                <option value="">Seleccionar</option>
-                {sizeOptions.map((size) => (
-                  <option key={size} value={size}>
-                    {pretty(size)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {productType === "cake" && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Sabor
-                </label>
-                <select
-                  value={selectedFlavor}
-                  onChange={(e) => setSelectedFlavor(e.target.value)}
-                  className={inputBase}
-                >
-                  <option value="">Seleccionar</option>
-                  {flavorOptions.map((flavor) => (
-                    <option key={flavor} value={flavor}>
-                      {pretty(flavor)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {productType === "sponge" && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Tipo de bizcocho
-                </label>
-                <select
-                  value={selectedSpongeType}
-                  onChange={(e) => setSelectedSpongeType(e.target.value)}
-                  className={inputBase}
-                >
-                  <option value="">Seleccionar</option>
-                  {spongeTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Cantidad
-              </label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className={inputBase}
-                onWheel={(e) => e.currentTarget.blur()}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Valor total
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={totalAmount}
-                  onChange={(e) => setTotalAmount(e.target.value)}
-                  className={`${inputBase} pl-8`}
-                  placeholder="0"
-                  onWheel={(e) => e.currentTarget.blur()}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">En pesos colombianos.</p>
-            </div>
-
-            {!isTotalPayment && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Monto abonado
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={partialAmount}
-                    onChange={(e) => setPartialAmount(e.target.value)}
-                    className={`${inputBase} pl-8`}
-                    placeholder="0"
-                    onWheel={(e) => e.currentTarget.blur()}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-500">Ingresa cuánto abona el cliente.</p>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Fecha del pedido
-              </label>
-              <input
-                type="date"
-                value={orderDate}
-                onChange={(e) => setOrderDate(e.target.value)}
-                className={inputBase}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Método de pago
-              </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as "cash" | "transfer")}
-                className={inputBase}
-              >
-                <option value="cash">Efectivo</option>
-                <option value="transfer">Transferencia</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="deductStock"
-                checked={deductFromStock}
-                onChange={(e) => setDeductFromStock(e.target.checked)}
-                className="accent-[#8E2DA8] h-4 w-4"
-              />
-              <label htmlFor="deductStock" className="text-sm font-semibold text-gray-700">
-                Descontar del inventario
-              </label>
-            </div>
-
-            <button
-              type="button"
-              className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-md hover:opacity-95 transition disabled:opacity-60"
-              onClick={() => {
-                setErrorMessage("");
-                if (!selectedSize) return setErrorMessage("Selecciona un tamaño.");
-                if (productType === "cake" && !selectedFlavor) return setErrorMessage("Selecciona un sabor.");
-                if (productType === "sponge" && !selectedSpongeType) return setErrorMessage("Selecciona el tipo de bizcocho.");
-                const qty = parseInt(quantity);
-                const amt = parseFloat(totalAmount);
-                if (isNaN(qty) || qty <= 0) return setErrorMessage("Ingresa una cantidad válida.");
-                if (isNaN(amt) || amt <= 0) return setErrorMessage("Ingresa un valor total válido.");
-                if (!isTotalPayment) {
-                  const partialAmt = parseFloat(partialAmount);
-                  if (isNaN(partialAmt) || partialAmt <= 0) return setErrorMessage("Ingresa un valor válido para el abono.");
-                  if (partialAmt > amt) return setErrorMessage("El abono no puede ser mayor al valor total.");
-                }
-                setShowConfirmModal(true);
-              }}
-              disabled={loading}
-            >
-              Registrar pago
-            </button>
-          </form>
-        </section>
+        <AddPaymentForm
+          state={state}
+          setState={patch}
+          errorMessage={errorMessage}
+          onClickOpenConfirm={openConfirm}
+          loading={loading}
+        />
 
         <div className="mt-8 max-w-xl mx-auto">
           <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-5 shadow-lg text-center">
@@ -509,95 +185,25 @@ console.log(
         © 2025 CakeManager. Todos los derechos reservados.
       </footer>
 
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="p-6 border-b">
-              <h3 className="text-xl font-bold text-[#8E2DA8]">Confirmar abono/pago</h3>
-            </div>
-
-            <div className="p-6">
-              <p className="text-gray-600 mb-4">Revisa los detalles antes de registrar:</p>
-
-              <div className="space-y-3 text-sm text-gray-800">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Producto</span>
-                  <span className="font-medium">{productType === "cake" ? "Torta" : "Bizcocho"}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tamaño</span>
-                  <span className="font-medium">{pretty(selectedSize)}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{productType === "cake" ? "Sabor" : "Tipo de bizcocho"}</span>
-                  <span className="font-medium">
-                    {productType === "cake" ? pretty(selectedFlavor) : selectedSpongeType}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Cantidad</span>
-                  <span className="font-medium">x{parseInt(quantity || "0", 10)}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Fecha del pedido</span>
-                  <span className="font-medium">{orderDate}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Método de pago</span>
-                  <span className="font-medium">{paymentLabel(paymentMethod)}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Descontar del inventario</span>
-                  <span className="font-medium">{deductFromStock ? "Sí" : "No"}</span>
-                </div>
-
-                <div className="h-px bg-gray-200 my-2" />
-
-                <div className="flex justify-between text-base">
-                  <span className="text-gray-700 font-semibold">Valor total</span>
-                  <span className="font-bold text-[#8E2DA8]">
-                    ${Number(totalAmount || 0).toLocaleString("es-CO")}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Monto abonado</span>
-                  <span className="font-medium">
-                    ${Number((!isTotalPayment ? partialAmount : totalAmount) || 0).toLocaleString("es-CO")}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  const fakeEvent = { preventDefault: () => {} } as unknown as React.FormEvent;
-                  handleSubmit(fakeEvent);
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-lg hover:opacity-95 transition disabled:opacity-60"
-                disabled={loading}
-              >
-                Registrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PaymentConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        productType={state.productType}
+        size={state.selectedSize}
+        flavorOrSponge={prettyFlavorOrSponge}
+        quantity={parseInt(state.quantity || "0", 10)}
+        orderDate={state.orderDate}
+        paymentMethod={state.paymentMethod}
+        deductFromStock={state.deductFromStock}
+        totalAmount={Number(state.totalAmount || 0)}
+        paidAmountToday={
+          state.isTotalPayment ? Number(state.totalAmount || 0) : Number(state.partialAmount || 0)
+        }
+        onConfirm={onConfirm}
+        loading={loading}
+      />
     </div>
   );
 }
+
+export default AddPayment;
