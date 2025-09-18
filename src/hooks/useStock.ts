@@ -4,11 +4,9 @@ import {
   isSpongeStock,
   type LocalStockDoc,
 } from "../pages/stock/stock.model";
-import {
-  clearSizeFlavors,
-  fetchStockOnce,
-  watchStock,
-} from "../pages/stock/stock.repository";
+import { fetchStockOnce } from "../pages/stock/stock.repository";
+
+import { clearSizeFlavors, watchStock } from "../pages/stock/stock.api";
 
 export function useStock({ realtime = true }: { realtime?: boolean } = {}) {
   const [stocks, setStocks] = useState<LocalStockDoc[]>([]);

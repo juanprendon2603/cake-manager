@@ -7,6 +7,7 @@ import { useToast } from "../../hooks/useToast";
 
 import { CakeSizeFields } from "./components/CakeSizeFields";
 import { ConfirmUpdateModal } from "./components/ConfirmUpdateModal";
+import { persistStockUpdate } from "./stock.api";
 import {
   cakeSizes,
   flavors,
@@ -14,7 +15,6 @@ import {
   spongeSizes,
   type FormValues,
 } from "./stock.model";
-import { persistStockUpdate } from "./stock.service";
 
 // --- Form principal ---
 export function AddStockForm() {
