@@ -1,30 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  isCakeStock,
-  isSpongeStock,
-  type LocalStockDoc,
-} from "../pages/stock/stock.model";
-import { fetchStockOnce } from "../pages/stock/stock.repository";
+  fetchCategoryStockOnce,
+  setVariantStock,
+  watchCategoryStock,
+  type VariantStockDoc,
+} from "../pages/stock/stock.repository";
 
-import { clearSizeFlavors, watchStock } from "../pages/stock/stock.api";
+type UseStockArgs = {
+  categoryId: string; // p.ej. "tortas"
+  realtime?: boolean; // default true
+};
 
-export function useStock({ realtime = true }: { realtime?: boolean } = {}) {
-  const [stocks, setStocks] = useState<LocalStockDoc[]>([]);
+export function useStock({ categoryId, realtime = true }: UseStockArgs) {
+  const [stocks, setStocks] = useState<VariantStockDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [clearingId, setClearingId] = useState<string | null>(null);
+  const [pendingVariant, setPendingVariant] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!categoryId) return;
     let unsub: (() => void) | null = null;
 
     const run = async () => {
       setLoading(true);
       if (realtime) {
-        unsub = watchStock((items) => {
+        unsub = watchCategoryStock(categoryId, (items) => {
           setStocks(items);
           setLoading(false);
         });
       } else {
-        const items = await fetchStockOnce();
+        const items = await fetchCategoryStockOnce(categoryId);
         setStocks(items);
         setLoading(false);
       }
@@ -34,33 +38,28 @@ export function useStock({ realtime = true }: { realtime?: boolean } = {}) {
     return () => {
       if (unsub) unsub();
     };
-  }, [realtime]);
+  }, [categoryId, realtime]);
 
-  const clearFlavorsById = useCallback(async (id: string) => {
-    await clearSizeFlavors(id);
-    setClearingId(id);
-    setTimeout(() => setClearingId(null), 900);
-  }, []);
+  /** Resetear una variante específica a 0 (o a un valor dado). */
+  const resetVariant = useCallback(
+    async (variantKey: string, to = 0) => {
+      if (!categoryId) return;
+      setPendingVariant(variantKey);
+      try {
+        await setVariantStock(categoryId, variantKey, to);
+      } finally {
+        setTimeout(() => setPendingVariant(null), 800);
+      }
+    },
+    [categoryId]
+  );
 
+  /** Stats simples sobre la categoría actual. */
   const stats = useMemo(() => {
-    const cakes = stocks.filter(isCakeStock);
-    const sponges = stocks.filter(isSpongeStock);
-    const totalFlavors = cakes.reduce(
-      (acc, c) =>
-        acc + Object.values(c.flavors).reduce((a, b) => a + Number(b || 0), 0),
-      0
-    );
-    const totalSponges = sponges.reduce(
-      (acc, s) => acc + Number(s.quantity || 0),
-      0
-    );
-    return {
-      cakeSizes: cakes.length,
-      totalFlavors,
-      spongeSizes: sponges.length,
-      totalSponges,
-    };
+    const totalVariants = stocks.length;
+    const totalUnits = stocks.reduce((acc, v) => acc + Number(v.stock || 0), 0);
+    return { totalVariants, totalUnits };
   }, [stocks]);
 
-  return { stocks, loading, clearingId, clearFlavorsById, stats };
+  return { stocks, loading, pendingVariant, resetVariant, stats };
 }

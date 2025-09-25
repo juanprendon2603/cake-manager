@@ -1,47 +1,65 @@
-import { useMemo } from "react";
-import {
-  cakeSizes,
-  flavorIcons,
-  normalizeKey,
-  sizeIcons,
-  spongeSizes,
-  type FlavorKey,
-  type FormValues,
-  type SizeKey,
-} from "../stock.model";
+import React, { useMemo } from "react";
+import type { ProductCategory, VariantRow } from "../stock.model";
 
 type Props = {
   open: boolean;
-  pendingFormData: FormValues | null;
+  category: ProductCategory | null; // categoría actual (ej. "tortas")
+  date: string; // YYYY-MM-DD (para mostrar)
+  rows: VariantRow[]; // [{ variantKey, parts, qty }]
   onCancel: () => void;
   onConfirm: () => void;
 };
 
+// Iconos opcionales según el step/option (puedes ajustarlos a tu gusto)
+const stepIconByKey: Record<string, React.ReactNode> = {
+  tamano: <span className="text-lg">📏</span>,
+  sabor: <span className="text-lg">🎨</span>,
+};
+const categoryIcon: Record<string, React.ReactNode> = {
+  tortas: <span className="text-xl">🎂</span>,
+  bizcochos: <span className="text-xl">🧁</span>,
+};
+
 export function ConfirmUpdateModal({
   open,
-  pendingFormData,
+  category,
+  date,
+  rows,
   onCancel,
   onConfirm,
 }: Props) {
   if (!open) return null;
 
-  const { hasValidCakes, hasValidSponges } = useMemo(() => {
-    const hasValidCakes = cakeSizes.some((size) => {
-      const key = normalizeKey(size);
-      const entries = pendingFormData?.cakes?.[key] || [];
-      return entries.some(
-        (e) => e.flavor && parseInt(e.quantity || "0", 10) > 0
-      );
-    });
+  // Filtra solo filas con cantidad válida
+  const lines = useMemo(
+    () => (rows || []).filter((r) => Number(r.qty) > 0),
+    [rows]
+  );
+  const hasLines = lines.length > 0;
 
-    const hasValidSponges = spongeSizes.some((size) => {
-      const key = normalizeKey(size);
-      const qty = parseInt(pendingFormData?.sponges?.[key] || "0", 10);
-      return qty > 0;
-    });
-
-    return { hasValidCakes, hasValidSponges };
-  }, [pendingFormData]);
+  // Helper para mostrar “chips” bonitos de la variante usando las labels de la categoría
+  const renderVariantChips = (parts: Record<string, string>) => {
+    // parts = { tamano: "libra", sabor: "chocolate" }
+    const steps = category?.steps || [];
+    return (
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(parts).map(([stepKey, optKey]) => {
+          const step = steps.find((s) => s.key === stepKey);
+          const opt = step?.options?.find((o) => o.key === optKey);
+          const label = `${step?.label ?? stepKey}: ${opt?.label ?? optKey}`;
+          return (
+            <span
+              key={`${stepKey}:${optKey}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-purple-200 bg-purple-50 text-purple-700"
+            >
+              {stepIconByKey[stepKey] ?? null}
+              {label}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -52,124 +70,56 @@ export function ConfirmUpdateModal({
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl">
               ✅
             </div>
-            <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              ¿Confirmar actualización de inventario?
-            </h3>
+            <div>
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                ¿Confirmar actualización de inventario?
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {categoryIcon[category?.id ?? ""]}{" "}
+                <strong>{category?.name ?? "—"}</strong> • Fecha:{" "}
+                <strong>{date}</strong>
+              </p>
+            </div>
           </div>
 
           <div className="mb-8 space-y-6 max-h-80 overflow-auto pr-2">
-            {!pendingFormData ? (
+            {!hasLines ? (
               <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">📦</div>
-                <p>No hay datos para mostrar.</p>
+                <div className="text-4xl mb-2">⚠️</div>
+                <p className="font-medium">
+                  No hay cantidades válidas para agregar.
+                </p>
+                <p className="text-sm">
+                  Verifica que hayas ingresado cantidades.
+                </p>
               </div>
             ) : (
-              <>
-                {hasValidCakes && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
-                        🎂
-                      </div>
-                      <h4 className="font-bold text-xl text-purple-700">
-                        Tortas
-                      </h4>
-                    </div>
-                    <div className="space-y-3">
-                      {cakeSizes.map((size) => {
-                        const key = normalizeKey(size);
-                        const entries = pendingFormData?.cakes?.[key] || [];
-                        const validEntries = entries.filter(
-                          (e) => e.flavor && parseInt(e.quantity || "0", 10) > 0
-                        );
-                        if (validEntries.length === 0) return null;
-
-                        return (
-                          <div
-                            key={key}
-                            className="bg-white/70 rounded-xl p-4 border border-purple-200/50"
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-lg">
-                                {sizeIcons[size as SizeKey]}
-                              </span>
-                              <span className="font-semibold text-purple-700">
-                                {size}
-                              </span>
-                            </div>
-                            <div className="space-y-2">
-                              {validEntries.map((e, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-center justify-between text-sm"
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <span>
-                                      {flavorIcons[e.flavor as FlavorKey]}
-                                    </span>
-                                    <span>{e.flavor}</span>
-                                  </span>
-                                  <span className="font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">
-                                    +{parseInt(e.quantity, 10)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {hasValidSponges && (
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white">
-                        🧁
-                      </div>
-                      <h4 className="font-bold text-xl text-amber-700">
-                        Bizcochos
-                      </h4>
-                    </div>
-                    <div className="space-y-2">
-                      {spongeSizes.map((size) => {
-                        const key = normalizeKey(size);
-                        const qty = parseInt(
-                          pendingFormData?.sponges?.[key] || "0",
-                          10
-                        );
-                        return qty > 0 ? (
-                          <div
-                            key={key}
-                            className="flex items-center justify-between bg-white/70 rounded-xl p-3 border border-amber-200/50"
-                          >
-                            <span className="flex items-center gap-2">
-                              <span className="text-lg">🧁</span>
-                              <span className="font-medium">{size}</span>
-                            </span>
-                            <span className="font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-lg">
-                              +{qty}
-                            </span>
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {!hasValidCakes && !hasValidSponges && (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-4xl mb-2">⚠️</div>
-                    <p className="font-medium">
-                      No hay cantidades válidas para agregar.
-                    </p>
-                    <p className="text-sm">
-                      Verifica que hayas ingresado sabores y cantidades.
-                    </p>
-                  </div>
-                )}
-              </>
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                        Variante
+                      </th>
+                      <th className="px-3 py-2 text-right font-semibold text-gray-700 w-28">
+                        Cantidad
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((r) => (
+                      <tr key={r.variantKey} className="border-t">
+                        <td className="px-3 py-2">
+                          {renderVariantChips(r.parts)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold">
+                          +{Number(r.qty)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -192,7 +142,8 @@ export function ConfirmUpdateModal({
             </button>
             <button
               onClick={onConfirm}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold"
+              disabled={!hasLines}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold disabled:opacity-60"
             >
               ✅ Confirmar
             </button>

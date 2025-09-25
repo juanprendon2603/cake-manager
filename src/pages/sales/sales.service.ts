@@ -5,7 +5,6 @@ import {
   collection,
   doc,
   increment,
-  runTransaction,
   serverTimestamp,
   setDoc,
   writeBatch,
@@ -13,29 +12,11 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import type {
-  CakeStockDoc,
-  GeneralExpenseItem,
-  PaymentMethod, // para UI si lo necesitas en otros lugares
-  PendingSale,
-  ProductType,
-  SaleEntry,
-  SpongeStockDoc,
-} from "../../types/stock";
-import { getBasePrice } from "./constants";
+import type { GeneralExpenseItem, PaymentMethod } from "../../types/stock";
 
-/* --------------------------------- Helpers -------------------------------- */
-const normalizeKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "_");
-
-export function computeAmount(
-  productType: ProductType,
-  size: string,
-  flavor: string,
-  qty: number
-) {
-  const base = getBasePrice(productType, size, flavor);
-  return base * Math.max(1, qty);
-}
+/* -------------------------------------------------------------------------- */
+/*                                   Helpers                                  */
+/* -------------------------------------------------------------------------- */
 
 export function buildKeys() {
   const dayKey = format(new Date(), "yyyy-MM-dd");
@@ -43,119 +24,82 @@ export function buildKeys() {
   return { dayKey, monthKey };
 }
 
-const getErrorMessage = (e: unknown): string =>
-  e instanceof Error ? e.message : "Error al actualizar stock";
-
-/* --------------------- Type guards para datos de Firestore ----------------- */
-type StockData = CakeStockDoc | SpongeStockDoc;
-
-const isCake = (d: StockData): d is CakeStockDoc => d.type === "cake";
-const isSponge = (d: StockData): d is SpongeStockDoc => d.type === "sponge";
-
-/* ------------------------------- Decrementos ------------------------------- */
-/**
- * Decrementa stock de forma atómica.
- * - Cake: decrementa flavors.<flavor> con increment(-qty)
- * - Sponge: decrementa quantity con increment(-qty)
- * - Verifica no-negativos dentro de la transacción
- */
-export async function tryDecrementStock(
-  productType: ProductType,
-  size: string,
-  flavor: string,
-  quantityNumber: number
-): Promise<{ decremented: boolean; error?: string }> {
-  const normSize = normalizeKey(size);
-  const normFlavor = normalizeKey(flavor);
-  const stockRef = doc(db, "stock", `${productType}_${normSize}`);
-
-  try {
-    let decremented = false;
-
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(stockRef);
-      if (!snap.exists()) throw new Error("El producto no existe en el stock.");
-      const data = snap.data() as StockData;
-
-      if (isCake(data)) {
-        const current = Number(data.flavors?.[normFlavor] ?? 0);
-        if (current < quantityNumber) return; // no suficiente stock
-        tx.update(stockRef, {
-          [`flavors.${normFlavor}`]: increment(-quantityNumber),
-          last_update: serverTimestamp(),
-        });
-        decremented = true;
-      } else if (isSponge(data)) {
-        const current = Number(data.quantity ?? 0);
-        if (current < quantityNumber) return;
-        tx.update(stockRef, {
-          quantity: increment(-quantityNumber),
-          last_update: serverTimestamp(),
-        });
-        decremented = true;
-      } else {
-        throw new Error("Tipo de stock desconocido.");
-      }
-    });
-
-    return { decremented };
-  } catch (e) {
-    return { decremented: false, error: getErrorMessage(e) };
-  }
+function pad13(n: number) {
+  return String(n).padStart(13, "0");
 }
 
-/* --------------------------------- Ventas --------------------------------- */
+function ensureDayKey(day?: string) {
+  const { dayKey } = buildKeys();
+  return day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : dayKey;
+}
+
+/** Ej: 2025-09-25_0001758771350000 (13 dígitos, orden lexicográfico correcto) */
+export function makeSaleEntryId(day?: string, now = Date.now()) {
+  return `${ensureDayKey(day)}_${pad13(now)}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Ventas (GENÉRICO)                             */
+/* -------------------------------------------------------------------------- */
+
+export type GenericSale = {
+  categoryId: string; // ej: "bizcocho"
+  variantKey: string; // ej: "tamano:gran|sabor:ama"
+  selections: Record<string, string>; // { tamano:"gran", sabor:"ama" } (para mostrar)
+  quantity: number; // unidades vendidas
+  unitPriceCOP: number; // precio unitario calculado por UI
+  amountCOP: number; // total (editable en UI si quieres)
+  paymentMethod: PaymentMethod; // "cash" | "transfer"
+  dayKey: string; // "YYYY-MM-DD"
+  monthKey: string; // "YYYY-MM"
+};
+
 /**
- * Registra una venta y actualiza agregados del mes en UN SOLO batch (atómico):
+ * Registra una venta genérica y actualiza agregados del mes en UN SOLO batch:
  * - Crea entrada en sales_monthly/{month}/entries
  * - Actualiza totals y byPayment.{method} con increment()
  */
-export async function registerSale(p: PendingSale) {
-  const {
-    productType,
-    size,
-    flavor,
-    quantityNumber,
-    amountCOP,
-    dayKey,
-    monthKey,
-    paymentMethod,
-  } = p;
+export async function registerGenericSale(s: GenericSale) {
+  const entriesColRef = collection(db, "sales_monthly", s.monthKey, "entries");
 
-  const entriesColRef = collection(db, "sales_monthly", monthKey, "entries");
-  const monthRef = doc(db, "sales_monthly", monthKey);
-  const entryRef = doc(entriesColRef); // ID auto, pero en batch
+  // ✅ ID ordenable por fecha
+  const entryId = makeSaleEntryId(s.dayKey);
+  const entryRef = doc(entriesColRef, entryId);
 
-  const entry: SaleEntry = {
+  const monthRef = doc(db, "sales_monthly", s.monthKey);
+
+  const entry: DocumentData = {
+    id: entryId, // (opcional, útil para UI)
     kind: "sale",
-    day: dayKey,
     createdAt: serverTimestamp(),
-    type: productType,
-    size,
-    flavor,
-    quantity: quantityNumber,
-    amountCOP,
-    paymentMethod,
+    day: s.dayKey,
+    categoryId: s.categoryId,
+    variantKey: s.variantKey,
+    selections: s.selections,
+    quantity: s.quantity,
+    unitPriceCOP: s.unitPriceCOP,
+    amountCOP: s.amountCOP,
+    paymentMethod: s.paymentMethod,
   };
 
   const batch = writeBatch(db);
 
-  // 1) Inserta la entrada del día
-  batch.set(entryRef, entry as DocumentData);
+  // 1) Inserta la entrada con ID controlado
+  batch.set(entryRef, entry);
 
-  // 2) Upsert + agregados del mes
+  // 2) Agregados del mes
   batch.set(
     monthRef,
     {
-      month: monthKey,
+      month: s.monthKey,
       updatedAt: serverTimestamp(),
       totals: {
-        salesRevenue: increment(amountCOP),
+        salesRevenue: increment(s.amountCOP),
         salesCount: increment(1),
       },
       byPayment: {
-        [paymentMethod]: {
-          salesRevenue: increment(amountCOP),
+        [s.paymentMethod]: {
+          salesRevenue: increment(s.amountCOP),
           salesCount: increment(1),
         },
       },
@@ -166,7 +110,16 @@ export async function registerSale(p: PendingSale) {
   await batch.commit();
 }
 
-/* --------------------------------- Gastos --------------------------------- */
+/* Si prefieres importar el decremento genérico desde el servicio de catálogo
+   para usarlo desde aquí, lo reexportamos para que el resto del código
+   pueda hacer: import { tryDecrementStockGeneric } from "./sales.service";
+*/
+export { tryDecrementStockGeneric } from "../catalog/catalog.service";
+
+/* -------------------------------------------------------------------------- */
+/*                                   Gastos                                   */
+/* -------------------------------------------------------------------------- */
+
 export interface ExpenseEntry {
   day: string; // yyyy-MM-dd
   createdAt: Timestamp | ReturnType<typeof serverTimestamp>;

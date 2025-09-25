@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ✅ ahora bootstrap permitido si NO hay admins (aunque allowlist tenga datos)
+    function noAdmins() {
+      return !( "admins" in resource.data ) || resource.data.admins.size() == 0;
+    }
+
+    function isActiveUser() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true &&
+        !(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.disabled == true);
+    }
+
+    match /app_config/{docId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+                    && docId == "auth"
+                    && !exists(/databases/$(database)/documents/app_config/auth);
+
+      // ✅ permitir update si:
+      // - eres admin, o
+      // - es el doc 'auth' y actualmente no hay admins (bootstrap)
+      allow update: if isAdmin()
+                    || (isSignedIn() && docId == "auth" && noAdmins());
+
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid)
+                    && !exists(/databases/$(database)/documents/users/$(uid));
+      allow update: if isSelf(uid) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'displayName', 'photoURL'
+        ]);
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if isActiveUser();
+    }
+  }
+}

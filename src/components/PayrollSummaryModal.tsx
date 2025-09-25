@@ -1,7 +1,7 @@
 // src/components/PayrollSummaryModal.tsx
-import BaseModal from "./BaseModal";
+import React, { useMemo, useState } from "react";
 import type { Person } from "../types/payroll";
-import { parseLocalDate } from "../utils/dates";
+import BaseModal from "./BaseModal";
 
 interface Props {
   isOpen: boolean;
@@ -10,131 +10,414 @@ interface Props {
   people: Person[];
 }
 
+type Fortnight = 1 | 2;
+type ModeKey = "fixed" | "per_day" | "per_hour";
+
+/* ----------------------- Helpers de asistencia ----------------------- */
+function isStringDay(day: any): day is "completo" | "medio" {
+  return typeof day === "string";
+}
+function isHoursDay(
+  day: any
+): day is { kind: "hours"; hours: number; from?: string; to?: string } {
+  return day && typeof day === "object" && day.kind === "hours";
+}
+function personMode(p: Person): ModeKey {
+  if (p.paymentMode === "fixed_fortnight" || p.paymentMode === "fixed_monthly")
+    return "fixed";
+  if (p.paymentMode === "per_hour") return "per_hour";
+  return "per_day";
+}
+function isInFortnight(dateYYYYMMDD: string, f: Fortnight) {
+  const day = parseInt(dateYYYYMMDD.slice(8, 10), 10);
+  return f === 1 ? day <= 15 : day >= 16;
+}
+const fmtH = (n: number) => (n % 1 === 0 ? `${n} h` : `${n.toFixed(2)} h`);
+
+/* -------------------- Cálculo por persona y modo --------------------- */
+function buildPerDayData(
+  p: Person,
+  month: string,
+  fortnight: Fortnight
+): { qDays: number; mDays: number; qList: number[]; mList: number[] } {
+  const m = p.attendance?.[month] || {};
+  const qList: number[] = [];
+  const mList: number[] = [];
+
+  for (const [date, value] of Object.entries(m)) {
+    if (!isStringDay(value)) continue;
+    const dayNo = parseInt(date.slice(8, 10), 10);
+    mList.push(dayNo);
+    if (isInFortnight(date, fortnight)) qList.push(dayNo);
+  }
+
+  qList.sort((a, b) => a - b);
+  mList.sort((a, b) => a - b);
+
+  return { qDays: qList.length, mDays: mList.length, qList, mList };
+}
+
+function buildPerHourData(
+  p: Person,
+  month: string,
+  fortnight: Fortnight
+): { qHours: number; mHours: number; qList: number[]; mList: number[] } {
+  const m = p.attendance?.[month] || {};
+  let qHours = 0;
+  let mHours = 0;
+  const qList: number[] = [];
+  const mList: number[] = [];
+
+  for (const [date, value] of Object.entries(m)) {
+    if (!isHoursDay(value) || !(value.hours > 0)) continue;
+    const dayNo = parseInt(date.slice(8, 10), 10);
+    mHours += value.hours;
+    mList.push(dayNo);
+    if (isInFortnight(date, fortnight)) {
+      qHours += value.hours;
+      qList.push(dayNo);
+    }
+  }
+
+  qHours = Number(qHours.toFixed(2));
+  mHours = Number(mHours.toFixed(2));
+  qList.sort((a, b) => a - b);
+  mList.sort((a, b) => a - b);
+
+  return { qHours, mHours, qList, mList };
+}
+
+/* ---------------------------- UI helpers ----------------------------- */
+const GroupCard: React.FC<{
+  title: string;
+  accent: "emerald" | "sky" | "indigo";
+  children: React.ReactNode;
+}> = ({ title, accent, children }) => {
+  const headerBg =
+    accent === "emerald"
+      ? "from-emerald-50 to-green-50"
+      : accent === "sky"
+      ? "from-sky-50 to-blue-50"
+      : "from-indigo-50 to-purple-50";
+  const border =
+    accent === "emerald"
+      ? "border-emerald-100"
+      : accent === "sky"
+      ? "border-sky-100"
+      : "border-indigo-100";
+
+  return (
+    <div
+      className={`bg-white rounded-2xl shadow-sm border ${border} overflow-hidden`}
+    >
+      <div className={`px-5 py-3 border-b bg-gradient-to-r ${headerBg}`}>
+        <h4 className="font-bold text-gray-800">{title}</h4>
+      </div>
+      <div className="p-4 divide-y">{children}</div>
+    </div>
+  );
+};
+
+const NameAvatar: React.FC<{
+  first: string;
+  last: string;
+  className?: string;
+}> = ({ first, last, className = "" }) => (
+  <div
+    className={`w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold grid place-items-center text-xs ${className}`}
+    title={`${first} ${last}`}
+  >
+    {first?.[0]?.toUpperCase()}
+    {last?.[0]?.toUpperCase()}
+  </div>
+);
+
+const Pill: React.FC<{
+  color: "green" | "blue" | "indigo";
+  children: React.ReactNode;
+}> = ({ color, children }) => {
+  const cls =
+    color === "green"
+      ? "bg-emerald-100 text-emerald-700"
+      : color === "blue"
+      ? "bg-sky-100 text-sky-700"
+      : "bg-indigo-100 text-indigo-700";
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${cls}`}>
+      {children}
+    </span>
+  );
+};
+
+const TinyLabel: React.FC<{
+  color: "green" | "blue";
+  children: React.ReactNode;
+}> = ({ color, children }) => {
+  const cls =
+    color === "green"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-sky-50 text-sky-700 border-sky-200";
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${cls}`}
+    >
+      {children}
+    </span>
+  );
+};
+
+const DayChip: React.FC<{ color: "green" | "blue"; n: number }> = ({
+  color,
+  n,
+}) => {
+  const cls =
+    color === "green"
+      ? "bg-gradient-to-r from-green-100 to-emerald-100 text-emerald-700 border-emerald-200"
+      : "bg-gradient-to-r from-blue-100 to-sky-100 text-sky-700 border-sky-200";
+  return (
+    <span
+      className={`px-2 py-1 rounded-md text-[11px] font-medium border ${cls}`}
+    >
+      {n}
+    </span>
+  );
+};
+
+/* -------------------------- Componente modal ------------------------- */
 export default function PayrollSummaryModal({
   isOpen,
   onClose,
   month,
   people,
 }: Props) {
-  const summary = people.map((p) => {
-    const q1: string[] = [];
-    const q2: string[] = [];
-    const monthData = p.attendance?.[month] || {};
-    for (const date in monthData) {
-      const day = parseInt(date.split("-")[2], 10);
-      (day <= 15 ? q1 : q2).push(date);
+  const [fortnight, setFortnight] = useState<Fortnight>(1);
+
+  const activePeople = useMemo(
+    () => people.filter((p) => p.active !== false),
+    [people]
+  );
+
+  const groups = useMemo(() => {
+    const fixed: Person[] = [];
+    const perDay: Array<{
+      p: Person;
+      qDays: number;
+      mDays: number;
+      qList: number[];
+      mList: number[];
+    }> = [];
+    const perHour: Array<{
+      p: Person;
+      qHours: number;
+      mHours: number;
+      qList: number[];
+      mList: number[];
+    }> = [];
+
+    for (const p of activePeople) {
+      const mode = personMode(p);
+      if (mode === "fixed") {
+        fixed.push(p);
+      } else if (mode === "per_day") {
+        const d = buildPerDayData(p, month, fortnight);
+        perDay.push({ p, ...d });
+      } else {
+        const d = buildPerHourData(p, month, fortnight);
+        perHour.push({ p, ...d });
+      }
     }
-    return { name: `${p.firstName} ${p.lastName}`, q1, q2 };
-  });
+
+    const byName = (a: { p: Person }, b: { p: Person }) =>
+      (a.p.firstName + a.p.lastName).localeCompare(
+        b.p.firstName + b.p.lastName,
+        "es"
+      );
+
+    perDay.sort(byName);
+    perHour.sort(byName);
+    fixed.sort((a, b) =>
+      (a.firstName + a.lastName).localeCompare(b.firstName + b.lastName, "es")
+    );
+
+    // Totales por si deseas mostrarlos en el futuro
+    const totals = {
+      perDayQ: perDay.reduce((s, x) => s + x.qDays, 0),
+      perDayM: perDay.reduce((s, x) => s + x.mDays, 0),
+      perHourQ: Number(perHour.reduce((s, x) => s + x.qHours, 0).toFixed(2)),
+      perHourM: Number(perHour.reduce((s, x) => s + x.mHours, 0).toFixed(2)),
+    };
+
+    return { fixed, perDay, perHour, totals };
+  }, [activePeople, month, fortnight]);
 
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
       headerAccent="indigo"
-      title="Resumen por quincena"
-      description={`Mes: ${month}`}
-      secondaryAction={{ label: "Cerrar", onClick: onClose }}
-      /** más ancho */
-      size="5xl"
-      /** cuerpo scrolleable en pantallas pequeñas y medianas */
-      bodyClassName="max-h-[70vh] overflow-y-auto"
-    >
-      {/* grid de personas: 1 col en mobile, 2 cols en >=lg */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {summary.map((s, idx) => (
-          <div
-            key={idx}
-            className="relative bg-white rounded-2xl p-6 shadow-lg border-2 border-purple-100 hover:border-purple-200 transition-all duration-300"
-          >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl" />
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-bold">
-                {s.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-gray-800">
-                {s.name}
-              </p>
-            </div>
-
-            {/* Q1 y Q2 lado a lado en >=md */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Q1 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-400 to-emerald-400 flex items-center justify-center text-white text-xs">
-                    1
-                  </div>
-                  <p className="text-sm font-bold text-gray-700">1ª Quincena</p>
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                    {s.q1.length} días
-                  </span>
-                </div>
-                {s.q1.length > 0 ? (
-                  // grid de chips de fechas — evita columnas eternas
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                    {s.q1.map((d) => (
-                      <span
-                        key={d}
-                        className="text-center bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-green-200"
-                      >
-                        {parseLocalDate(d).toLocaleDateString("es-CO", {
-                          day: "numeric",
-                        })}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-400">
-                    📭 Sin días
-                  </div>
-                )}
-              </div>
-
-              {/* Q2 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center text-white text-xs">
-                    2
-                  </div>
-                  <p className="text-sm font-bold text-gray-700">2ª Quincena</p>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                    {s.q2.length} días
-                  </span>
-                </div>
-                {s.q2.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                    {s.q2.map((d) => (
-                      <span
-                        key={d}
-                        className="text-center bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-blue-200"
-                      >
-                        {parseLocalDate(d).toLocaleDateString("es-CO", {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-400">
-                    📭 Sin días
-                  </div>
-                )}
-              </div>
-            </div>
+      title="Resumen"
+      description={
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-gray-600">Mes: {month}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Quincena:</span>
+            <button
+              onClick={() => setFortnight(1)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${
+                fortnight === 1
+                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent"
+                  : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
+              }`}
+            >
+              1ª (1–15)
+            </button>
+            <button
+              onClick={() => setFortnight(2)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${
+                fortnight === 2
+                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent"
+                  : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
+              }`}
+            >
+              2ª (16–fin)
+            </button>
           </div>
-        ))}
-
-        {summary.length === 0 && (
-          <p className="col-span-full text-center text-gray-500">
-            Sin información.
-          </p>
+        </div>
+      }
+      secondaryAction={{ label: "Cerrar", onClick: onClose }}
+      size="4xl"
+      bodyClassName="max-h-[70vh] overflow-y-auto space-y-6"
+    >
+      {/* -------- Fijos -------- */}
+      <GroupCard title="Fijos" accent="indigo">
+        {groups.fixed.length === 0 ? (
+          <div className="text-sm text-gray-500 py-2">
+            No hay trabajadores fijos.
+          </div>
+        ) : (
+          groups.fixed.map((p) => (
+            <div key={p.id} className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <NameAvatar first={p.firstName} last={p.lastName} />
+                <div className="truncate">
+                  <div className="font-semibold text-gray-800 truncate">
+                    {p.firstName} {p.lastName}
+                  </div>
+                </div>
+              </div>
+              <Pill color="indigo">
+                {p.paymentMode === "fixed_fortnight"
+                  ? "Fijo quincenal"
+                  : "Fijo mensual"}
+              </Pill>
+            </div>
+          ))
         )}
-      </div>
+      </GroupCard>
+
+      {/* -------- Por día (días contados) -------- */}
+      <GroupCard title="Por día" accent="emerald">
+        {groups.perDay.length === 0 ? (
+          <div className="text-sm text-gray-500 py-2">
+            No hay trabajadores por día.
+          </div>
+        ) : (
+          groups.perDay.map(({ p, qDays, mDays, qList, mList }) => (
+            <div key={p.id} className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <NameAvatar first={p.firstName} last={p.lastName} />
+                  <div className="truncate">
+                    <div className="font-semibold text-gray-800 truncate">
+                      {p.firstName} {p.lastName}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Pill color="green">Quincena: {qDays} día(s)</Pill>
+                  <Pill color="green">Mes: {mDays} día(s)</Pill>
+                </div>
+              </div>
+
+              {/* Chips de días */}
+              <div className="mt-2 space-y-1">
+                <div className="flex flex-wrap items-center gap-1">
+                  <TinyLabel color="green">Q</TinyLabel>
+                  {qList.length > 0 ? (
+                    qList.map((n, i) => (
+                      <DayChip key={`q-${p.id}-${i}`} color="green" n={n} />
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-gray-400">—</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <TinyLabel color="green">Mes</TinyLabel>
+                  {mList.length > 0 ? (
+                    mList.map((n, i) => (
+                      <DayChip key={`m-${p.id}-${i}`} color="green" n={n} />
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-gray-400">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </GroupCard>
+
+      {/* -------- Por hora (horas sumadas + días listados) -------- */}
+      <GroupCard title="Por hora" accent="sky">
+        {groups.perHour.length === 0 ? (
+          <div className="text-sm text-gray-500 py-2">
+            No hay trabajadores por hora.
+          </div>
+        ) : (
+          groups.perHour.map(({ p, qHours, mHours, qList, mList }) => (
+            <div key={p.id} className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <NameAvatar first={p.firstName} last={p.lastName} />
+                  <div className="truncate">
+                    <div className="font-semibold text-gray-800 truncate">
+                      {p.firstName} {p.lastName}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Pill color="blue">Quincena: {fmtH(qHours)}</Pill>
+                  <Pill color="blue">Mes: {fmtH(mHours)}</Pill>
+                </div>
+              </div>
+
+              {/* Chips de días (donde hubo horas) */}
+              <div className="mt-2 space-y-1">
+                <div className="flex flex-wrap items-center gap-1">
+                  <TinyLabel color="blue">Q</TinyLabel>
+                  {qList.length > 0 ? (
+                    qList.map((n, i) => (
+                      <DayChip key={`qh-${p.id}-${i}`} color="blue" n={n} />
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-gray-400">—</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <TinyLabel color="blue">Mes</TinyLabel>
+                  {mList.length > 0 ? (
+                    mList.map((n, i) => (
+                      <DayChip key={`mh-${p.id}-${i}`} color="blue" n={n} />
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-gray-400">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </GroupCard>
     </BaseModal>
   );
 }

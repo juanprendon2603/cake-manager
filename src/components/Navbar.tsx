@@ -1,15 +1,52 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+// src/components/Navbar.tsx
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout, role } = useAuth();
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const isActive = (path: string): boolean => {
     if (path === "/" && location.pathname === "/") return true;
     if (path !== "/" && location.pathname.startsWith(path)) return true;
     return false;
   };
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(e.target as Node)) setUserOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setUserOpen(false);
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  async function handleLogout() {
+    try {
+      await logout();
+      setUserOpen(false);
+      setMenuOpen(false);
+      navigate("/login", { replace: true });
+    } catch (e) {
+      console.error("Error al cerrar sesión", e);
+    }
+  }
 
   const items = [
     { to: "/", label: "Inicio" },
@@ -19,6 +56,17 @@ export function Navbar() {
     { to: "/daily", label: "Resumen" },
     { to: "/payroll-simple", label: "Asistencia" },
   ];
+
+  const displayName =
+    user?.displayName || user?.email?.split("@")[0] || "Usuario";
+
+  const initials = (() => {
+    const base = (user?.displayName || user?.email || "U").trim();
+    const parts = base.replace(/[@_.]/g, " ").split(" ").filter(Boolean);
+    const first = parts[0]?.[0]?.toUpperCase() ?? "U";
+    const second = parts[1]?.[0]?.toUpperCase() ?? "";
+    return (first + second).slice(0, 2);
+  })();
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-[#7a1f96]/80 via-[#8E2DA8]/80 to-[#a84bd1]/80 border-b border-white/20 shadow-[0_8px_20px_rgba(142,45,168,0.25)]">
@@ -47,20 +95,86 @@ export function Navbar() {
                     "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E3B6F4]/60 focus:ring-offset-transparent",
                     active
                       ? "text-[#8E2DA8] bg-white shadow-[0_6px_16px_rgba(255,255,255,0.25)]"
-                      : "text-[#E9D9F7] hover:text-white bg-white/0 hover:bg-white/10"
+                      : "text-[#E9D9F7] hover:text-white bg-white/0 hover:bg-white/10",
                   ].join(" ")}
                 >
                   <span className="relative z-10">{item.label}</span>
-                  {/* Active underline / indicator */}
                   <span
                     className={[
                       "absolute left-3 right-3 -bottom-1 h-0.5 rounded-full transition-all",
-                      active ? "bg-gradient-to-r from-[#2FE1EB] to-[#F3E8FF] opacity-100" : "opacity-0 group-hover:opacity-60"
+                      active
+                        ? "bg-gradient-to-r from-[#2FE1EB] to-[#F3E8FF] opacity-100"
+                        : "opacity-0 group-hover:opacity-60",
                     ].join(" ")}
                   />
                 </Link>
               );
             })}
+
+            {/* User menu */}
+            <div className="relative ml-2" ref={userMenuRef}>
+              <button
+                onClick={() => setUserOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={userOpen}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/70"
+              >
+                <div className="h-8 w-8 rounded-xl bg-white/90 text-[#8E2DA8] font-extrabold grid place-items-center shadow">
+                  {initials}
+                </div>
+                <span className="text-sm font-semibold">{displayName}</span>
+                <svg
+                  className={`h-4 w-4 transition-transform ${
+                    userOpen ? "rotate-180" : ""
+                  }`}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.19l3.71-3.96a.75.75 0 111.08 1.04l-4.25 4.54a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {userOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-56 rounded-2xl border border-white/20 bg-white/90 backdrop-blur-xl shadow-xl overflow-hidden"
+                >
+                  <div className="px-4 py-3 text-sm text-gray-700 border-b border-white/30">
+                    <div className="font-semibold line-clamp-1">
+                      {user?.email || "—"}
+                    </div>
+                    <div className="text-gray-500">
+                      {role === "admin" ? "Administrador" : "Sesión activa"}
+                    </div>
+                  </div>
+
+                  {/* ⬇️ Panel de administración (solo admin) */}
+                  {role === "admin" && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setUserOpen(false)}
+                      role="menuitem"
+                      className="block px-4 py-3 text-sm font-semibold text-[#8E2DA8] hover:bg-[#8E2DA8]/10"
+                    >
+                      Panel de administración
+                    </Link>
+                  )}
+
+                  {/* Cerrar sesión */}
+                  <button
+                    onClick={handleLogout}
+                    role="menuitem"
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-50/80"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile toggle */}
@@ -71,12 +185,34 @@ export function Navbar() {
             aria-expanded={menuOpen}
           >
             {menuOpen ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               </svg>
             )}
           </button>
@@ -99,13 +235,31 @@ export function Navbar() {
                     idx !== items.length - 1 ? "border-b border-white/10" : "",
                     active
                       ? "bg-white text-[#8E2DA8]"
-                      : "text-[#E9D9F7] hover:text-white hover:bg-white/10"
+                      : "text-[#E9D9F7] hover:text-white hover:bg-white/10",
                   ].join(" ")}
                 >
                   {item.label}
                 </Link>
               );
             })}
+
+            {/* ⬇️ Panel admin (móvil) arriba del botón de salir */}
+            {role === "admin" && (
+              <Link
+                to="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-semibold text-[#E3D3FF] hover:text-white hover:bg-white/10 border-t border-white/10"
+              >
+                Panel de administración
+              </Link>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-200 hover:text-rose-600 hover:bg-rose-50/10"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
       )}

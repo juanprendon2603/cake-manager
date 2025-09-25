@@ -1,94 +1,87 @@
-// Centraliza constantes, tipos y helpers reutilizables
-
-export const cakeSizes = [
-  "Octavo",
-  "Cuarto redondo",
-  "Cuarto cuadrado",
-  "Por dieciocho",
-  "Media",
-  "Libra",
-  "Libra y media",
-  "Dos libras",
-] as const;
-export type SizeKey = (typeof cakeSizes)[number];
-
-export const flavors = [
-  "Naranja",
-  "Vainilla Chips",
-  "Vainilla Chocolate",
-  "Negra",
-] as const;
-export type FlavorKey = (typeof flavors)[number];
-
-export const spongeSizes = ["Media", "Libra"] as const;
-
-export const sizeIcons: Record<SizeKey, string> = {
-  Octavo: "🧁",
-  "Cuarto redondo": "🎂",
-  "Cuarto cuadrado": "🍰",
-  "Por dieciocho": "🎂",
-  Media: "🍰",
-  Libra: "🎂",
-  "Libra y media": "🎂",
-  "Dos libras": "🎂",
+// src/features/stock/stock.model.ts
+export type CategoryOption = {
+  key: string; // slug (p.ej. "libra")
+  label: string; // "libra"
+  active?: boolean;
 };
 
-export const flavorIcons: Record<FlavorKey, string> = {
-  Naranja: "🍊",
-  "Vainilla Chips": "🍦",
-  "Vainilla Chocolate": "🍫",
-  Negra: "🖤",
-};
-
-export type CakeEntry = { flavor: string; quantity: string };
-export type CakesBySize = Record<string, CakeEntry[]>;
-export type SpongesBySize = Record<string, string>;
-
-export interface FormValues {
-  cakes: CakesBySize;
-  sponges: SpongesBySize;
-}
-
-export function normalizeKey(label: string) {
-  return label.toLowerCase().replace(/ /g, "_");
-}
-
-// …(todo lo que ya tienes aquí)…
-
-export type CakeStock = {
+export type CategoryStep = {
   id: string;
-  type: "cake";
-  size: string;
-  flavors: Record<string, number>;
-  last_update?: any;
+  key: string; // slug de la etiqueta (p.ej. "tamano")
+  label: string; // "tamaño"
+  type: "select"; // por ahora solo select
+  required: boolean;
+  affectsStock: boolean;
+  multi: false;
+  options: CategoryOption[];
 };
 
-export type SpongeStock = {
-  id: string;
-  type: "sponge";
-  size: string;
-  quantity: number;
-  last_update?: any;
+export type ProductCategory = {
+  id: string; // "tortas"
+  name: string; // "Tortas"
+  active: boolean;
+  pricingMode: "fixed_per_combo" | "base_plus_deltas";
+  steps: CategoryStep[];
+  variantPrices?: Record<string, number>; // "tamano:libra|sabor:chocolate": 12000
+  createdAt?: number;
+  updatedAt?: number;
 };
 
-export type LocalStockDoc = CakeStock | SpongeStock;
+export type SelectedValues = Record<string, string>; // { tamano: 'libra', sabor: 'chocolate' }
 
-export function isCakeStock(item: LocalStockDoc): item is CakeStock {
-  return item.type === "cake";
+export type VariantRow = {
+  variantKey: string; // "tamano:libra|sabor:chocolate"
+  parts: SelectedValues; // { tamano: 'libra', sabor: 'chocolate' } (para mostrar)
+  qty: number; // cantidad a sumar (delta)
+};
+
+// Form genérico para sumar stock de una categoría concreta
+export type GenericStockForm = {
+  categoryId: string;
+  rows: VariantRow[];
+};
+
+// Helpers
+export function buildVariantKey(
+  category: ProductCategory,
+  selections: SelectedValues
+) {
+  const keys = (category.steps || [])
+    .filter((s) => s.affectsStock)
+    .map((s) => `${s.key}:${String(selections[s.key] ?? "")}`);
+  return keys.join("|");
 }
-export function isSpongeStock(item: LocalStockDoc): item is SpongeStock {
-  return item.type === "sponge";
+
+// Producto cartesiano de opciones activas para steps que afectan stock
+export function buildAllVariantRows(category: ProductCategory): VariantRow[] {
+  const steps = (category.steps || []).filter(
+    (s) => s.affectsStock && s.type === "select" && s.options?.length
+  );
+
+  if (!steps.length) return [];
+
+  // Cartesiano
+  let acc: SelectedValues[] = [{}];
+  for (const step of steps) {
+    const opts = (step.options || []).filter((o) => o.active !== false);
+    const next: SelectedValues[] = [];
+    for (const partial of acc) {
+      for (const opt of opts) {
+        next.push({ ...partial, [step.key]: opt.key });
+      }
+    }
+    acc = next;
+  }
+
+  return acc.map((parts) => ({
+    variantKey: buildVariantKey(category, parts),
+    parts,
+    qty: 0,
+  }));
 }
 
-// Si quieres mapear emojis por id, puedes derivarlos del size si te conviene.
-// Aquí mantengo un map simple compatible con tus IDs actuales:
-export const sizeEmoji: Record<string, string> = {
-  octavo: "🧁",
-  cuarto_redondo: "🎂",
-  cuarto_cuadrado: "🍰",
-  por_dieciocho: "🎉",
-  media: "🍰",
-  libra: "🎂",
-  libra_y_media: "🎂",
-  dos_libras: "🎂",
-};
+// Fecha YYYY-MM-DD
+export function todayKey(d = new Date()) {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

@@ -1,124 +1,132 @@
-// src/features/stock/stock.api.ts
-import type { DocumentData, QuerySnapshot } from "firebase/firestore"; // 👈 tipos con import type
+// src/pages/stock/stock.api.ts (versión genérica, sin imports del modelo viejo)
 import {
   collection,
   doc,
-  increment,
   onSnapshot,
-  query,
   runTransaction,
   serverTimestamp,
-  writeBatch,
+  type DocumentData,
+  type QuerySnapshot,
 } from "firebase/firestore";
-
 import { db } from "../../lib/firebase";
-import type { LocalStockDoc } from "./stock.model";
-import {
-  cakeSizes,
-  normalizeKey,
-  spongeSizes,
-  type FormValues,
-} from "./stock.model";
 
-// persistStockUpdate FIX
-export async function persistStockUpdate(formData: FormValues) {
-  const batch = writeBatch(db);
+import { persistGenericStockUpdate } from "../catalog/catalog.service"; // <- ya lo tienes en tu servicio
 
-  // TORTAS
-  for (const size of cakeSizes) {
-    const key = normalizeKey(size);
-    const entries = formData?.cakes?.[key] || [];
-    if (!entries.length) continue;
+/* --------------------------- Tipos genéricos actuales --------------------------- */
 
-    const docRef = doc(db, "stock", `cake_${key}`);
+export type VariantRow = {
+  variantKey: string; // "tamano:libra|sabor:chocolate"
+  parts: Record<string, string>; // { tamano: "libra", sabor: "chocolate" }
+  qty: number; // delta a sumar
+};
 
-    // 1) Asegura doc + metadatos
-    batch.set(
-      docRef,
-      { type: "cake", size, last_update: serverTimestamp() },
-      { merge: true }
-    );
+export type GenericStockForm = {
+  categoryId: string; // p.ej. "tortas"
+  date: string; // "YYYY-MM-DD"
+  rows: VariantRow[];
+};
 
-    // 2) Increments anidados vía dot-path (SÍ con update)
-    const updates: Record<string, any> = {};
-    for (const entry of entries) {
-      const qty = parseInt(entry?.quantity ?? "0", 10);
-      const flavor = entry?.flavor?.trim();
-      if (!flavor || qty <= 0) continue;
-      updates[`flavors.${normalizeKey(flavor)}`] = increment(qty);
-    }
-    if (Object.keys(updates).length) {
-      updates["last_update"] = serverTimestamp();
-      batch.update(docRef, updates);
-    }
-  }
+/* -----------------------------------------------------------------------------
+ * persistStockUpdate (firma legacy) → ahora espera el formato genérico
+ * -----------------------------------------------------------------------------
+ * Antes recibía FormValues con cakes/sponges “quemados”.
+ * Ahora recibe GenericStockForm con { categoryId, date, rows[] }.
+ * Si en tus pantallas aún la llamas con el nombre viejo, esto seguirá compilando,
+ * pero el payload debe ser el nuevo.
+ * --------------------------------------------------------------------------- */
+export async function persistStockUpdate(formData: GenericStockForm) {
+  const movements = (formData.rows || [])
+    .filter((r) => Number.isFinite(r.qty) && Number(r.qty) !== 0)
+    .map((r) => ({ variantKey: r.variantKey, delta: Number(r.qty) }));
 
-  // BIZCOCHOS
-  for (const size of spongeSizes) {
-    const key = normalizeKey(size);
-    const qty = parseInt(formData?.sponges?.[key] ?? "0", 10);
-    if (!qty || qty <= 0) continue;
+  if (movements.length === 0) return;
 
-    const docRef = doc(db, "stock", `sponge_${key}`);
-
-    // Crea/mergea doc y luego incrementa
-    batch.set(docRef, { type: "sponge", size }, { merge: true });
-    batch.update(docRef, {
-      quantity: increment(qty),
-      last_update: serverTimestamp(),
-    });
-  }
-
-  await batch.commit();
-}
-
-export async function clearSizeFlavors(id: string): Promise<void> {
-  const ref = doc(db, "stock", id);
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return;
-    tx.update(ref, { flavors: {}, last_update: serverTimestamp() });
+  await persistGenericStockUpdate({
+    categoryId: formData.categoryId,
+    date: formData.date,
+    movements,
   });
 }
 
-function mapDoc(d: any): LocalStockDoc {
-  const data = d.data();
-  const base = {
-    id: d.id as string,
-    size: (data.size as string) ?? "",
-    last_update: data.last_update,
-  };
-  if (data.type === "cake") {
-    return {
-      ...base,
-      type: "cake",
-      flavors: (data.flavors as Record<string, number>) || {},
-    };
-  }
-  return { ...base, type: "sponge", quantity: Number(data.quantity || 0) };
+/* -----------------------------------------------------------------------------
+ * Legacy helpers (opcionales)
+ * Mantengo estos nombres para que no te rompa importaciones existentes.
+ * Puedes eliminarlos cuando limpies el código que dependía de /stock (viejo).
+ * --------------------------------------------------------------------------- */
+
+// “clearSizeFlavors” en el esquema nuevo no aplica. Lo dejamos no-op.
+export async function clearSizeFlavors(_id: string): Promise<void> {
+  // No-op en el modelo genérico.
+  return;
 }
 
-export function watchStock(cb: (items: LocalStockDoc[]) => void): () => void {
-  const q = query(collection(db, "stock"));
+// Tipo “LocalStockDoc” ya no aplica; definimos un alias mínimo para compatibilidad.
+export type LocalStockDoc =
+  | {
+      id: string;
+      type: "generic";
+      variantKey: string;
+      stock: number;
+      last_update?: unknown;
+    }
+  | never;
 
+// “watchStock” del esquema viejo apuntaba a /stock. Si aún lo llamas, devolvemos
+// un unsub inmediato para no romper la app. Migra a lecturas en /catalog_stock/{cat}/variants.
+export function watchStock(_cb: (items: LocalStockDoc[]) => void): () => void {
+  // Si quieres observar una categoría concreta, usa:
+  // const col = collection(db, "catalog_stock", categoryId, "variants");
+  // onSnapshot(col, snap => {...})
+  return () => {};
+}
+
+/* -----------------------------------------------------------------------------
+ * Ejemplo de watcher NUEVO por categoría (úsalo donde necesites observar stock)
+ * --------------------------------------------------------------------------- */
+export function watchCategoryStock(
+  categoryId: string,
+  cb: (items: { variantKey: string; stock: number }[]) => void
+): () => void {
+  const col = collection(db, "catalog_stock", categoryId, "variants");
   const unsub = onSnapshot(
-    q,
-    { includeMetadataChanges: true },
+    col,
+    { includeMetadataChanges: false },
     (snap: QuerySnapshot<DocumentData>) => {
-      // evita renders por writes locales
-      if (snap.metadata.hasPendingWrites) return;
-      cb(snap.docs.map(mapDoc));
+      const items = snap.docs.map((d) => {
+        const data = d.data() || {};
+        return {
+          variantKey: (data.variantKey as string) ?? d.id,
+          stock: Number(data.stock ?? 0),
+        };
+      });
+      cb(items);
     }
   );
+  return unsub;
+}
 
-  // Ahorro simple: si la pestaña se oculta, cancela la suscripción (puedes re-suscribir en tu hook al volver a montar)
-  const onVis = () => {
-    if (document.hidden) unsub();
-  };
-  document.addEventListener("visibilitychange", onVis, { once: true });
-
-  return () => {
-    document.removeEventListener("visibilitychange", onVis);
-    unsub();
-  };
+/* -----------------------------------------------------------------------------
+ * Helper opcional para asegurar/crear una variante puntual (no siempre necesario)
+ * --------------------------------------------------------------------------- */
+export async function upsertVariantStockOnce(
+  categoryId: string,
+  variantKey: string,
+  stock: number
+): Promise<void> {
+  const ref = doc(
+    collection(db, "catalog_stock", categoryId, "variants"),
+    variantKey
+  );
+  await runTransaction(db, async (tx) => {
+    tx.set(
+      ref,
+      {
+        variantKey,
+        stock: Math.max(0, Number(stock) || 0),
+        updatedAt: Date.now(),
+        last_update: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
 }

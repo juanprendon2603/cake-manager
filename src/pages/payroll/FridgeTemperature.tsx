@@ -1,18 +1,25 @@
 // src/pages/payments/FinalizePayment.tsx
-import React, { useEffect, useState, useCallback } from "react";
-import { FullScreenLoader } from "../../components/FullScreenLoader";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import BaseModal from "../../components/BaseModal";
-import type { Shift, TemperatureRecord, MonthlyRecord } from "../../types/fridge";
+import { FullScreenLoader } from "../../components/FullScreenLoader";
+import type {
+  Fridge,
+  MonthlyRecord,
+  Shift,
+  TemperatureRecord,
+} from "../../types/fridge";
 import {
-  FRIDGES,
   getLocalTodayString,
-  monthKeyFromDateStr,
+  listFridges,
   loadDailyTemperature,
   loadMonthlyRecords,
+  monthKeyFromDateStr,
   saveTemperature,
 } from "./fridge.service";
 
 const FridgeTemperature: React.FC = () => {
+  const navigate = useNavigate();
   const today = getLocalTodayString();
 
   const [loading, setLoading] = useState(false);
@@ -21,14 +28,31 @@ const FridgeTemperature: React.FC = () => {
   const [inputValue, setInputValue] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [monthlyRecords, setMonthlyRecords] = useState<MonthlyRecord[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>(monthKeyFromDateStr(today)); // yyyy-MM
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    monthKeyFromDateStr(today)
+  ); // yyyy-MM
 
-  // 🔹 Nuevo: selección de nevera
-  const [fridgeId, setFridgeId] = useState<string>(FRIDGES[0].id);
-  const selectedFridge = FRIDGES.find((f) => f.id === fridgeId)!;
+  const [fridges, setFridges] = useState<Fridge[]>([]);
+  const [fridgeId, setFridgeId] = useState<string | null>(null);
+  const selectedFridge = fridges.find((f) => f.id === fridgeId) || null;
+
+  // Cargar neveras activas
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const items = await listFridges(); // solo activas
+        setFridges(items);
+        setFridgeId((prev) => prev ?? items[0]?.id ?? null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   /** 1) Cargar temperaturas del día para la nevera seleccionada */
   const loadTemperatures = useCallback(async () => {
+    if (!fridgeId) return;
     setLoading(true);
     try {
       const data = await loadDailyTemperature(today, fridgeId);
@@ -46,6 +70,7 @@ const FridgeTemperature: React.FC = () => {
 
   /** 2) Cargar historial mensual (por nevera) */
   const handleOpenMonthly = async () => {
+    if (!fridgeId) return;
     setLoading(true);
     try {
       const data = await loadMonthlyRecords(selectedMonth, fridgeId);
@@ -60,13 +85,17 @@ const FridgeTemperature: React.FC = () => {
 
   /** 3) Guardar temperatura (diario + mensual) */
   const handleSave = async () => {
-    if (!currentShift || !inputValue) return;
+    if (!currentShift || !inputValue || !fridgeId) return;
     setLoading(true);
     try {
       const value = parseFloat(inputValue);
-      await saveTemperature({ date: today, fridgeId, shift: currentShift, value });
+      await saveTemperature({
+        date: today,
+        fridgeId,
+        shift: currentShift,
+        value,
+      });
 
-      // Estado local
       setTemperatures((prev) => ({ ...prev, [currentShift]: value }));
       setInputValue("");
       setCurrentShift(null);
@@ -78,6 +107,27 @@ const FridgeTemperature: React.FC = () => {
   };
 
   if (loading) return <FullScreenLoader message="Cargando temperatura..." />;
+
+  if (!fridges.length) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow p-6 text-center">
+          <div className="text-4xl mb-2">❄️</div>
+          <h2 className="text-xl font-bold mb-2">No hay enfriadores</h2>
+          <p className="text-gray-600 mb-4">
+            Aún no has creado ningún enfriador. Debes crear al menos uno para
+            registrar temperaturas.
+          </p>
+          <button
+            onClick={() => navigate("/admin/fridges")}
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold"
+          >
+            Ir al panel de Enfriadores
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col items-center py-10">
@@ -91,25 +141,33 @@ const FridgeTemperature: React.FC = () => {
         <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">
           Registro de Temperatura
         </h1>
-        <p className="text-gray-600 max-w-md mx-auto">
-          Registra la temperatura de tus enfriadores en la mañana y en la tarde.
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Nevera actual: <span className="font-semibold">{selectedFridge.name}</span> • {selectedFridge.brand}
-        </p>
+        {selectedFridge && (
+          <>
+            <p className="text-gray-600 max-w-md mx-auto">
+              Registra la temperatura de tus enfriadores en la mañana y en la
+              tarde.
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Nevera actual:{" "}
+              <span className="font-semibold">{selectedFridge.name}</span>
+              {selectedFridge.brand ? <> • {selectedFridge.brand}</> : null}
+            </p>
+          </>
+        )}
       </div>
 
-      {/* Controles de historial */}
+      {/* Controles */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <label className="text-sm text-gray-600">Nevera</label>
         <select
-          value={fridgeId}
+          value={fridgeId ?? ""}
           onChange={(e) => setFridgeId(e.target.value)}
           className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium text-blue-700"
         >
-          {FRIDGES.map((f) => (
+          {fridges.map((f) => (
             <option key={f.id} value={f.id}>
-              {f.name} — {f.brand}
+              {f.name}
+              {f.brand ? ` — ${f.brand}` : ""}
             </option>
           ))}
         </select>
@@ -196,16 +254,19 @@ const FridgeTemperature: React.FC = () => {
         })}
       </div>
 
-      {/* Modal historial (BaseModal) */}
+      {/* Modal historial */}
       <BaseModal
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
         headerAccent="indigo"
         title={`📅 Registros — ${selectedMonth}`}
         description={
-          <>
-            {selectedFridge.name} • {selectedFridge.brand}
-          </>
+          selectedFridge ? (
+            <>
+              {selectedFridge.name}
+              {selectedFridge.brand ? <> • {selectedFridge.brand}</> : null}
+            </>
+          ) : null
         }
         secondaryAction={{
           label: "Cerrar",
@@ -223,7 +284,10 @@ const FridgeTemperature: React.FC = () => {
             </thead>
             <tbody>
               {monthlyRecords.map((rec) => (
-                <tr key={rec.date} className="odd:bg-gray-50 even:bg-white hover:bg-blue-50 transition">
+                <tr
+                  key={rec.date}
+                  className="odd:bg-gray-50 even:bg-white hover:bg-blue-50 transition"
+                >
                   <td className="p-2 font-medium text-gray-700">{rec.date}</td>
                   <td className="p-2 text-center">{rec.morning ?? "-"}</td>
                   <td className="p-2 text-center">{rec.afternoon ?? "-"}</td>

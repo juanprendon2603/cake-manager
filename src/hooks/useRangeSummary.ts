@@ -1,10 +1,17 @@
 // hooks/useRangeSummaryOptimized.ts
+import {
+  collectionGroup,
+  getDocs,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
-import { collectionGroup, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import type { PaymentMethod } from "../types/informs";
 import { getMonthMeta } from "../utils/analyticsMeta";
 import { getMonthCache, setMonthCache } from "../utils/monthCache";
-import { monthsBetween, isCurrentMonth } from "../utils/rangeMonths";
+import { isCurrentMonth, monthsBetween } from "../utils/rangeMonths";
 
 export type SaleLike = {
   id: string;
@@ -35,20 +42,34 @@ export type DailyData = {
   disponibleTransfer: number;
 };
 
-export type DailyRaw = { fecha: string; sales: SaleLike[]; expenses: ExpenseLike[] };
+export type DailyRaw = {
+  fecha: string;
+  sales: SaleLike[];
+  expenses: ExpenseLike[];
+};
 type Range = { start: string; end: string };
 type MonthPayload = { raw: DailyRaw[] }; // lo que cacheamos por mes
 
 // ----- Shapes locales para los docs de Firestore -----
 type EntryDoc = {
-  day?: string;
+  kind: "sale" | "payment";
+  day: string; // "YYYY-MM-DD"
+
+  // Legacy
   type?: string | null;
   size?: string | null;
   flavor?: string | null;
-  quantity?: number;
-  paymentMethod?: string;
-  amountCOP?: number;
-  kind?: string;
+  amountCOP?: number | null;
+
+  // Comunes
+  quantity?: number | null;
+  paymentMethod?: PaymentMethod;
+
+  // Nuevo genérico
+  categoryId?: string | null;
+  variantKey?: string | null;
+  unitPriceCOP?: number | null;
+  selections?: Record<string, unknown> | null;
 };
 
 type ExpenseDoc = {
@@ -62,6 +83,35 @@ type ExpenseDoc = {
 export function useRangeSummaryOptimized(range: Range) {
   const [loading, setLoading] = useState(true);
   const [rawDocs, setRawDocs] = useState<DailyRaw[]>([]);
+
+  const SIZE_KEYS = ["tamaño", "tamano", "size"];
+  const FLAVOR_KEYS = ["sabor", "flavor"];
+
+  function readFromSelections(
+    selections: Record<string, unknown> | null | undefined,
+    keys: string[]
+  ): string {
+    if (!selections) return "";
+    const entries = Object.entries(selections);
+
+    // exact match
+    for (const k of keys) {
+      const hit = entries.find(([kk]) => kk.toLowerCase() === k.toLowerCase());
+      if (hit) return String(hit[1] ?? "");
+    }
+    // includes
+    for (const k of keys) {
+      const hit = entries.find(([kk]) =>
+        kk.toLowerCase().includes(k.toLowerCase())
+      );
+      if (hit) return String(hit[1] ?? "");
+    }
+    return "";
+  }
+
+  function cleanLabel(s?: string | null) {
+    return (s ?? "").replace(/_/g, " ");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -114,13 +164,19 @@ export function useRangeSummaryOptimized(range: Range) {
         } catch (err: unknown) {
           const msg = String((err as { message?: string })?.message ?? "");
           if (msg.includes("index is not ready yet")) {
-            console.warn("[useRangeSummaryOptimized] expenses index not ready; skip expenses for", ym);
+            console.warn(
+              "[useRangeSummaryOptimized] expenses index not ready; skip expenses for",
+              ym
+            );
           } else {
             throw err;
           }
         }
 
-        const byDay: Record<string, { sales: SaleLike[]; expenses: ExpenseLike[] }> = {};
+        const byDay: Record<
+          string,
+          { sales: SaleLike[]; expenses: ExpenseLike[] }
+        > = {};
         const entriesSnap = await getDocs(qEntries);
 
         entriesSnap.forEach((d) => {
@@ -129,19 +185,46 @@ export function useRangeSummaryOptimized(range: Range) {
           if (!day) return;
           if (!byDay[day]) byDay[day] = { sales: [], expenses: [] };
 
+          // cantidad
           const cantidad =
             typeof data.quantity === "number" && Number.isFinite(data.quantity)
               ? data.quantity
               : 0;
 
+          // type: legacy(type) -> generico(categoryId)
+          const type = (data.type ??
+            data.categoryId ??
+            null) as SaleLike["type"];
+
+          // size/flavor: legacy(top-level) -> generico(selections)
+          const size =
+            cleanLabel(data.size ?? "") ||
+            cleanLabel(readFromSelections(data.selections, SIZE_KEYS)) ||
+            null;
+
+          const flavor =
+            cleanLabel(data.flavor ?? "") ||
+            cleanLabel(readFromSelections(data.selections, FLAVOR_KEYS)) ||
+            null;
+
+          // valor: amountCOP || (unitPriceCOP * cantidad)
+          const valor = Number(
+            data.amountCOP ??
+              (Number.isFinite(data.unitPriceCOP as number) &&
+              Number.isFinite(cantidad)
+                ? (data.unitPriceCOP as number) * (cantidad as number)
+                : 0) ??
+              0
+          );
+
           const sale: SaleLike = {
             id: d.id,
-            type: data.type ?? null,
-            size: data.size ?? null,
-            flavor: data.flavor ?? null,
+            type,
+            size,
+            flavor,
             cantidad,
-            paymentMethod: data.paymentMethod ?? "cash",
-            valor: Number(data.amountCOP ?? 0),
+            paymentMethod: (data.paymentMethod ?? "cash") as string,
+            valor,
             isPayment: data.kind === "payment",
           };
 
@@ -183,7 +266,9 @@ export function useRangeSummaryOptimized(range: Range) {
       }
 
       // 3) Unimos todos los meses
-      const joined = monthResults.flat().sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+      const joined = monthResults
+        .flat()
+        .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
       if (!cancelled) setRawDocs(joined);
       setLoading(false);
     })();
@@ -210,7 +295,11 @@ export function useRangeSummaryOptimized(range: Range) {
         .reduce((a, e) => a + (e.value || 0), 0);
       const disponibleEfectivo = totalSalesCash - totalExpensesCash;
       const disponibleTransfer = totalSalesTransfer - totalExpensesTransfer;
-      const net = totalSalesCash + totalSalesTransfer - totalExpensesCash - totalExpensesTransfer;
+      const net =
+        totalSalesCash +
+        totalSalesTransfer -
+        totalExpensesCash -
+        totalExpensesTransfer;
       return {
         fecha,
         totalSalesCash,
@@ -223,18 +312,22 @@ export function useRangeSummaryOptimized(range: Range) {
       };
     });
 
-    const sum = (sel: (d: DailyData) => number) => dailyRows.reduce((acc, d) => acc + sel(d), 0);
+    const sum = (sel: (d: DailyData) => number) =>
+      dailyRows.reduce((acc, d) => acc + sel(d), 0);
     const totals = {
       totalSalesCash: sum((d) => d.totalSalesCash),
       totalSalesTransfer: sum((d) => d.totalSalesTransfer),
       totalExpensesCash: sum((d) => d.totalExpensesCash),
       totalExpensesTransfer: sum((d) => d.totalExpensesTransfer),
       totalNet: sum((d) => d.net),
-      efectivoDisponible: sum((d) => d.totalSalesCash) - sum((d) => d.totalExpensesCash),
+      efectivoDisponible:
+        sum((d) => d.totalSalesCash) - sum((d) => d.totalExpensesCash),
       transferDisponible:
         sum((d) => d.totalSalesTransfer) - sum((d) => d.totalExpensesTransfer),
-      totalIngresos: sum((d) => d.totalSalesCash) + sum((d) => d.totalSalesTransfer),
-      totalGastosDiarios: sum((d) => d.totalExpensesCash) + sum((d) => d.totalExpensesTransfer),
+      totalIngresos:
+        sum((d) => d.totalSalesCash) + sum((d) => d.totalSalesTransfer),
+      totalGastosDiarios:
+        sum((d) => d.totalExpensesCash) + sum((d) => d.totalExpensesTransfer),
     };
     return { daily: dailyRows, totals };
   }, [rawDocs]);
