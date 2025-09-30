@@ -1,26 +1,52 @@
+// src/pages/payments/AddPayment.tsx
+import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+
 import { BackButton } from "../../components/BackButton";
+import BaseModal from "../../components/BaseModal";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
-import type { PaymentFormState } from "../../types/payments";
+
+import type {
+  PaymentFormState,
+  RegisterPaymentInput,
+} from "../../types/payments";
 import AddPaymentForm from "./AddPaymentForm";
 import PaymentConfirmModal from "./components/PaymentConfirmModal";
-import { deductStockIfRequested, registerPayment } from "./payment.service";
+
+import {
+  buildVariantKeyFromSelections,
+  registerPayment,
+} from "./payment.service";
+
+import {
+  listCategories,
+  tryDecrementStockGeneric,
+} from "../catalog/catalog.service";
+import type { CategoryStep, ProductCategory } from "../stock/stock.model";
 
 export function AddPayment() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const [loading, setLoading] = useState(false);
+
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Modal “sin stock”
+  const [showNoStock, setShowNoStock] = useState(false);
+  const [pendingInput, setPendingInput] = useState<RegisterPaymentInput | null>(
+    null
+  );
+
+  const [cats, setCats] = useState<ProductCategory[]>([]);
+  const [cat, setCat] = useState<ProductCategory | null>(null);
+
   const [state, setState] = useState<PaymentFormState>(() => ({
-    productType: "cake",
-    selectedSize: "",
-    selectedFlavor: "",
-    selectedSpongeType: "",
+    categoryId: "",
+    selections: {},
     quantity: "1",
     totalAmount: "",
     partialAmount: "",
@@ -30,42 +56,66 @@ export function AddPayment() {
     orderDate: format(new Date(), "yyyy-MM-dd"),
   }));
 
-  // Auto toggle pago total
+  // Cargar categorías
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = await listCategories();
+        setCats(all);
+        setCat(all[0] || null);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingCats(false);
+      }
+    })();
+  }, []);
+
+  // Steps que afectan stock
+  const affectingSteps = useMemo<CategoryStep[]>(
+    () => (cat?.steps || []).filter((s) => s.affectsStock),
+    [cat]
+  );
+
+  // Inicializar selections cuando hay categoría
+  useEffect(() => {
+    if (!cat) return;
+    const baseSel = Object.fromEntries(
+      (cat.steps || []).filter((s) => s.affectsStock).map((s) => [s.key, ""])
+    );
+    setState((s) => ({ ...s, categoryId: cat.id, selections: baseSel }));
+  }, [cat]);
+
+  // Auto “pago total”
   useEffect(() => {
     if (state.totalAmount && state.partialAmount) {
       setState((s) => ({
         ...s,
-        isTotalPayment: parseFloat(s.partialAmount) === parseFloat(s.totalAmount),
+        isTotalPayment:
+          parseFloat(s.partialAmount) === parseFloat(s.totalAmount),
       }));
     } else {
       setState((s) => ({ ...s, isTotalPayment: false }));
     }
   }, [state.totalAmount, state.partialAmount]);
 
-  // Helpers
-  const prettyFlavorOrSponge = useMemo(
-    () => (state.productType === "cake" ? state.selectedFlavor : state.selectedSpongeType),
-    [state.productType, state.selectedFlavor, state.selectedSpongeType]
-  );
-
-  // Validación simple previa al modal
   const validateBeforeConfirm = (): string | null => {
-    if (!state.selectedSize) return "Selecciona un tamaño.";
-    if (state.productType === "cake" && !state.selectedFlavor) return "Selecciona un sabor.";
-    if (state.productType === "sponge" && !state.selectedSpongeType) return "Selecciona el tipo de bizcocho.";
-
+    if (!cat) return "Selecciona una categoría.";
+    for (const st of affectingSteps) {
+      if (!state.selections[st.key]) return `Selecciona “${st.label}”.`;
+    }
     const qty = parseInt(state.quantity, 10);
-    if (!Number.isFinite(qty) || qty <= 0) return "Ingresa una cantidad válida.";
-
+    if (!Number.isFinite(qty) || qty <= 0)
+      return "Ingresa una cantidad válida.";
     const total = parseFloat(state.totalAmount);
-    if (!Number.isFinite(total) || total <= 0) return "Ingresa un valor total válido.";
-
+    if (!Number.isFinite(total) || total <= 0)
+      return "Ingresa un valor total válido.";
     if (!state.isTotalPayment) {
       const part = parseFloat(state.partialAmount);
-      if (!Number.isFinite(part) || part <= 0) return "Ingresa un valor válido para el abono.";
+      if (!Number.isFinite(part) || part <= 0)
+        return "Ingresa un valor válido para el abono.";
       if (part > total) return "El abono no puede ser mayor al valor total.";
     }
-
     return null;
   };
 
@@ -80,42 +130,54 @@ export function AddPayment() {
   };
 
   const onConfirm = async () => {
+    if (!cat) return;
     const qty = parseInt(state.quantity, 10);
     const total = parseFloat(state.totalAmount);
     const paid = state.isTotalPayment ? total : parseFloat(state.partialAmount);
-    const flavorOrSponge = prettyFlavorOrSponge;
+    const variantKey = buildVariantKeyFromSelections(cat, state.selections);
 
-    setLoading(true);
+    setSaving(true);
     try {
-      // 1) stock (opcional)
-      await deductStockIfRequested(
-        state.productType,
-        state.selectedSize,
-        flavorOrSponge,
-        qty,
-        state.deductFromStock
-      );
-
-      // 2) persistencias
       const today = format(new Date(), "yyyy-MM-dd");
-      await registerPayment({
+
+      // Payload base
+      const baseInput: RegisterPaymentInput = {
         today,
-        productType: state.productType,
-        size: state.selectedSize,
-        flavorOrSponge,
+        categoryId: cat.id,
+        categoryName: cat.name,
+        selections: state.selections,
+        variantKey,
         quantity: qty,
         totalAmount: total,
         paidAmountToday: paid,
         paymentMethod: state.paymentMethod,
         totalPayment: state.isTotalPayment,
-        deductedFromStock: state.deductFromStock,
+        deductedFromStock: false, // se pondrá en true si logramos descontar
         orderDate: state.orderDate,
-      });
+      };
+
+      if (state.deductFromStock) {
+        // Intentar descontar stock primero
+        const dec = await tryDecrementStockGeneric(cat.id, variantKey, qty);
+        if (!dec.decremented) {
+          // No hay stock suficiente: preguntamos qué hacer
+          setPendingInput(baseInput); // si continúa, se registra sin descontar
+          setShowNoStock(true);
+          setShowConfirm(false);
+          return;
+        }
+        baseInput.deductedFromStock = true;
+      }
+
+      // Registrar pago/abono
+      await registerPayment(baseInput);
 
       addToast({
         type: "success",
         title: "¡Abono registrado!",
-        message: "Abono/pago registrado exitosamente.",
+        message: state.deductFromStock
+          ? "Abono/pago registrado y se descontó inventario."
+          : "Abono/pago registrado.",
         duration: 5000,
       });
       navigate("/payment-management");
@@ -129,16 +191,41 @@ export function AddPayment() {
         duration: 5000,
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
       setShowConfirm(false);
     }
   };
 
-  const patch = (p: Partial<PaymentFormState>) => setState((s) => ({ ...s, ...p }));
+  const handleConfirmWithoutStock = async () => {
+    if (!pendingInput) return;
+    try {
+      setSaving(true);
+      await registerPayment({ ...pendingInput, deductedFromStock: false });
+      addToast({
+        type: "success",
+        title: "Abono registrado",
+        message: "Se registró el abono (no se descontó inventario).",
+        duration: 5000,
+      });
+      navigate("/payment-management");
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: "Ups, algo salió mal",
+        message: (e as Error).message ?? "Error al registrar el abono.",
+        duration: 5000,
+      });
+    } finally {
+      setSaving(false);
+      setShowNoStock(false);
+      setPendingInput(null);
+    }
+  };
 
-  if (loading) {
-    return <FullScreenLoader message="Guardando abono..." />;
-  }
+  const patch = (p: Partial<PaymentFormState>) =>
+    setState((s) => ({ ...s, ...p }));
+
+  if (loadingCats) return <FullScreenLoader message="Cargando catálogo..." />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
@@ -155,7 +242,8 @@ export function AddPayment() {
               Registrar Abono/Pago
             </h1>
             <p className="text-xl text-gray-700 font-medium mb-8">
-              Registra abonos o pagos totales y actualiza el inventario si lo deseas.
+              Registra abonos o pagos totales y actualiza el inventario si lo
+              deseas.
             </p>
             <div className="absolute top-4 left-4">
               <BackButton />
@@ -168,40 +256,82 @@ export function AddPayment() {
           setState={patch}
           errorMessage={errorMessage}
           onClickOpenConfirm={openConfirm}
-          loading={loading}
+          loading={saving}
+          categories={cats}
+          selectedCategory={cat}
+          onChangeCategory={setCat}
+          affectingSteps={affectingSteps}
         />
-
-        <div className="mt-8 max-w-xl mx-auto">
-          <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-5 shadow-lg text-center">
-            <p className="text-sm opacity-90">Tip</p>
-            <p className="text-base">
-              Si marcas “Descontar del inventario”, verificaremos el stock antes de registrar el pago.
-            </p>
-          </div>
-        </div>
       </main>
 
       <footer className="text-center text-sm text-gray-400 py-6">
         © 2025 CakeManager. Todos los derechos reservados.
       </footer>
 
+      {/* Modal de confirmación estándar */}
       <PaymentConfirmModal
         isOpen={showConfirm}
         onClose={() => setShowConfirm(false)}
-        productType={state.productType}
-        size={state.selectedSize}
-        flavorOrSponge={prettyFlavorOrSponge}
+        categoryName={cat?.name || ""}
+        selections={state.selections}
         quantity={parseInt(state.quantity || "0", 10)}
         orderDate={state.orderDate}
         paymentMethod={state.paymentMethod}
         deductFromStock={state.deductFromStock}
         totalAmount={Number(state.totalAmount || 0)}
         paidAmountToday={
-          state.isTotalPayment ? Number(state.totalAmount || 0) : Number(state.partialAmount || 0)
+          state.isTotalPayment
+            ? Number(state.totalAmount || 0)
+            : Number(state.partialAmount || 0)
         }
         onConfirm={onConfirm}
-        loading={loading}
+        loading={saving}
+        affectingSteps={affectingSteps}
       />
+
+      {/* Modal: continuar sin stock */}
+      <BaseModal
+        isOpen={showNoStock}
+        onClose={() => {
+          setShowNoStock(false);
+          setPendingInput(null);
+        }}
+        headerAccent="amber"
+        title="Inventario insuficiente"
+        description="No hay stock suficiente para esta combinación. ¿Deseas registrar el abono sin descontar inventario?"
+        secondaryAction={{
+          label: "Cancelar",
+          onClick: () => {
+            setShowNoStock(false);
+            setPendingInput(null);
+          },
+        }}
+        primaryAction={{
+          label: "Registrar sin descontar",
+          onClick: handleConfirmWithoutStock,
+        }}
+      >
+        {cat && (
+          <div className="space-y-2 text-sm text-gray-700">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Categoría</span>
+              <span className="font-medium">{cat.name}</span>
+            </div>
+            {Object.entries(state.selections).map(([k, v]) => (
+              <div key={k} className="flex justify-between">
+                <span className="text-gray-500 capitalize">{k}</span>
+                <span className="font-medium capitalize">{v || "—"}</span>
+              </div>
+            ))}
+            <div className="flex justify-between">
+              <span className="text-gray-500">Cantidad</span>
+              <span className="font-medium">
+                x{parseInt(state.quantity || "0", 10)}
+              </span>
+            </div>
+          </div>
+        )}
+      </BaseModal>
     </div>
   );
 }

@@ -2,13 +2,25 @@ import { useMemo, useState } from "react";
 import type { CategoryStep } from "../../../../utils/catalog";
 import { generateCombos, type ComboRow } from "../utils";
 
+type PriceMap = Record<string, number | undefined>;
+
+function toNumberMap(src: PriceMap): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(src)) {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+}
+
 export default function PriceTable({
   steps,
   prices,
   onChange,
 }: {
   steps: CategoryStep[];
-  prices: Record<string, number | undefined>;
+  /** puede traer undefined cuando hay celdas vacías */
+  prices: PriceMap;
+  /** el callback recibe SOLO números ya saneados */
   onChange: (next: Record<string, number>) => void;
 }) {
   const [filter, setFilter] = useState("");
@@ -29,15 +41,18 @@ export default function PriceTable({
   }, [combos, filter]);
 
   function setPrice(key: string, v: number) {
-    onChange({ ...prices, [key]: v > 0 ? v : 0 });
+    const base = toNumberMap(prices); // ← quita undefined
+    base[key] = v > 0 ? v : 0;
+    onChange(base);
   }
 
   function applyFill() {
     const v = Number(fillValue || 0);
     if (!(v > 0)) return;
-    const next = { ...prices };
+    const next = toNumberMap(prices); // ← quita undefined
     for (const c of combos) {
-      if (!next[c.key] || next[c.key] === 0) next[c.key] = v;
+      // rellena si no existe o si es 0
+      if (!(c.key in next) || next[c.key] === 0) next[c.key] = v;
     }
     onChange(next);
   }
@@ -108,7 +123,7 @@ export default function PriceTable({
                       type="number"
                       min={0}
                       step="1"
-                      value={prices[c.key] ?? ""}
+                      value={prices[c.key] ?? ""} // puede ser "", ok
                       onChange={(e) =>
                         setPrice(c.key, Number(e.target.value || 0))
                       }

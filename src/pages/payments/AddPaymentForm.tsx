@@ -1,16 +1,18 @@
-import { SIZE_OPTIONS, FLAVOR_OPTIONS_CAKE, SPONGE_TYPES } from "./constants";
-import { humanize } from "../../utils/formatters";
-import type { PaymentFormState } from "../../types/payments";
-import type { ProductType } from "../../types/stock";
-import type { PaymentMethod } from "../sales/sales.service";
+// src/pages/payments/AddPaymentForm.tsx
+import type { PaymentFormState, PaymentMethod } from "../../types/payments";
+import type { CategoryStep, ProductCategory } from "../stock/stock.model";
 
-interface Props {
+type Props = {
   state: PaymentFormState;
   setState: (patch: Partial<PaymentFormState>) => void;
   errorMessage: string;
   onClickOpenConfirm: () => void;
   loading?: boolean;
-}
+  categories: ProductCategory[];
+  selectedCategory: ProductCategory | null;
+  onChangeCategory: (c: ProductCategory | null) => void;
+  affectingSteps: CategoryStep[];
+};
 
 export default function AddPaymentForm({
   state,
@@ -18,12 +20,12 @@ export default function AddPaymentForm({
   errorMessage,
   onClickOpenConfirm,
   loading = false,
+  categories,
+  selectedCategory,
+  onChangeCategory,
+  affectingSteps,
 }: Props) {
   const {
-    productType,
-    selectedSize,
-    selectedFlavor,
-    selectedSpongeType,
     quantity,
     totalAmount,
     partialAmount,
@@ -36,7 +38,18 @@ export default function AddPaymentForm({
   const inputBase =
     "w-full border border-[#E8D4F2] rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#8E2DA8] focus:border-transparent";
 
-  const sizeOptions = SIZE_OPTIONS[productType];
+  const handleCategoryChange = (id: string) => {
+    const next = categories.find((c) => c.id === id) || null;
+    onChangeCategory(next);
+    if (next) {
+      const baseSel = Object.fromEntries(
+        (next.steps || []).filter((s) => s.affectsStock).map((s) => [s.key, ""])
+      );
+      setState({ categoryId: next.id, selections: baseSel });
+    } else {
+      setState({ categoryId: "", selections: {} });
+    }
+  };
 
   return (
     <section className="max-w-xl mx-auto bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
@@ -47,85 +60,56 @@ export default function AddPaymentForm({
       )}
 
       <div className="space-y-5">
+        {/* Categoría */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Tipo de producto
+            Categoría
           </label>
           <select
-            value={productType}
-            onChange={(e) =>
-              setState({
-                productType: e.target.value as ProductType,
-                selectedSize: "",
-                selectedFlavor: "",
-                selectedSpongeType: "",
-              })
-            }
+            value={selectedCategory?.id || ""}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             className={inputBase}
           >
-            <option value="cake">Torta</option>
-            <option value="sponge">Bizcocho</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Tamaño
-          </label>
-          <select
-            value={selectedSize}
-            onChange={(e) => setState({ selectedSize: e.target.value })}
-            className={inputBase}
-          >
-            <option value="">Seleccionar</option>
-            {sizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {humanize(size)}
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>
         </div>
 
-        {productType === "cake" && (
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Sabor
-            </label>
-            <select
-              value={selectedFlavor}
-              onChange={(e) => setState({ selectedFlavor: e.target.value })}
-              className={inputBase}
-            >
-              <option value="">Seleccionar</option>
-              {FLAVOR_OPTIONS_CAKE.map((flavor) => (
-                <option key={flavor} value={flavor}>
-                  {humanize(flavor)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Steps que afectan stock (dinámicos) */}
+        {affectingSteps.map((st) => {
+          const opts = (st.options || []).filter((o) => o.active !== false);
+          return (
+            <div key={st.key}>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                {st.label}
+              </label>
+              <select
+                value={state.selections[st.key] || ""}
+                onChange={(e) =>
+                  setState({
+                    selections: {
+                      ...state.selections,
+                      [st.key]: e.target.value,
+                    },
+                  })
+                }
+                className={inputBase}
+              >
+                <option value="">Seleccionar</option>
+                {opts.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
 
-        {productType === "sponge" && (
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Tipo de bizcocho
-            </label>
-            <select
-              value={selectedSpongeType}
-              onChange={(e) => setState({ selectedSpongeType: e.target.value })}
-              className={inputBase}
-            >
-              <option value="">Seleccionar</option>
-              {SPONGE_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
+        {/* Cantidad */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
             Cantidad
@@ -141,12 +125,15 @@ export default function AddPaymentForm({
           />
         </div>
 
+        {/* Valor total */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
             Valor total
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              $
+            </span>
             <input
               type="number"
               min="0"
@@ -161,13 +148,16 @@ export default function AddPaymentForm({
           <p className="mt-1 text-xs text-gray-500">En pesos colombianos.</p>
         </div>
 
+        {/* Monto abonado (si no es total) */}
         {!isTotalPayment && (
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Monto abonado
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                $
+              </span>
               <input
                 type="number"
                 min="0"
@@ -179,10 +169,13 @@ export default function AddPaymentForm({
                 onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">Ingresa cuánto abona el cliente.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Ingresa cuánto abona el cliente.
+            </p>
           </div>
         )}
 
+        {/* Fecha del pedido */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
             Fecha del pedido
@@ -195,13 +188,16 @@ export default function AddPaymentForm({
           />
         </div>
 
+        {/* Método de pago */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
             Método de pago
           </label>
           <select
             value={paymentMethod}
-            onChange={(e) => setState({ paymentMethod: e.target.value as PaymentMethod })}
+            onChange={(e) =>
+              setState({ paymentMethod: e.target.value as PaymentMethod })
+            }
             className={inputBase}
           >
             <option value="cash">Efectivo</option>
@@ -209,6 +205,7 @@ export default function AddPaymentForm({
           </select>
         </div>
 
+        {/* Descontar stock */}
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -217,7 +214,10 @@ export default function AddPaymentForm({
             onChange={(e) => setState({ deductFromStock: e.target.checked })}
             className="accent-[#8E2DA8] h-4 w-4"
           />
-          <label htmlFor="deductStock" className="text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="deductStock"
+            className="text-sm font-semibold text-gray-700"
+          >
             Descontar del inventario
           </label>
         </div>

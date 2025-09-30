@@ -1,10 +1,10 @@
 // src/components/BaseModal.tsx
 import { AnimatePresence, motion } from "framer-motion";
-import { easeM3 } from "../pages/sales/animations";
 import React from "react";
+import { easeM3 } from "../pages/sales/animations";
 
 type Accent = "purple" | "amber" | "indigo" | "pink" | "blue" | "green";
-type Size = "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
+type Size = "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl";
 
 const accentMap: Record<Accent, string> = {
   purple: "from-purple-500 to-pink-500",
@@ -23,6 +23,7 @@ const sizeMap: Record<Size, string> = {
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
   "5xl": "max-w-5xl",
+  "6xl": "max-w-6xl",
 };
 
 interface Action {
@@ -81,17 +82,25 @@ export default function BaseModal({
             {/* Header */}
             {(title || description) && (
               <div className="relative p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50">
-                <div className={`absolute inset-x-0 top-0 h-16 bg-gradient-to-r ${accent} opacity-10`} />
+                <div
+                  className={`absolute inset-x-0 top-0 h-16 bg-gradient-to-r ${accent} opacity-10`}
+                />
                 <div className="relative z-10 flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center text-white text-lg`}>
+                  <div
+                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center text-white text-lg`}
+                  >
                     📌
                   </div>
                   <div>
                     {title && (
-                      <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        {title}
+                      </h3>
                     )}
                     {description && (
-                      <p className="text-gray-600 mt-1 text-sm">{description}</p>
+                      <p className="text-gray-600 mt-1 text-sm">
+                        {description}
+                      </p>
                     )}
                   </div>
                 </div>

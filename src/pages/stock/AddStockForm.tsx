@@ -358,7 +358,7 @@ function GroupCards({
   options: CategoryOption[];
 }) {
   // groups es un array paralelo a options (mismo orden)
-  const { fields, append, remove } = useFieldArray({
+  const { fields } = useFieldArray({
     control,
     name: "groups",
     keyName: "_k",

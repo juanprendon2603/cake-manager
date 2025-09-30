@@ -51,4 +51,5 @@ export type Person = {
   active?: boolean;
   startDate?: string; // YYYY-MM-DD
   attendance?: AttendanceByMonth;
+  disabled?: boolean;
 };

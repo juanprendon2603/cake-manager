@@ -1,27 +1,54 @@
+// src/pages/stock/components/CakeSizeFields.tsx
 import {
   useFieldArray,
   type Control,
   type UseFormRegister,
 } from "react-hook-form";
-import {
-  flavorIcons,
-  flavors,
-  normalizeKey,
-  sizeIcons,
-  type FlavorKey,
-  type FormValues,
-  type SizeKey,
-} from "../stock.model";
+
+type CakeFormValues = {
+  cakes: Record<
+    string,
+    Array<{
+      flavor: string;
+      quantity: string; // lo manejas como string en el form
+    }>
+  >;
+};
+
+type FlavorOption = { key: string; label: string };
 
 interface Props {
   size: string;
-  control: Control<FormValues>;
-  register: UseFormRegister<FormValues>;
+  control: Control<CakeFormValues>;
+  register: UseFormRegister<CakeFormValues>;
+  /** Opciones de sabor (llévalas desde tu categoría: step 'sabor') */
+  flavorOptions: FlavorOption[];
+  /** Ícono por sabor (opcional) */
+  flavorIcon?: Record<string, string>;
+  /** Ícono para el tamaño (opcional) */
+  sizeIcon?: string;
 }
 
-export function CakeSizeFields({ size, control, register }: Props) {
+const normalizeKey = (s: string) =>
+  (s ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+
+export function CakeSizeFields({
+  size,
+  control,
+  register,
+  flavorOptions,
+  flavorIcon,
+  sizeIcon = "🎂",
+}: Props) {
   const key = normalizeKey(size);
-  const { fields, append, remove } = useFieldArray<FormValues>({
+
+  const { fields, append, remove } = useFieldArray<CakeFormValues>({
     control,
     name: `cakes.${key}` as const,
   });
@@ -33,7 +60,7 @@ export function CakeSizeFields({ size, control, register }: Props) {
       <div className="relative z-10 flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow-lg">
-            {sizeIcons[size as SizeKey] || "🎂"}
+            {sizeIcon}
           </div>
           <div>
             <p className="font-bold text-xl text-gray-800">{size}</p>
@@ -60,9 +87,9 @@ export function CakeSizeFields({ size, control, register }: Props) {
                   className="w-full border-2 border-purple-200 rounded-xl p-3 bg-white/90 backdrop-blur focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-medium"
                 >
                   <option value="">🎨 Seleccionar sabor</option>
-                  {flavors.map((f) => (
-                    <option key={f} value={f}>
-                      {flavorIcons[f as FlavorKey]} {f}
+                  {flavorOptions.map((opt: FlavorOption) => (
+                    <option key={opt.key} value={opt.key}>
+                      {(flavorIcon?.[opt.key] ?? "🎨") + " " + opt.label}
                     </option>
                   ))}
                 </select>

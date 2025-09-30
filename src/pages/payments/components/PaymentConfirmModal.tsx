@@ -1,14 +1,15 @@
+// src/pages/payments/components/PaymentConfirmModal.tsx
 import BaseModal from "../../../components/BaseModal";
-import type { PaymentMethod, ProductType } from "../../../types/payments";
-import { humanize, paymentLabel } from "../../../utils/formatters";
-
+import type { PaymentMethod } from "../../../types/payments";
+import { paymentLabel } from "../../../utils/formatters";
+import type { CategoryStep } from "../../stock/stock.model";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  productType: ProductType;
-  size: string;
-  flavorOrSponge: string;
+  categoryName: string;
+  selections: Record<string, string>;
+  affectingSteps: CategoryStep[];
   quantity: number;
   orderDate: string;
   paymentMethod: PaymentMethod;
@@ -22,9 +23,9 @@ interface Props {
 export default function PaymentConfirmModal({
   isOpen,
   onClose,
-  productType,
-  size,
-  flavorOrSponge,
+  categoryName,
+  selections,
+  affectingSteps,
   quantity,
   orderDate,
   paymentMethod,
@@ -42,31 +43,25 @@ export default function PaymentConfirmModal({
       size="lg"
       title="Confirmar abono/pago"
       description="Revisa los detalles antes de registrar:"
-      secondaryAction={{
-        label: "Cancelar",
-        onClick: onClose,
-      }}
-      primaryAction={{
-        label: "Registrar",
-        onClick: onConfirm,
-      }}
+      secondaryAction={{ label: "Cancelar", onClick: onClose }}
+      primaryAction={{ label: "Registrar", onClick: onConfirm }}
       bodyClassName="space-y-4"
     >
       <div className="space-y-3 text-sm text-gray-800">
         <div className="flex justify-between">
-          <span className="text-gray-500">Producto</span>
-          <span className="font-medium">{productType === "cake" ? "Torta" : "Bizcocho"}</span>
+          <span className="text-gray-500">Categoría</span>
+          <span className="font-medium">{categoryName}</span>
         </div>
 
-        <div className="flex justify-between">
-          <span className="text-gray-500">Tamaño</span>
-          <span className="font-medium">{humanize(size)}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span className="text-gray-500">{productType === "cake" ? "Sabor" : "Tipo de bizcocho"}</span>
-          <span className="font-medium">{humanize(flavorOrSponge)}</span>
-        </div>
+        {affectingSteps.map((st) => (
+          <div key={st.key} className="flex justify-between">
+            <span className="text-gray-500">{st.label}</span>
+            <span className="font-medium">
+              {st.options?.find((o) => o.key === selections[st.key])?.label ||
+                ""}
+            </span>
+          </div>
+        ))}
 
         <div className="flex justify-between">
           <span className="text-gray-500">Cantidad</span>
@@ -105,9 +100,7 @@ export default function PaymentConfirmModal({
         </div>
       </div>
 
-      {loading && (
-        <p className="text-xs text-gray-500">Procesando…</p>
-      )}
+      {loading && <p className="text-xs text-gray-500">Procesando…</p>}
     </BaseModal>
   );
 }

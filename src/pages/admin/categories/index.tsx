@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import BaseModal from "../../../components/BaseModal";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useToast } from "../../../hooks/useToast";
-import type { ProductCategory } from "../../../utils/catalog";
+import type { ProductCategory } from "../../../types/catalog";
 import {
   deleteCategory,
   listCategories,

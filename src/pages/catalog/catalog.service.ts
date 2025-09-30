@@ -15,11 +15,10 @@ import { db } from "../../lib/firebase";
 import type {
   CategoryOption,
   CategoryStep,
-  GenericSale,
   ProductCategory,
   SelectedValues,
-  VariantStock,
 } from "../../types/catalog";
+import type { GenericSale, VariantStock } from "../sales/sales.service";
 
 /* ------------------------------- Colecciones ------------------------------ */
 const CATEGORIES_COL = collection(
@@ -28,8 +27,6 @@ const CATEGORIES_COL = collection(
 ) as CollectionReference<ProductCategory>;
 
 const STOCK_ROOT = collection(db, "catalog_stock"); // /catalog_stock/{categoryId}/variants/{variantKey}
-
-const STOCK_DAILY_ROOT = collection(db, "catalog_stock_daily"); // /catalog_stock_daily/{categoryId}/days/{YYYY-MM-DD}/variants/{variantKey}
 
 const SALES_COL = collection(
   db,

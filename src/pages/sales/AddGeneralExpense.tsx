@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import BaseModal from "../../components/BaseModal";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
+import type { PaymentMethod } from "../../types/stock";
 import { paymentLabel } from "../../utils/formatters";
-import BaseModal from "../../components/BaseModal";
-import {
-  registerGeneralExpense,
-  type PaymentMethod,
-} from "../sales/sales.service"; // ajusta la ruta si tu service está en otra carpeta
+import { registerGeneralExpense } from "../sales/sales.service"; // ajusta la ruta si tu service está en otra carpeta
 
 export function AddGeneralExpense() {
   const [description, setDescription] = useState("");
@@ -144,7 +142,9 @@ export function AddGeneralExpense() {
                   min="0"
                   value={amount}
                   onChange={(e) =>
-                    setAmount(e.target.value === "" ? "" : Number(e.target.value))
+                    setAmount(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
                   }
                   className={`${inputBase} pl-8`}
                   placeholder="0"

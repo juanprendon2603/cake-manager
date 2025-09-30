@@ -1,71 +1,76 @@
-// Tipos compartidos para pagos
-
+// src/types/payments.ts
 import type { Timestamp } from "firebase/firestore";
 
-export type ProductType = "cake" | "sponge";
 export type PaymentMethod = "cash" | "transfer";
 
+/** Estado del formulario (genérico) */
 export interface PaymentFormState {
-  productType: ProductType;
-  selectedSize: string;
-  selectedFlavor: string;      // para cake
-  selectedSpongeType: string;  // para sponge
-  quantity: string;            // input controlado
-  totalAmount: string;         // input controlado
-  partialAmount: string;       // input controlado (abono)
+  categoryId: string;
+  selections: Record<string, string>; // solo steps que afectan stock
+  quantity: string; // input controlado
+  totalAmount: string; // input controlado
+  partialAmount: string; // input controlado
   paymentMethod: PaymentMethod;
   deductFromStock: boolean;
   isTotalPayment: boolean;
-  orderDate: string;           // yyyy-MM-dd
+  orderDate: string; // yyyy-MM-dd
 }
 
-export interface LegacyPaymentItem {
-  id: string; // Date.now().toString()
-  type: ProductType;
-  size: string;
-  flavor: string;          // flavor o tipo de bizcocho
+/** Input para registrar un pago (genérico) */
+export interface RegisterPaymentInput {
+  today: string; // yyyy-MM-dd
+  categoryId: string;
+  categoryName: string;
+  selections: Record<string, string>;
+  variantKey: string;
   quantity: number;
-  amount: number;          // total del pedido
-  partialAmount: number;   // lo pagado hoy
+  totalAmount: number;
+  paidAmountToday: number;
   paymentMethod: PaymentMethod;
-  isPayment: true;
-  deductedFromStock: boolean;
   totalPayment: boolean;
-  orderDate: string;       // yyyy-MM-dd
+  deductedFromStock: boolean;
+  orderDate: string; // yyyy-MM-dd
+  orderUID?: string; // <- si quieres forzar/seleccionar uno existente
 }
 
+/** Asiento mensual de ventas (genérico) */
 export interface SalesMonthlyPaymentEntry {
   kind: "payment";
-  day: string;                 // día en que se registra el pago (yyyy-MM-dd)
-  type: ProductType;
-  size: string;
-  flavor: string | null;   // ✅ permite null
-  quantity: number;
-  amountCOP: number;           // lo que entra hoy
+  day: string; // yyyy-MM-dd (fecha asiento)
+  amountCOP: number; // lo que entra hoy
   paymentMethod: PaymentMethod;
   deductedFromStock: boolean;
   totalPayment: boolean;
-  orderDate: string;           // fecha del pedido
-  finalization?: boolean;      // asiento de finalización (opcional)
-  totalAmountCOP?: number;     // útil en finalización
+  orderDate: string; // fecha del pedido
+  categoryId: string;
+  categoryName: string;
+  variantKey: string;
+  selections: Record<string, string>;
+  quantity: number;
+  finalization?: boolean;
+  totalAmountCOP?: number; // útil cuando se finaliza
   createdAt?: Timestamp;
+  orderUID?: string; // <- UID del pedido
 }
 
+/** Asiento mensual de pagos por mes del pedido (genérico) */
 export interface PaymentsMonthlyEntry {
   kind: "payment";
-  orderDay: string;            // fecha del pedido
-  paidDay: string;             // fecha en la que se registra este asiento
-  amountCOP: number;           // lo que entra hoy
-  totalAmountCOP: number;      // total del pedido
+  orderDay: string; // yyyy-MM-dd (pedido)
+  paidDay: string; // yyyy-MM-dd (registro)
+  amountCOP: number; // entra hoy
+  totalAmountCOP: number; // total del pedido
   paymentMethod: PaymentMethod;
-  type: ProductType;
-  size: string;
-  flavor: string | null;   // ✅ alinear con el resto
+  categoryId: string;
+  categoryName: string;
+  variantKey: string;
+  selections: Record<string, string>;
   quantity: number;
-  totalPayment?: boolean;      // true si ya quedó finalizado
-  deductedFromStock?: boolean; // true si ya se descontó inventario
+  totalPayment?: boolean;
+  deductedFromStock?: boolean;
   createdAt?: Timestamp;
-  paid?: boolean;              // flag auxiliar
+  paid?: boolean;
+  orderUID?: string; // <- UID del pedido
 }
 
 /** Fila cruda leída del mes en payments_monthly/{month}/entries */
@@ -75,13 +80,14 @@ export interface PaymentsMonthlyRow {
   data: PaymentsMonthlyEntry;
 }
 
-/** Grupo calculado por pedido (orderDay + type + size + flavor + qty) */
+/** Grupo por pedido (genérico) */
 export interface PendingPaymentGroup {
-  groupKey: string; // orderDay|type|size|flavor|quantity
+  groupKey: string; // orderDay|categoryId|variantKey|quantity
   orderDay: string;
-  type: ProductType;
-  size: string;
-  flavor: string | null;
+  categoryId: string;
+  categoryName: string;
+  variantKey: string;
+  selections: Record<string, string>;
   quantity: number;
   totalAmountCOP: number;
   abonado: number;
@@ -89,20 +95,9 @@ export interface PendingPaymentGroup {
   paymentMethod: PaymentMethod;
   deductedFromStock: boolean;
   hasTotalPayment: boolean;
-  anchorEntryId: string;     // id de entries (pivote a actualizar)
-  anchorEntryMonth: string;  // YYYY-MM
-}
-
-export interface RegisterPaymentInput {
-  today: string;               // yyyy-MM-dd (día de registro del pago)
-  productType: ProductType;
-  size: string;
-  flavorOrSponge: string;      // flavor (cake) o tipo de bizcocho (sponge)
-  quantity: number;
-  totalAmount: number;
-  paidAmountToday: number;     // abono o total si es pago total
-  paymentMethod: PaymentMethod;
-  totalPayment: boolean;
-  deductedFromStock: boolean;
-  orderDate: string;           // yyyy-MM-dd
+  anchorEntryId: string; // id del asiento “pivote”
+  anchorEntryMonth: string; // YYYY-MM
+  entriesCount?: number;
+  entryPaidDays?: string[];
+  orderUID?: string; // <- UID del pedido
 }

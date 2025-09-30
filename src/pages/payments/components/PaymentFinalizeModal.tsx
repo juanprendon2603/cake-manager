@@ -1,7 +1,7 @@
 import BaseModal from "../../../components/BaseModal";
 import type { PendingPaymentGroup } from "../../../types/payments";
-import { humanize, paymentLabel } from "../../../utils/formatters";
-
+import { paymentLabel } from "../../../utils/formatters";
+import type { CategoryStep, ProductCategory } from "../../stock/stock.model";
 
 interface Props {
   isOpen: boolean;
@@ -9,6 +9,55 @@ interface Props {
   group: PendingPaymentGroup;
   onConfirm: () => void;
   loading?: boolean;
+  /** Para resolver labels de selections */
+  category: ProductCategory | null;
+}
+
+// Reemplaza prettySelections por esta versión:
+function prettySelections(
+  category: ProductCategory | null,
+  selectionsInput: Record<string, string> | undefined | null,
+  variantKey?: string
+): Array<{ label: string; value: string }> {
+  const selections: Record<string, string> = selectionsInput ?? {};
+
+  if (category && Array.isArray(category.steps)) {
+    const affecting: CategoryStep[] = (category.steps || []).filter(
+      (s) => s.affectsStock
+    );
+    const pretty = affecting.map((st) => {
+      const valKey = selections[st.key] ?? "";
+      const valueLabel =
+        st.options?.find((o) => o.key === valKey)?.label ?? valKey;
+      return { label: st.label, value: valueLabel };
+    });
+    const hasAny = pretty.some((p) => p.value);
+    if (!hasAny && variantKey) {
+      try {
+        const parts = variantKey.split("|").map((p) => p.split(":"));
+        return parts
+          .filter((kv) => kv.length === 2)
+          .map(([k, v]) => ({ label: k, value: v }));
+      } catch {}
+    }
+    return pretty;
+  }
+
+  const entries = Object.entries(selections);
+  if (entries.length > 0) {
+    return entries.map(([k, v]) => ({ label: k, value: v }));
+  }
+
+  if (variantKey) {
+    try {
+      const parts = variantKey.split("|").map((p) => p.split(":"));
+      return parts
+        .filter((kv) => kv.length === 2)
+        .map(([k, v]) => ({ label: k, value: v }));
+    } catch {}
+  }
+
+  return [];
 }
 
 export default function PaymentFinalizeModal({
@@ -17,7 +66,10 @@ export default function PaymentFinalizeModal({
   group,
   onConfirm,
   loading = false,
+  category,
 }: Props) {
+  const pretty = prettySelections(category, group.selections, group.variantKey);
+
   return (
     <BaseModal
       isOpen={isOpen}
@@ -36,29 +88,41 @@ export default function PaymentFinalizeModal({
             <span className="font-medium">{group.orderDay}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Producto</span>
-            <span className="font-medium">
-              {group.type === "cake" ? "Torta" : "Bizcocho"}
-            </span>
+            <span className="text-gray-500">Categoría</span>
+            <span className="font-medium">{group.categoryName}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Detalle</span>
-            <span className="font-medium">
-              {humanize(group.size)}
-              {group.type === "cake" && group.flavor ? ` · ${humanize(group.flavor)}` : ""}
-            </span>
+
+          {/* Detalle de selections */}
+          <div className="sm:col-span-2">
+            <div className="text-gray-500 mb-1">Detalle</div>
+            <div className="flex flex-wrap gap-2">
+              {pretty.map(({ label, value }) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-violet-200 text-sm"
+                >
+                  <span className="text-gray-500">{label}:</span>
+                  <span className="font-medium">{value}</span>
+                </span>
+              ))}
+            </div>
           </div>
+
           <div className="flex justify-between">
             <span className="text-gray-500">Cantidad</span>
             <span className="font-medium">x{group.quantity}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Método</span>
-            <span className="font-medium">{paymentLabel(group.paymentMethod)}</span>
+            <span className="font-medium">
+              {paymentLabel(group.paymentMethod)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Inventario</span>
-            <span className="font-medium">{group.deductedFromStock ? "Descontado" : "Pendiente"}</span>
+            <span className="font-medium">
+              {group.deductedFromStock ? "Descontado" : "Pendiente"}
+            </span>
           </div>
         </div>
       </div>
@@ -78,7 +142,11 @@ export default function PaymentFinalizeModal({
         </div>
         <div className="rounded-xl border border-gray-200 p-3 text-center">
           <div className="text-gray-500 mb-1">Pendiente</div>
-          <div className={`font-extrabold ${group.restante > 0 ? "text-yellow-700" : "text-emerald-700"}`}>
+          <div
+            className={`font-extrabold ${
+              group.restante > 0 ? "text-yellow-700" : "text-emerald-700"
+            }`}
+          >
             ${group.restante.toLocaleString("es-CO")}
           </div>
         </div>

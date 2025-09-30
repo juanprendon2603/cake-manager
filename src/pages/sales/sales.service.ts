@@ -195,3 +195,9 @@ export async function registerGeneralExpense(input: {
     { merge: true }
   );
 }
+
+export type VariantStock = {
+  variantKey: string;
+  stock: number;
+  updatedAt?: number;
+};

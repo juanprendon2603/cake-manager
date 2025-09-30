@@ -1,4 +1,4 @@
-import type { ProductCategory } from "../../../../utils/catalog";
+import type { ProductCategory } from "../../../../types/catalog";
 
 export default function CategoryList({
   items,

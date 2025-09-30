@@ -1,13 +1,14 @@
 // src/pages/sales/AddExpense.tsx
+import { cubicBezier, motion } from "framer-motion";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import BaseModal from "../../components/BaseModal";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
-import { motion, cubicBezier } from "framer-motion";
+import type { PaymentMethod } from "../../types/stock";
 import { paymentLabel } from "../../utils/formatters";
-import { registerExpense, type PaymentMethod } from "./sales.service";
-import BaseModal from "../../components/BaseModal";
+import { registerExpense } from "./sales.service";
 
 const easeM3 = cubicBezier(0.4, 0, 0.2, 1);
 
@@ -118,10 +119,15 @@ export function AddExpense() {
                 Método de pago
               </label>
               <motion.select
-                whileFocus={{ scale: 1.01, boxShadow: "0 0 0 4px rgba(142,45,168,.12)" }}
+                whileFocus={{
+                  scale: 1.01,
+                  boxShadow: "0 0 0 4px rgba(142,45,168,.12)",
+                }}
                 className={inputBase}
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                onChange={(e) =>
+                  setPaymentMethod(e.target.value as PaymentMethod)
+                }
               >
                 <option value="cash">💵 Efectivo</option>
                 <option value="transfer">🏦 Transferencia</option>
@@ -138,7 +144,10 @@ export function AddExpense() {
                 Descripción
               </label>
               <motion.input
-                whileFocus={{ scale: 1.01, boxShadow: "0 0 0 4px rgba(142,45,168,.12)" }}
+                whileFocus={{
+                  scale: 1.01,
+                  boxShadow: "0 0 0 4px rgba(142,45,168,.12)",
+                }}
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -157,9 +166,14 @@ export function AddExpense() {
                 Valor
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 select-none">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 select-none">
+                  $
+                </span>
                 <motion.input
-                  whileFocus={{ scale: 1.01, boxShadow: "0 0 0 4px rgba(142,45,168,.12)" }}
+                  whileFocus={{
+                    scale: 1.01,
+                    boxShadow: "0 0 0 4px rgba(142,45,168,.12)",
+                  }}
                   type="number"
                   min="0"
                   value={amount}
@@ -223,7 +237,9 @@ export function AddExpense() {
           label: "Registrar gasto",
           onClick: () => {
             setShowConfirmModal(false);
-            const fakeEvent = { preventDefault: () => {} } as unknown as React.FormEvent;
+            const fakeEvent = {
+              preventDefault: () => {},
+            } as unknown as React.FormEvent;
             handleSubmit(fakeEvent);
           },
         }}

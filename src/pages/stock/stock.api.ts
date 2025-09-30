@@ -43,7 +43,6 @@ export async function persistStockUpdate(formData: GenericStockForm) {
 
   await persistGenericStockUpdate({
     categoryId: formData.categoryId,
-    date: formData.date,
     movements,
   });
 }
