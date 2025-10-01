@@ -4,7 +4,9 @@ type FullScreenLoaderProps = {
   message?: string;
 };
 
-export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullScreenLoaderProps) {
+export function FullScreenLoader({
+  message = "Cargando CakeManager...",
+}: FullScreenLoaderProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100"
@@ -13,10 +15,20 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
       aria-label="Pantalla de carga"
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full blur-3xl opacity-30"
-          style={{ background: "radial-gradient(circle at center, #E8D4F2, transparent 60%)" }} />
-        <div className="absolute -bottom-24 -right-10 w-[28rem] h-[28rem] rounded-full blur-3xl opacity-30"
-          style={{ background: "radial-gradient(circle at center, #8E2DA8, transparent 60%)" }} />
+        <div
+          className="absolute -top-20 -left-20 w-80 h-80 rounded-full blur-3xl opacity-30"
+          style={{
+            background:
+              "radial-gradient(circle at center, #E8D4F2, transparent 60%)",
+          }}
+        />
+        <div
+          className="absolute -bottom-24 -right-10 w-[28rem] h-[28rem] rounded-full blur-3xl opacity-30"
+          style={{
+            background:
+              "radial-gradient(circle at center, #8E2DA8, transparent 60%)",
+          }}
+        />
       </div>
 
       <div className="relative mx-4 w-full max-w-sm rounded-3xl bg-white/90 backdrop-blur-xl shadow-2xl border-2 border-white/60 p-8 text-center">
@@ -36,7 +48,13 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
           {/* SVG Cupcake base */}
           <svg viewBox="0 0 160 160" className="w-full h-full">
             {/* Sombra */}
-            <ellipse cx="80" cy="138" rx="42" ry="8" fill="rgba(0,0,0,0.08)"></ellipse>
+            <ellipse
+              cx="80"
+              cy="138"
+              rx="42"
+              ry="8"
+              fill="rgba(0,0,0,0.08)"
+            ></ellipse>
 
             {/* Capacillo (base) */}
             <path
@@ -45,7 +63,7 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
               stroke="#C7A6D9"
               strokeWidth="1.5"
             />
-            
+
             <defs>
               <linearGradient id="linerBase" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="#F5E6FB" />
@@ -63,12 +81,14 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
               </linearGradient>
               <clipPath id="frostingClip">
                 {/* Contorno del frosting para recortar el "relleno" */}
-                <path d="M40,98
+                <path
+                  d="M40,98
                          C35,80 48,70 60,68
                          C58,52 78,46 86,56
                          C98,46 120,54 118,70
                          C130,72 132,86 122,98
-                         Z" />
+                         Z"
+                />
               </clipPath>
             </defs>
 
@@ -87,7 +107,12 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
             })}
 
             {/* Borde superior del capacillo */}
-            <path d="M40,100 Q80,110 120,100" fill="none" stroke="#C7A6D9" strokeWidth="2" />
+            <path
+              d="M40,100 Q80,110 120,100"
+              fill="none"
+              stroke="#C7A6D9"
+              strokeWidth="2"
+            />
 
             {/* Área del frosting (clip) */}
             <g clipPath="url(#frostingClip)">
@@ -101,7 +126,14 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
                 className="cupcake-fill"
               />
               {/* Sutile sombra interna */}
-              <rect x="24" y="60" width="120" height="90" fill="white" opacity="0.06" />
+              <rect
+                x="24"
+                y="60"
+                width="120"
+                height="90"
+                fill="white"
+                opacity="0.06"
+              />
             </g>
 
             {/* Contorno del frosting para darle definición */}
@@ -141,14 +173,25 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
             ))}
 
             {/* Cherry/topper */}
-            <circle cx="112" cy="64" r="6" fill="#FF4D88" className="animate-[float_2.6s_ease-in-out_infinite]" />
-            <path d="M112,64 C110,56 104,52 98,52" stroke="#9A2C6A" strokeWidth="2" fill="none" />
+            <circle
+              cx="112"
+              cy="64"
+              r="6"
+              fill="#FF4D88"
+              className="animate-[float_2.6s_ease-in-out_infinite]"
+            />
+            <path
+              d="M112,64 C110,56 104,52 98,52"
+              stroke="#9A2C6A"
+              strokeWidth="2"
+              fill="none"
+            />
           </svg>
         </div>
 
         {/* Texto */}
         <h2 className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
-          CakeManager
+          InManager
         </h2>
         <p className="text-sm text-gray-700 mb-4">{message}</p>
 
@@ -209,4 +252,3 @@ export function FullScreenLoader({ message = "Cargando CakeManager..." }: FullSc
     </div>
   );
 }
-

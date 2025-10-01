@@ -1,0 +1,21 @@
+// src/components/ui/InfoCard.tsx
+type InfoCardProps = {
+  emoji: string;
+  title: string;
+  text: string;
+  gradientClass: string; // p.ej. 'from-green-500 to-emerald-500'
+};
+
+export function InfoCard({ emoji, title, text, gradientClass }: InfoCardProps) {
+  return (
+    <div className="rounded-2xl p-6 bg-white/70 backdrop-blur border border-white/60 shadow-lg text-center">
+      <div
+        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white text-xl mx-auto mb-4`}
+      >
+        {emoji}
+      </div>
+      <h4 className="font-bold text-gray-800 mb-2">{title}</h4>
+      <p className="text-sm text-gray-600">{text}</p>
+    </div>
+  );
+}

@@ -11,6 +11,10 @@ import {
   markAttendanceForPerson,
 } from "./payroll.service";
 
+// ⬇️ NUEVO: usa los componentes
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
 // Helpers para horas
 function hhmmToMinutes(hhmm?: string) {
   if (!hhmm) return undefined;
@@ -86,12 +90,10 @@ const PayrollSimple: React.FC = () => {
     if (!selectedPerson || !selectedShift) return;
     setLoading(true);
     try {
-      // 1) Bloquear marcación para fijos (por seguridad extra)
       if (
         selectedPerson.paymentMode === "fixed_fortnight" ||
         selectedPerson.paymentMode === "fixed_monthly"
       ) {
-        // No debería pasar porque no renderizamos botones, pero por si acaso:
         setLoading(false);
         setShowConfirmModal(false);
         setSelectedPerson(null);
@@ -103,10 +105,8 @@ const PayrollSimple: React.FC = () => {
       let from: string | undefined;
       let to: string | undefined;
 
-      // 2) Si es por hora, calcular/validar horas
       if (selectedShift === "hours") {
         const d = draft[selectedPerson.id] ?? {};
-        // prioriza cálculo por rango si ambos están
         const calc = diffHours(d.from, d.to);
         const manual = d.hours ? Number(d.hours) : undefined;
         hours = calc ?? (manual && manual > 0 ? manual : undefined);
@@ -122,11 +122,6 @@ const PayrollSimple: React.FC = () => {
         }
       }
 
-      // 3) IMPORTANTE: mantener formato:
-      // - per_day  => string ("completo" | "medio")
-      // - per_hour => objeto (hours/from/to)
-      // Esto se decide en el servicio con base en person.paymentMode,
-      // pero envío los datos para que pueda escribir correctamente.
       const updated = await markAttendanceForPerson({
         person: selectedPerson,
         month,
@@ -156,19 +151,15 @@ const PayrollSimple: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col items-center py-10">
-      {/* Header */}
-      <div className="text-center mb-10">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-lg">
-            👥
-          </div>
-        </div>
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-          Registro de Asistencia
-        </h1>
-        <p className="text-gray-600 max-w-md mb-2">
-          Marca la asistencia diaria del equipo de trabajo
-        </p>
+      {/* ⬇️ PageHero (reemplaza el header manual) */}
+      <div className="w-full max-w-6xl px-4">
+        <PageHero
+          icon="👥"
+          title="Registro de Asistencia"
+          subtitle="Marca la asistencia diaria del equipo de trabajo"
+          gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
+          iconGradientClass="from-[#8E2DA8] to-[#A855F7]"
+        />
       </div>
 
       {/* Actions */}
@@ -202,7 +193,6 @@ const PayrollSimple: React.FC = () => {
             const day = p.attendance?.[month]?.[today];
             const hasMarkedToday = day !== undefined;
 
-            // Badge según tipo de valor guardado hoy
             const badge = (() => {
               if (!day) return null;
               if (isStringDay(day)) {
@@ -230,7 +220,6 @@ const PayrollSimple: React.FC = () => {
             const d = draft[p.id] ?? {};
             const computed = diffHours(d.from, d.to);
 
-            // ¿Se puede marcar? Solo per_day y per_hour
             const isFixed =
               p.paymentMode === "fixed_fortnight" ||
               p.paymentMode === "fixed_monthly";
@@ -277,9 +266,7 @@ const PayrollSimple: React.FC = () => {
                   </p>
                 )}
 
-                {/* UI según modo de pago */}
                 {isFixed ? null : p.paymentMode === "per_hour" ? (
-                  // ====== UI MODO POR HORA ======
                   <div className="w-full grid grid-cols-3 gap-2 items-end">
                     <label className="col-span-1 text-xs text-gray-600">
                       Desde
@@ -347,7 +334,6 @@ const PayrollSimple: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  // ====== UI MODO POR DÍA ======
                   <div className="flex gap-3 flex-wrap justify-center w-full">
                     <button
                       onClick={() => handleConfirmClick(p, "completo")}
@@ -364,7 +350,7 @@ const PayrollSimple: React.FC = () => {
                     <button
                       onClick={() => handleConfirmClick(p, "medio")}
                       disabled={hasMarkedToday}
-                      className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                      className={`flex-1 min-w=[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
                         hasMarkedToday
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
@@ -380,6 +366,15 @@ const PayrollSimple: React.FC = () => {
           })}
       </div>
 
+      {/* ⬇️ Tip como componente */}
+      <div className="w-full max-w-6xl px-4 mt-8">
+        <ProTipBanner
+          title="Tip"
+          text="Usa el resumen por quincenas para validar totales antes de pagar. En modo por hora puedes ingresar rango (desde–hasta) o las horas directo."
+          gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
+        />
+      </div>
+
       {/* Modales */}
       {selectedPerson && selectedShift && (
         <ConfirmAttendanceModal
@@ -388,7 +383,6 @@ const PayrollSimple: React.FC = () => {
           onConfirm={markAttendance}
           person={selectedPerson}
           shift={selectedShift}
-          // NUEVO: solo para horas
           hoursPreview={selectedShift === "hours" ? hoursPreview : undefined}
           fromPreview={
             selectedShift === "hours" ? dForSelected.from : undefined

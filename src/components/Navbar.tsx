@@ -3,10 +3,37 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
+function getInitialsFromProfileOrUser(
+  firstName?: string | null,
+  lastName?: string | null,
+  displayName?: string | null,
+  email?: string | null
+) {
+  const fn = (firstName || "").trim();
+  const ln = (lastName || "").trim();
+  if (fn && ln) return (fn[0] + ln[0]).toUpperCase();
+
+  const dn = (displayName || "").trim();
+  if (dn) {
+    const words = dn.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+    }
+    const w = words[0];
+    return ((w?.[0] || "U") + (w?.[1] || "")).toUpperCase();
+  }
+
+  const base = (email || "U").split("@")[0] || "U";
+  const parts = base.replace(/[_\.]/g, " ").split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0]?.toUpperCase() ?? "U";
+  const b = parts[1]?.[0]?.toUpperCase() ?? "";
+  return (a + b).slice(0, 2);
+}
+
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, role } = useAuth();
+  const { user, logout, role, profile } = useAuth(); // 👈 ahora tenemos profile
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -58,15 +85,22 @@ export function Navbar() {
   ];
 
   const displayName =
-    user?.displayName || user?.email?.split("@")[0] || "Usuario";
+    // 1) profile
+    (profile?.firstName || profile?.lastName
+      ? `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim()
+      : profile?.displayName) ||
+    // 2) auth displayName
+    user?.displayName ||
+    // 3) email local-part
+    user?.email?.split("@")[0] ||
+    "Usuario";
 
-  const initials = (() => {
-    const base = (user?.displayName || user?.email || "U").trim();
-    const parts = base.replace(/[@_.]/g, " ").split(" ").filter(Boolean);
-    const first = parts[0]?.[0]?.toUpperCase() ?? "U";
-    const second = parts[1]?.[0]?.toUpperCase() ?? "";
-    return (first + second).slice(0, 2);
-  })();
+  const initials = getInitialsFromProfileOrUser(
+    profile?.firstName,
+    profile?.lastName,
+    profile?.displayName ?? user?.displayName ?? null,
+    user?.email ?? null
+  );
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-[#7a1f96]/80 via-[#8E2DA8]/80 to-[#a84bd1]/80 border-b border-white/20 shadow-[0_8px_20px_rgba(142,45,168,0.25)]">
@@ -75,10 +109,7 @@ export function Navbar() {
           {/* Brand */}
           <Link to="/" className="flex items-center gap-2">
             <span className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-[#2FE1EB] via-white to-[#F3E8FF] bg-clip-text text-transparent drop-shadow-[0_1px_8px_rgba(47,225,235,0.35)]">
-              CakeManager
-            </span>
-            <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-white/80 tracking-wider">
-              PRO
+              InManager
             </span>
           </Link>
 
@@ -145,14 +176,13 @@ export function Navbar() {
                 >
                   <div className="px-4 py-3 text-sm text-gray-700 border-b border-white/30">
                     <div className="font-semibold line-clamp-1">
-                      {user?.email || "—"}
+                      {displayName || "—"}
                     </div>
                     <div className="text-gray-500">
                       {role === "admin" ? "Administrador" : "Sesión activa"}
                     </div>
                   </div>
 
-                  {/* ⬇️ Panel de administración (solo admin) */}
                   {role === "admin" && (
                     <Link
                       to="/admin"
@@ -164,7 +194,6 @@ export function Navbar() {
                     </Link>
                   )}
 
-                  {/* Cerrar sesión */}
                   <button
                     onClick={handleLogout}
                     role="menuitem"
@@ -243,7 +272,6 @@ export function Navbar() {
               );
             })}
 
-            {/* ⬇️ Panel admin (móvil) arriba del botón de salir */}
             {role === "admin" && (
               <Link
                 to="/admin"

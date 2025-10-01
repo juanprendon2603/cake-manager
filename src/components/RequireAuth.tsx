@@ -1,17 +1,28 @@
 // src/components/RequireAuth.tsx
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { FullScreenLoaderSession } from "./FullScreenLoaderSession";
 
 export default function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
-  console.debug("[RequireAuth]", {
-    loading,
-    user: !!user,
-    path: location.pathname,
-  });
 
-  if (loading) return <div style={{ padding: 24 }}>Cargando sesión…</div>;
+  if (loading) {
+    return (
+      <FullScreenLoaderSession
+        appName="InManager"
+        message="Preparando tu sesión…"
+        // logoUrl opcional si quieres mostrar tu logo en el centro
+        logoUrl={new URL("../assets/logo.png", import.meta.url).toString()}
+        tips={[
+          "Consejo: puedes filtrar pedidos por estado",
+          "Atajo: pulsa / para buscar rápidamente",
+          "Recuerda: exporta reportes desde la vista de ventas",
+        ]}
+      />
+    );
+  }
+
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
 
   return <Outlet />;

@@ -11,10 +11,18 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { auth, db } from "../lib/firebase";
 
 type Role = "admin" | "user";
+
+export type UserProfile = {
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+};
+
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
   role: Role | null;
+  profile: UserProfile | null; // 👈 NUEVO
   logout: () => Promise<void>;
 };
 
@@ -24,12 +32,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null); // 👈 NUEVO
 
   useEffect(() => {
     const un = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         setUser(null);
         setRole(null);
+        setProfile(null); // 👈 limpia perfil
         setLoading(false);
         return;
       }
@@ -39,11 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = (u.email || "").toLowerCase().trim();
 
       try {
-        // 0) Lee configuración
+        // 0) Lee configuración (allowlist/admins + profiles)
         const cfgSnap = await getDoc(cfgRef);
         const cfg = cfgSnap.exists()
           ? (cfgSnap.data() as any)
-          : { initialized: false, allowlist: [], admins: [] };
+          : { initialized: false, allowlist: [], admins: [], profiles: {} };
 
         const initialized = !!cfg.initialized;
         const allow: string[] = (cfg.allowlist || []).map((x: any) =>
@@ -52,17 +62,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const admins: string[] = (cfg.admins || []).map((x: any) =>
           String(x).toLowerCase().trim()
         );
+        const profilesMap: Record<
+          string,
+          { displayName?: string; firstName?: string; lastName?: string }
+        > = cfg.profiles || {};
+
+        // 👇 Perfiles: intenta leer por email
+        const profForEmail =
+          profilesMap[email] ??
+          null; /* { displayName?, firstName?, lastName? } */
 
         // ✅ bootstrap si NO hay admins (aunque initialized sea true)
         const sinAdmins = admins.length === 0;
 
-        // 1) BOOTSTRAP: si no está inicializado O NO HAY ADMINS → hacer admin al usuario actual
+        // 1) BOOTSTRAP
         if (!initialized || sinAdmins) {
           await runTransaction(db, async (tx) => {
             const freshCfg = await tx.get(cfgRef);
             const currCfg = freshCfg.exists()
               ? (freshCfg.data() as any)
-              : { initialized: false, allowlist: [], admins: [] };
+              : { initialized: false, allowlist: [], admins: [], profiles: {} };
 
             const cAllow: string[] = (currCfg.allowlist || []).map((x: any) =>
               String(x).toLowerCase().trim()
@@ -102,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setUser(u);
           setRole("admin");
+          setProfile(profForEmail); // 👈 guarda perfil si existe
           setLoading(false);
           return;
         }
@@ -113,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await signOut(auth);
           setUser(null);
           setRole(null);
+          setProfile(null);
           setLoading(false);
           return;
         }
@@ -155,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(u);
         setRole(finalRole);
+        setProfile(profForEmail); // 👈 guarda perfil leído del config
         setLoading(false);
       } catch (e: any) {
         console.error("[Auth] Bootstrap/allowlist error", e);
@@ -163,6 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         setUser(null);
         setRole(null);
+        setProfile(null);
         setLoading(false);
       }
     });
@@ -171,8 +194,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, role, logout: () => signOut(auth) }),
-    [user, loading, role]
+    () => ({ user, loading, role, profile, logout: () => signOut(auth) }),
+    [user, loading, role, profile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

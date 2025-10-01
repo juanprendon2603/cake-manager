@@ -8,31 +8,52 @@ import { db } from "../../lib/firebase";
 
 type RoleSel = "user" | "admin";
 
+type Profile = {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+};
+type ProfilesMap = Record<string, Profile>;
+
 function normEmail(v: string) {
   return v.toLowerCase().trim();
 }
 function isValidEmail(v: string) {
   const e = normEmail(v);
-  // Sencillo pero efectivo
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
+function mkDisplayName(firstName?: string, lastName?: string) {
+  const f = (firstName || "").trim();
+  const l = (lastName || "").trim();
+  return [f, l].filter(Boolean).join(" ") || undefined;
 }
 
 export default function AllowlistAdmin() {
   const { role, user } = useAuth();
+
   const [loading, setLoading] = useState(true);
 
   // Estado de configuración
   const [allow, setAllow] = useState<string[]>([]);
   const [admins, setAdmins] = useState<string[]>([]);
+  const [profiles, setProfiles] = useState<ProfilesMap>({});
 
   // Form de alta
   const [input, setInput] = useState("");
+  const [firstInput, setFirstInput] = useState("");
+  const [lastInput, setLastInput] = useState("");
   const [roleSel, setRoleSel] = useState<RoleSel>("user");
 
   // Modales
   const [confirmAddOpen, setConfirmAddOpen] = useState(false);
   const [confirmDelOpen, setConfirmDelOpen] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
+
+  // Modal editar perfil (nombre/apellido)
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEmail, setEditEmail] = useState<string | null>(null);
+  const [editFirst, setEditFirst] = useState("");
+  const [editLast, setEditLast] = useState("");
 
   // Mensajes UI
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -44,9 +65,23 @@ export default function AllowlistAdmin() {
       const snap = await getDoc(doc(db, "app_config", "auth"));
       const cfg = snap.exists()
         ? (snap.data() as any)
-        : { initialized: false, allowlist: [], admins: [] };
+        : { initialized: false, allowlist: [], admins: [], profiles: {} };
+
       setAllow((cfg.allowlist || []).map(normEmail));
       setAdmins((cfg.admins || []).map(normEmail));
+      const rawProfiles = cfg.profiles || {};
+      const normalized: ProfilesMap = {};
+      // normaliza claves de profiles por si vinieran con mayúsculas
+      Object.keys(rawProfiles).forEach((k) => {
+        const ek = normEmail(k);
+        const p = rawProfiles[k] || {};
+        normalized[ek] = {
+          firstName: p.firstName || undefined,
+          lastName: p.lastName || undefined,
+          displayName: p.displayName || mkDisplayName(p.firstName, p.lastName),
+        };
+      });
+      setProfiles(normalized);
       setLoading(false);
     })();
   }, []);
@@ -59,13 +94,18 @@ export default function AllowlistAdmin() {
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
-  async function save(nextAllow: string[], nextAdmins: string[]) {
+  async function save(
+    nextAllow: string[],
+    nextAdmins: string[],
+    nextProfiles?: ProfilesMap
+  ) {
     await setDoc(
       doc(db, "app_config", "auth"),
       {
         initialized: true,
         allowlist: Array.from(new Set(nextAllow.map(normEmail))),
         admins: Array.from(new Set(nextAdmins.map(normEmail))),
+        ...(nextProfiles ? { profiles: nextProfiles } : {}),
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -75,6 +115,8 @@ export default function AllowlistAdmin() {
   // ----- Alta -----
   function openConfirmAdd() {
     setErrorMsg(null);
+    setInfoMsg(null);
+
     const e = normEmail(input);
     if (!e) {
       setErrorMsg("Escribe un correo.");
@@ -94,19 +136,39 @@ export default function AllowlistAdmin() {
 
   async function confirmAdd() {
     const e = normEmail(input);
+
     const nextAllow =
       roleSel === "admin"
-        ? Array.from(new Set([...allow, e]))
+        ? Array.from(new Set([...allow, e])) // también va en allowlist
         : Array.from(new Set([...allow, e]));
     const nextAdmins =
       roleSel === "admin" ? Array.from(new Set([...admins, e])) : admins;
+
+    // Perfiles (opcional)
+    const f = firstInput.trim();
+    const l = lastInput.trim();
+    let nextProfiles: ProfilesMap | undefined = profiles;
+    if (f || l) {
+      nextProfiles = {
+        ...profiles,
+        [e]: {
+          firstName: f || undefined,
+          lastName: l || undefined,
+          displayName: mkDisplayName(f, l),
+        },
+      };
+      setProfiles(nextProfiles);
+    }
 
     setAllow(nextAllow);
     setAdmins(nextAdmins);
     setConfirmAddOpen(false);
     setInput("");
+    setFirstInput("");
+    setLastInput("");
     setRoleSel("user");
-    await save(nextAllow, nextAdmins);
+
+    await save(nextAllow, nextAdmins, nextProfiles);
     setInfoMsg("Usuario agregado correctamente.");
   }
 
@@ -137,12 +199,58 @@ export default function AllowlistAdmin() {
     const nextAllow = allow.filter((x) => x !== e);
     const nextAdmins = admins.filter((x) => x !== e);
 
+    // Quitar perfil asociado si existe
+    const nextProfiles: ProfilesMap = { ...profiles };
+    if (nextProfiles[e]) {
+      delete nextProfiles[e];
+    }
+
     setAllow(nextAllow);
     setAdmins(nextAdmins);
+    setProfiles(nextProfiles);
     setConfirmDelOpen(false);
     setToDelete(null);
-    await save(nextAllow, nextAdmins);
+
+    await save(nextAllow, nextAdmins, nextProfiles);
     setInfoMsg("Usuario eliminado de la lista.");
+  }
+
+  // ----- Editar nombre/apellido -----
+  function openEdit(email: string) {
+    const e = normEmail(email);
+    const p = profiles[e] || {};
+    setEditEmail(e);
+    setEditFirst(p.firstName || "");
+    setEditLast(p.lastName || "");
+    setEditOpen(true);
+  }
+
+  async function confirmEditProfile() {
+    if (!editEmail) return;
+    const f = editFirst.trim();
+    const l = editLast.trim();
+    const nextProfiles: ProfilesMap = {
+      ...profiles,
+      [editEmail]: {
+        firstName: f || undefined,
+        lastName: l || undefined,
+        displayName: mkDisplayName(f, l),
+      },
+    };
+    // Borra el entry si quedó vacío (sin nombres)
+    const p = nextProfiles[editEmail];
+    if (!p.firstName && !p.lastName) {
+      delete nextProfiles[editEmail];
+    }
+
+    setProfiles(nextProfiles);
+    setEditOpen(false);
+    setEditEmail(null);
+    setEditFirst("");
+    setEditLast("");
+
+    await save(allow, admins, nextProfiles);
+    setInfoMsg("Datos de usuario actualizados.");
   }
 
   return (
@@ -157,7 +265,8 @@ export default function AllowlistAdmin() {
         </h1>
         <p className="text-gray-600 mt-1">
           Autoriza correos y define si serán <b>Usuario</b> o{" "}
-          <b>Administrador</b>.
+          <b>Administrador</b>. Opcionalmente guarda <b>Nombre</b> y{" "}
+          <b>Apellido</b>.
         </p>
       </div>
 
@@ -179,8 +288,8 @@ export default function AllowlistAdmin() {
 
           {/* Form alta */}
           <div className="rounded-2xl p-4 bg-white/80 backdrop-blur border border-white/60 shadow mb-6">
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-              <label className="text-sm font-semibold text-gray-700">
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
+              <label className="text-sm font-semibold text-gray-700 sm:col-span-1">
                 Correo electrónico
                 <input
                   value={input}
@@ -191,7 +300,31 @@ export default function AllowlistAdmin() {
                 />
               </label>
 
-              {/* Selector de rol bonito */}
+              <label className="text-sm font-semibold text-gray-700">
+                Nombre (opcional)
+                <input
+                  value={firstInput}
+                  onChange={(e) => setFirstInput(e.target.value)}
+                  placeholder="Nombre"
+                  className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  type="text"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-gray-700">
+                Apellido (opcional)
+                <input
+                  value={lastInput}
+                  onChange={(e) => setLastInput(e.target.value)}
+                  placeholder="Apellido"
+                  className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  type="text"
+                />
+              </label>
+            </div>
+
+            {/* Rol + Agregar */}
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
               <div>
                 <div className="text-sm font-semibold text-gray-700 mb-1">
                   Rol
@@ -224,7 +357,7 @@ export default function AllowlistAdmin() {
                 </div>
               </div>
 
-              <div className="sm:col-span-2 flex justify-end">
+              <div className="sm:col-span-1 flex justify-end">
                 <button
                   onClick={openConfirmAdd}
                   className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]"
@@ -246,15 +379,18 @@ export default function AllowlistAdmin() {
                 {entries.map((e) => {
                   const isAdmin = admins.includes(e);
                   const isMe = me && me === e;
+                  const profile = profiles[e];
+                  const display = profile?.displayName;
                   return (
                     <li
                       key={e}
                       className="px-4 py-3 flex items-center justify-between"
                     >
                       <div className="min-w-0">
-                        <div className="font-semibold text-gray-800 truncate">
-                          {e}
+                        <div className="font-semibold text-gray-900 truncate">
+                          {display || e}
                         </div>
+                        <div className="text-xs text-gray-500">{e}</div>
                         <div className="mt-1">
                           <span
                             className={[
@@ -271,6 +407,12 @@ export default function AllowlistAdmin() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEdit(e)}
+                          className="px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                        >
+                          Editar nombre
+                        </button>
                         <button
                           onClick={() => askDelete(e)}
                           className="px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 rounded-lg"
@@ -291,7 +433,7 @@ export default function AllowlistAdmin() {
             onClose={() => setConfirmAddOpen(false)}
             headerAccent={roleSel === "admin" ? "indigo" : "green"}
             title="Confirmar nuevo usuario"
-            description="Verifica que el correo y el rol sean correctos."
+            description="Verifica que los datos sean correctos."
             primaryAction={{ label: "Agregar", onClick: confirmAdd }}
             secondaryAction={{
               label: "Cancelar",
@@ -304,6 +446,18 @@ export default function AllowlistAdmin() {
                 <div className="text-xs text-gray-500">Correo</div>
                 <div className="font-semibold">{normEmail(input)}</div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border bg-white px-4 py-3">
+                  <div className="text-xs text-gray-500">Nombre</div>
+                  <div className="font-semibold">
+                    {firstInput.trim() || "—"}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white px-4 py-3">
+                  <div className="text-xs text-gray-500">Apellido</div>
+                  <div className="font-semibold">{lastInput.trim() || "—"}</div>
+                </div>
+              </div>
               <div className="rounded-xl border bg-white px-4 py-3">
                 <div className="text-xs text-gray-500">Rol</div>
                 <div className="font-semibold">
@@ -315,6 +469,46 @@ export default function AllowlistAdmin() {
                 aún no la tiene.
               </p>
             </div>
+          </BaseModal>
+
+          {/* Modal editar perfil */}
+          <BaseModal
+            isOpen={editOpen}
+            onClose={() => setEditOpen(false)}
+            headerAccent="indigo"
+            title="Editar nombre del usuario"
+            description={editEmail || ""}
+            primaryAction={{ label: "Guardar", onClick: confirmEditProfile }}
+            secondaryAction={{
+              label: "Cancelar",
+              onClick: () => setEditOpen(false),
+            }}
+            size="md"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-gray-700">
+                Nombre
+                <input
+                  value={editFirst}
+                  onChange={(e) => setEditFirst(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  type="text"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Apellido
+                <input
+                  value={editLast}
+                  onChange={(e) => setEditLast(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  type="text"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Si dejas ambos campos vacíos, se eliminará el nombre guardado para
+              este correo.
+            </p>
           </BaseModal>
 
           {/* Modal confirmar eliminación */}

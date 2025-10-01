@@ -18,6 +18,10 @@ import {
   saveTemperature,
 } from "./fridge.service";
 
+// ⬇️ NUEVO: usa tus componentes reutilizables
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
 const FridgeTemperature: React.FC = () => {
   const navigate = useNavigate();
   const today = getLocalTodayString();
@@ -131,33 +135,26 @@ const FridgeTemperature: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col items-center py-10">
-      {/* Header */}
-      <div className="text-center mb-6">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-3xl shadow-lg">
-            ❄️
-          </div>
-        </div>
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">
-          Registro de Temperatura
-        </h1>
+      {/* ⬇️ PageHero (coherente con el navbar/branding) */}
+      <div className="w-full max-w-6xl px-4">
+        <PageHero
+          icon="❄️"
+          title="Registro de Temperatura"
+          subtitle="Registra la temperatura de tus enfriadores en la mañana y en la tarde."
+          gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
+          iconGradientClass="from-blue-600 to-cyan-600"
+        />
         {selectedFridge && (
-          <>
-            <p className="text-gray-600 max-w-md mx-auto">
-              Registra la temperatura de tus enfriadores en la mañana y en la
-              tarde.
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Nevera actual:{" "}
-              <span className="font-semibold">{selectedFridge.name}</span>
-              {selectedFridge.brand ? <> • {selectedFridge.brand}</> : null}
-            </p>
-          </>
+          <p className="text-sm text-gray-500 text-center -mt-4">
+            Nevera actual:{" "}
+            <span className="font-semibold">{selectedFridge.name}</span>
+            {selectedFridge.brand ? <> • {selectedFridge.brand}</> : null}
+          </p>
         )}
       </div>
 
       {/* Controles */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 mt-6 flex flex-wrap items-center gap-3">
         <label className="text-sm text-gray-600">Nevera</label>
         <select
           value={fridgeId ?? ""}
@@ -252,6 +249,15 @@ const FridgeTemperature: React.FC = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* ⬇️ Tip reutilizable */}
+      <div className="w-full max-w-3xl px-4 mt-8">
+        <ProTipBanner
+          title="Tip"
+          text="Registra ambos turnos (mañana y tarde) para detectar variaciones. Si un valor luce atípico, espera 5 minutos y vuelve a medir. Usa “Ver registros del mes” para tendencias."
+          gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
+        />
       </div>
 
       {/* Modal historial */}

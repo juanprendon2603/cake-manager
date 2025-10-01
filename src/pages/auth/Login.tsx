@@ -1,3 +1,4 @@
+// src/pages/auth/Login.tsx
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -10,8 +11,11 @@ import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import logoUrl from "../../assets/logo.png";
+import { FullScreenLoaderSession } from "../../components/FullScreenLoaderSession";
 import { useAuth } from "../../contexts/AuthContext";
 import { auth, db } from "../../lib/firebase";
+
+/* ========================= Utils ========================= */
 
 function fbErrorToMessage(code?: string) {
   switch (code) {
@@ -53,7 +57,6 @@ async function canRegisterOrSignIn(email: string) {
       String(x).toLowerCase().trim()
     );
 
-    // ✅ NUEVO: si no hay admins, permitir (bootstrap)
     if (!initialized || admins.length === 0) {
       return { allow: true, reason: "bootstrap:no-admins" };
     }
@@ -65,10 +68,12 @@ async function canRegisterOrSignIn(email: string) {
   }
 }
 
+/* ========================= Página ========================= */
+
 export default function Login() {
   const nav = useNavigate();
   const location = useLocation() as any;
-  const { user } = useAuth(); // 👈 lee la sesión del contexto
+  const { user } = useAuth();
   const from = location.state?.from?.pathname || "/";
 
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -78,20 +83,21 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const [showPwd2, setShowPwd2] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [busy, setBusy] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false); // ⬅️ nuevo
   const [error, setError] = useState<string | null>(null);
+
+  // Si ya hay sesión, vete fuera del login
+  useEffect(() => {
+    if (user) {
+      nav(from, { replace: true });
+    }
+  }, [user, from, nav]);
 
   // limpia errores al cambiar inputs
   useEffect(() => {
     if (error) setError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, password, confirm, mode]);
-
-  useEffect(() => {
-    if (user) {
-      nav(from, { replace: true }); // 👈 si ya hay user, sal de /login
-    }
-  }, [user, from, nav]);
+  }, [email, password, confirm, mode, error]);
 
   async function applyPersistence() {
     await setPersistence(
@@ -102,11 +108,11 @@ export default function Login() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    setSubmitting(true);
     setError(null);
+
     try {
       await applyPersistence();
-
       const eLower = email.trim().toLowerCase();
 
       if (mode === "login") {
@@ -117,13 +123,15 @@ export default function Login() {
               ? "No se pudo validar el acceso. Inténtalo de nuevo."
               : "Tu correo no está autorizado por el administrador."
           );
+          setSubmitting(false);
           return;
         }
         await signInWithEmailAndPassword(auth, eLower, password);
+        // No navegamos aquí: esperamos a que useAuth() actualice `user`
       } else {
-        // Validación local de confirmación
         if (password !== confirm) {
           setError("Las contraseñas no coinciden.");
+          setSubmitting(false);
           return;
         }
         const gate = await canRegisterOrSignIn(eLower);
@@ -133,17 +141,15 @@ export default function Login() {
               ? "No se pudo validar el acceso. Inténtalo de nuevo."
               : "Tu correo no está autorizado para crear cuenta."
           );
+          setSubmitting(false);
           return;
         }
-        // Esto crea la cuenta y te deja logueado automáticamente
         await createUserWithEmailAndPassword(auth, eLower, password);
+        // Igual: esperamos a que `user` se propague
       }
-
-      nav(from, { replace: true });
     } catch (err: any) {
       setError(fbErrorToMessage(err?.code));
-    } finally {
-      setBusy(false);
+      setSubmitting(false); // sólo bajamos el loader si hubo error
     }
   }
 
@@ -156,6 +162,24 @@ export default function Login() {
   const passwordsMismatch =
     mode === "register" && confirm.length > 0 && password !== confirm;
 
+  // 🔄 Mientras enviamos credenciales y esperamos que se propague `user`, muestra loader
+  if (submitting) {
+    return (
+      <FullScreenLoaderSession
+        appName="InManager"
+        message={
+          mode === "login" ? "Ingresando a InManager…" : "Creando tu cuenta…"
+        }
+        logoUrl={logoUrl}
+        tips={[
+          "Tip: usa «Recordarme» para mantener la sesión",
+          "Atajo: pulsa / para buscar",
+          "Consejo: exporta reportes desde Ventas",
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex items-center justify-center px-4 py-10">
       <div className="relative w-full max-w-md">
@@ -165,10 +189,10 @@ export default function Login() {
         {/* Card */}
         <div className="relative rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_20px_45px_rgba(142,45,168,0.18)] p-6 sm:p-8">
           {/* Logo */}
-          <div className="w-20 h-20 rounded-2xl bg-white/70 border border-white/60 shadow mx-auto -mt-14 mb-6 flex items-center justify-center ring-2 ring-purple-200 overflow-hidden">
+          <div className="w-20 h-20 rounded-2xl bg-white border border-white/60 shadow mx-auto -mt-14 mb-6 flex items-center justify-center ring-2 ring-purple-200 overflow-hidden">
             <img
               src={logoUrl}
-              alt="CakeManager logo"
+              alt="InManager logo"
               className="w-16 h-16 object-contain"
               loading="eager"
               decoding="async"
@@ -182,7 +206,7 @@ export default function Login() {
             </h1>
             <p className="text-gray-600 text-sm">
               {mode === "login"
-                ? "Ingresa para gestionar tu pastelería"
+                ? "Ingresa para gestionar tu negocio"
                 : "Crea tu cuenta para empezar"}
             </p>
           </div>
@@ -294,18 +318,20 @@ export default function Login() {
             <button
               type="submit"
               disabled={
-                busy || !canSubmit || (mode === "register" && passwordsMismatch)
+                submitting ||
+                !canSubmit ||
+                (mode === "register" && passwordsMismatch)
               }
               className={`mt-2 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white shadow-lg transition-all
                 ${
-                  busy ||
+                  submitting ||
                   !canSubmit ||
                   (mode === "register" && passwordsMismatch)
                     ? "bg-gradient-to-r from-purple-300 to-pink-300 cursor-not-allowed"
                     : "bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)] hover:-translate-y-0.5"
                 }`}
             >
-              {busy ? (
+              {submitting ? (
                 <>
                   <Spinner />
                   {mode === "login" ? "Ingresando…" : "Creando…"}
@@ -344,13 +370,15 @@ export default function Login() {
 
           <div className="mt-6 h-px bg-gradient-to-r from-transparent via-purple-200 to-transparent" />
           <p className="mt-4 text-center text-xs text-gray-500">
-            © 2025 CakeManager
+            © 2025 InManager
           </p>
         </div>
       </div>
     </div>
   );
 }
+
+/* ========================= Auxiliares UI ========================= */
 
 function Spinner() {
   return (
