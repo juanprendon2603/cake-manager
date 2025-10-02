@@ -43,15 +43,22 @@ export function makeSaleEntryId(day?: string, now = Date.now()) {
 /* -------------------------------------------------------------------------- */
 
 export type GenericSale = {
-  categoryId: string; // ej: "bizcocho"
-  variantKey: string; // ej: "tamano:gran|sabor:ama"
-  selections: Record<string, string>; // { tamano:"gran", sabor:"ama" } (para mostrar)
-  quantity: number; // unidades vendidas
-  unitPriceCOP: number; // precio unitario calculado por UI
-  amountCOP: number; // total (editable en UI si quieres)
-  paymentMethod: PaymentMethod; // "cash" | "transfer"
-  dayKey: string; // "YYYY-MM-DD"
-  monthKey: string; // "YYYY-MM"
+  categoryId: string;
+  variantKey: string;
+  selections: Record<string, string>;
+  quantity: number;
+  unitPriceCOP: number;
+  amountCOP: number;
+  paymentMethod: PaymentMethod;
+  dayKey: string;
+  monthKey: string;
+
+  // 👇 NUEVO
+  seller: {
+    name: string;
+    uid?: string;
+    email?: string;
+  };
 };
 
 /**
@@ -61,15 +68,12 @@ export type GenericSale = {
  */
 export async function registerGenericSale(s: GenericSale) {
   const entriesColRef = collection(db, "sales_monthly", s.monthKey, "entries");
-
-  // ✅ ID ordenable por fecha
   const entryId = makeSaleEntryId(s.dayKey);
   const entryRef = doc(entriesColRef, entryId);
-
   const monthRef = doc(db, "sales_monthly", s.monthKey);
 
   const entry: DocumentData = {
-    id: entryId, // (opcional, útil para UI)
+    id: entryId,
     kind: "sale",
     createdAt: serverTimestamp(),
     day: s.dayKey,
@@ -80,14 +84,18 @@ export async function registerGenericSale(s: GenericSale) {
     unitPriceCOP: s.unitPriceCOP,
     amountCOP: s.amountCOP,
     paymentMethod: s.paymentMethod,
+
+    // 👇 guardamos el vendedor como objeto anidado
+    seller: {
+      name: s.seller?.name ?? "Desconocido",
+      ...(s.seller?.uid ? { uid: s.seller.uid } : {}),
+      ...(s.seller?.email ? { email: s.seller.email } : {}),
+    },
   };
 
   const batch = writeBatch(db);
-
-  // 1) Inserta la entrada con ID controlado
   batch.set(entryRef, entry);
 
-  // 2) Agregados del mes
   batch.set(
     monthRef,
     {

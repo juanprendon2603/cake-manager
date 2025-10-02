@@ -20,6 +20,7 @@ import {
   finalizePaymentGroup,
   groupPayments,
 } from "./payment.service";
+import { useAuth } from "../../contexts/AuthContext";
 
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 const localToday = () => format(new Date(), "yyyy-MM-dd");
@@ -49,7 +50,7 @@ function buildPrettySelections(
         return parts
           .filter((kv) => kv.length === 2)
           .map(([k, v]) => ({ label: k, value: v }));
-      } catch {}
+      } catch { }
     }
     return pretty;
   }
@@ -64,7 +65,7 @@ function buildPrettySelections(
       return parts
         .filter((kv) => kv.length === 2)
         .map(([k, v]) => ({ label: k, value: v }));
-    } catch {}
+    } catch { }
   }
   return [];
 }
@@ -86,6 +87,8 @@ function ymd(Y: number, M: number, D: number) {
 export function FinalizePayment() {
   const { addToast } = useToast();
   const now = new Date();
+  const { user, profile } = useAuth(); // 👈 NUEVO
+
   const defaultMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
 
   const [month, setMonth] = useState<string>(defaultMonth); // YYYY-MM
@@ -98,6 +101,20 @@ export function FinalizePayment() {
   const [showNoStock, setShowNoStock] = useState(false);
   const [pendingFinalize, setPendingFinalize] =
     useState<PendingPaymentGroup | null>(null);
+
+
+  const sellerName = useMemo(() => {
+    const f = (profile?.firstName || "").trim();
+    const l = (profile?.lastName || "").trim();
+    const byFL = [f, l].filter(Boolean).join(" ");
+    const dn =
+      (profile?.displayName || "").trim() ||
+      (user?.displayName || "").trim();
+    const mail = (user?.email || "").trim();
+    const fromEmail = mail ? mail.split("@")[0] : "";
+    return byFL || dn || fromEmail || "Usuario";
+  }, [profile, user]); // 👈 NUEVO
+
 
   // catálogo para labels
   const [catsLoading, setCatsLoading] = useState(true);
@@ -186,6 +203,7 @@ export function FinalizePayment() {
       if (selected.deductedFromStock) {
         await finalizePaymentGroup(selected, today, {
           didDeductFromStock: true,
+          seller: { name: sellerName, uid: user?.uid, email: user?.email || undefined }, // 👈 NUEVO
         });
         addToast({
           type: "success",
@@ -216,7 +234,9 @@ export function FinalizePayment() {
       }
 
       // Se logró descontar; finalizar marcando didDeduct=true
-      await finalizePaymentGroup(selected, today, { didDeductFromStock: true });
+      await finalizePaymentGroup(selected, today, {
+        didDeductFromStock: true, seller: { name: sellerName, uid: user?.uid, email: user?.email || undefined }, // 👈 NUEVO
+      });
       addToast({
         type: "success",
         title: "Pago finalizado",
@@ -248,6 +268,8 @@ export function FinalizePayment() {
       const today = localToday();
       await finalizePaymentGroup(pendingFinalize, today, {
         didDeductFromStock: false,
+        seller: { name: sellerName, uid: user?.uid, email: user?.email || undefined }, // 👈 NUEVO
+
       });
       addToast({
         type: "success",
@@ -365,8 +387,8 @@ export function FinalizePayment() {
                       isSelected
                         ? "border-[#8E2DA8] ring-2 ring-[#8E2DA8]/30 bg-purple-50"
                         : any
-                        ? "border-purple-200/70 bg-purple-50/40 hover:bg-purple-50"
-                        : "border-slate-200 bg-white hover:bg-slate-50",
+                          ? "border-purple-200/70 bg-purple-50/40 hover:bg-purple-50"
+                          : "border-slate-200 bg-white hover:bg-slate-50",
                     ].join(" ")}
                     title={c.date}
                   >
@@ -393,9 +415,8 @@ export function FinalizePayment() {
                               ? "bg-emerald-500"
                               : "bg-[#8E2DA8]",
                           ].join(" ")}
-                          title={`${g.categoryName} · ${
-                            g.quantity
-                          } · pendiente ${g.restante.toLocaleString("es-CO")}`}
+                          title={`${g.categoryName} · ${g.quantity
+                            } · pendiente ${g.restante.toLocaleString("es-CO")}`}
                         />
                       ))}
                       {dayGroups.length > 4 && (
@@ -424,7 +445,7 @@ export function FinalizePayment() {
             </div>
 
             {!selectedDay ||
-            (groupsByDay.get(selectedDay)?.length ?? 0) === 0 ? (
+              (groupsByDay.get(selectedDay)?.length ?? 0) === 0 ? (
               <div className="text-center py-10 text-gray-500">
                 No hay pedidos para este día.
               </div>

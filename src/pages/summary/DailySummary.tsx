@@ -15,11 +15,15 @@ import { quincenaRange } from "../../utils/dateRanges";
 import { RangeControls } from "../../components/RangeControls";
 import { useGeneralExpenses } from "../../hooks/useGeneralExpenses";
 
+// ✨ UI consistente con el resto de la app
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { AppFooter } from "../../components/AppFooter";
+
 import type { ComponentPropsWithoutRef } from "react";
 
 type ThProps = ComponentPropsWithoutRef<"th">;
 type TdProps = ComponentPropsWithoutRef<"td">;
-
 
 export function DailySummary() {
   const today = new Date();
@@ -54,8 +58,7 @@ export function DailySummary() {
     totalExpensesCash,
     totalExpensesTransfer,
     totalNet,
-    efectivoDisponible,
-    transferDisponible,
+    
     totalIngresos,
     totalGastosDiarios,
   } = totals;
@@ -66,48 +69,27 @@ export function DailySummary() {
   // Neto global que incluye gastos generales
   const netoGlobal = totalNet - generalExpensesTotal;
 
-  // Logs para depurar
-  console.log("[SUMMARY] range", range);
-  console.log("[SUMMARY] diarios", {
-    totalIngresos,
-    totalGastosDiarios,
-    totalNet,
-    efectivoDisponible,
-    transferDisponible,
-  });
-  console.log("[SUMMARY] generales", {
-    generalExpensesCash,
-    generalExpensesTransfer,
-    generalExpensesTotal,
-    count: geItems?.length ?? 0,
-  });
-  console.log("[SUMMARY] netoGlobal", netoGlobal);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
-      <main className="flex-grow p-6 sm:p-10 max-w-6xl mx-auto w-full">
+      <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+        <PageHero
+          icon="📅"
+          title="Resumen por Rango"
+          subtitle="Consulta ventas, abonos y gastos entre fechas (mensual, quincenal o personalizado)"
+        />
+
         {/* Controles de rango */}
-        <header className="mb-6">
-          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow px-4 py-4 flex flex-col gap-3">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
-                Resumen por rango
-              </h1>
-              <p className="text-gray-700 text-sm mt-1">
-                Consulta ventas, abonos y gastos entre fechas (mensual, quincenal o personalizado).
-              </p>
-            </div>
-
+        <section className="rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8 mb-8">
+          <div className="flex flex-col gap-3">
             <RangeControls start={range.start} end={range.end} onChange={setRange} />
-
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 text-center">
               Rango activo: <strong>{range.start}</strong> → <strong>{range.end}</strong>
             </p>
           </div>
-        </header>
+        </section>
 
         {/* KPIs del rango */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <KpiCard
             title="Total Ingresos"
             value={formatCurrency(totalIngresos)}
@@ -214,16 +196,21 @@ export function DailySummary() {
                         <Td className="text-right">{formatCurrency(row.totalSalesTransfer)}</Td>
                         <Td className="text-right text-red-700">{formatCurrency(row.totalExpensesCash)}</Td>
                         <Td className="text-right text-red-700">{formatCurrency(row.totalExpensesTransfer)}</Td>
-                        <Td className="text-right font-semibold text-emerald-700">{formatCurrency(row.disponibleEfectivo)}</Td>
-                        <Td className="text-right font-semibold text-emerald-700">{formatCurrency(row.disponibleTransfer)}</Td>
+                        <Td className="text-right font-semibold text-emerald-700">
+                          {formatCurrency(row.disponibleEfectivo)}
+                        </Td>
+                        <Td className="text-right font-semibold text-emerald-700">
+                          {formatCurrency(row.disponibleTransfer)}
+                        </Td>
                         <Td className={`text-right font-bold ${positive ? "text-green-700" : "text-red-700"}`}>
-                          {positive ? "+" : ""}{formatCurrency(row.net)}
+                          {positive ? "+" : ""}
+                          {formatCurrency(row.net)}
                         </Td>
                         <Td className="text-center">
                           <button
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 shadow hover:shadow-md transition"
                             onClick={() => setSelected(rawDocs[idx])}
-                            >
+                          >
                             Ver
                           </button>
                         </Td>
@@ -258,12 +245,13 @@ export function DailySummary() {
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <p className={`font-bold ${positive ? "text-green-700" : "text-red-700"}`}>
-                    {positive ? "+" : ""}{formatCurrency(row.net)}
+                    {positive ? "+" : ""}
+                    {formatCurrency(row.net)}
                   </p>
                   <button
                     className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1.5 rounded-lg text-sm shadow"
                     onClick={() => setSelected(rawDocs[idx])}
-                    >
+                  >
                     Ver detalle
                   </button>
                 </div>
@@ -274,39 +262,47 @@ export function DailySummary() {
 
         {/* Modal detalle (ventas/diarios) */}
         {selected && (
-  <DailyDetail
-    fecha={selected.fecha}
-    sales={selected.sales.map((s: SaleLike): Sale => ({
-      id: s.id,
-      type: s.type ?? "",
-      size: s.size ?? "",
-      flavor: s.flavor ?? "",
-      cantidad: s.cantidad ?? 0,
-      paymentMethod: s.paymentMethod as Sale["paymentMethod"],
-      valor: s.valor ?? 0,
-      isPayment: !!s.isPayment,
-    }))}
-    expenses={selected.expenses.map((e: ExpenseLike): Expense => ({
-      description: e.description ?? "",
-      paymentMethod: e.paymentMethod,
-      value: e.value,
-    }))}
-    onClose={() => setSelected(null)}
-  />
-)}
+          <DailyDetail
+            fecha={selected.fecha}
+            sales={selected.sales.map((s: SaleLike): Sale => ({
+              id: s.id,
+              type: s.type ?? "",
+              size: s.size ?? "",
+              flavor: s.flavor ?? "",
+              cantidad: s.cantidad ?? 0,
+              paymentMethod: s.paymentMethod as Sale["paymentMethod"],
+              valor: s.valor ?? 0,
+              isPayment: !!s.isPayment,
+            }))}
+            expenses={selected.expenses.map((e: ExpenseLike): Expense => ({
+              description: e.description ?? "",
+              paymentMethod: e.paymentMethod,
+              value: e.value,
+            }))}
+            onClose={() => setSelected(null)}
+          />
+        )}
 
-
+        {/* CTA */}
         <div className="mt-10 text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 backdrop-blur border border-white/60 shadow text-purple-700"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-white bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg hover:shadow-xl"
           >
-            Volver al inicio
+            <span>🏠</span> Volver al inicio
           </Link>
+        </div>
+
+        {/* Tip */}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de caja"
+            text="Compárate por quincenas y revisa el ‘Neto Global’ para incluir los gastos generales del período."
+          />
         </div>
       </main>
 
-      <footer className="text-center text-sm text-gray-500 py-6">© 2025 CakeManager</footer>
+      <AppFooter appName="InManager" />
     </div>
   );
 }
@@ -325,16 +321,19 @@ function Th({ children, className = "", ...rest }: ThProps) {
 
 function Td({ children, className = "", ...rest }: TdProps) {
   return (
-    <td
-      {...rest}
-      className={`p-3 align-middle ${className}`}
-    >
+    <td {...rest} className={`p-3 align-middle ${className}`}>
       {children}
     </td>
   );
 }
 
-function Badge({ children, tone = "gray" }: { children: React.ReactNode; tone?: "green" | "red" | "purple" | "yellow" | "gray" }) {
+function Badge({
+  children,
+  tone = "gray",
+}: {
+  children: React.ReactNode;
+  tone?: "green" | "red" | "purple" | "yellow" | "gray";
+}) {
   const tones: Record<string, string> = {
     green: "bg-emerald-100 text-emerald-700 ring-emerald-200",
     red: "bg-rose-100 text-rose-700 ring-rose-200",
@@ -342,8 +341,15 @@ function Badge({ children, tone = "gray" }: { children: React.ReactNode; tone?: 
     yellow: "bg-amber-100 text-amber-700 ring-amber-200",
     gray: "bg-gray-100 text-gray-700 ring-gray-200",
   };
-  return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ring-1 ${tones[tone]}`}>{children}</span>;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ring-1 ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
 }
+
 function KpiCard({
   title,
   value,
@@ -355,15 +361,40 @@ function KpiCard({
   tone: "green" | "red" | "purple" | "yellow";
   sub?: string;
 }) {
-  const toneMap: Record<string, { bg: string; text: string; ring: string; icon: string }> = {
-    green: { bg: "from-emerald-50 to-green-50", text: "text-emerald-800", ring: "ring-emerald-100", icon: "fa-coins" },
-    red: { bg: "from-rose-50 to-red-50", text: "text-rose-800", ring: "ring-rose-100", icon: "fa-wallet" },
-    purple: { bg: "from-purple-50 to-pink-50", text: "text-purple-800", ring: "ring-purple-100", icon: "fa-chart-line" },
-    yellow: { bg: "from-yellow-50 to-amber-50", text: "text-amber-800", ring: "ring-amber-100", icon: "fa-scale-balanced" },
+  const toneMap: Record<
+    string,
+    { bg: string; text: string; ring: string; icon: string }
+  > = {
+    green: {
+      bg: "from-emerald-50 to-green-50",
+      text: "text-emerald-800",
+      ring: "ring-emerald-100",
+      icon: "fa-coins",
+    },
+    red: {
+      bg: "from-rose-50 to-red-50",
+      text: "text-rose-800",
+      ring: "ring-rose-100",
+      icon: "fa-wallet",
+    },
+    purple: {
+      bg: "from-purple-50 to-pink-50",
+      text: "text-purple-800",
+      ring: "ring-purple-100",
+      icon: "fa-chart-line",
+    },
+    yellow: {
+      bg: "from-yellow-50 to-amber-50",
+      text: "text-amber-800",
+      ring: "ring-amber-100",
+      icon: "fa-scale-balanced",
+    },
   };
   const t = toneMap[tone];
   return (
-    <div className={`rounded-2xl bg-gradient-to-br ${t.bg} ${t.text} p-4 ring-1 ${t.ring} shadow-sm`}>
+    <div
+      className={`rounded-2xl bg-gradient-to-br ${t.bg} ${t.text} p-4 ring-1 ${t.ring} shadow-sm`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium opacity-80">{title}</p>
@@ -377,3 +408,5 @@ function KpiCard({
     </div>
   );
 }
+
+export default DailySummary;

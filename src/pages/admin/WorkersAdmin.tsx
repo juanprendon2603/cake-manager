@@ -11,6 +11,11 @@ import {
   upsertPerson,
 } from "../payroll/payroll.people.service";
 
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { AppFooter } from "../../components/AppFooter";
+import { BackButton } from "../../components/BackButton";
+
 type FormState = {
   firstName: string;
   lastName: string;
@@ -181,130 +186,146 @@ export default function WorkersAdmin() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 w-20 h-20 rounded-3xl bg-white/70 backdrop-blur border border-white/60 shadow flex items-center justify-center ring-2 ring-purple-200">
-          <span className="text-3xl">🧑‍🍳</span>
-        </div>
-        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent">
-          Trabajadores
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Administra el personal que participa en la nómina.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
 
-      {/* Top actions */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-sm text-gray-600">
-          {people.length} trabajador{people.length === 1 ? "" : "es"}
-        </div>
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]"
-        >
-          <span>➕</span> Añadir trabajador
-        </button>
-      </div>
+          <div className="relative">
+        
+          <PageHero
+          icon="🧑‍🍳"
+          title="Trabajadores"
+          subtitle="Administra el personal que participa en la nómina"
+        />
+                  <div className="absolute top-4 left-4">
+                  <BackButton fallback="/admin" />
+                  </div>
+                  </div>
 
-      {loading ? (
-        <div className="text-center text-gray-600 py-10">Cargando…</div>
-      ) : people.length === 0 ? (
-        <div className="rounded-2xl p-6 bg-white/80 backdrop-blur border border-white/60 text-center text-gray-600">
-          Aún no hay trabajadores. ¡Agrega el primero!
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {people.map((p) => {
-            const badge =
-              p.paymentMode === "per_day"
-                ? {
-                    text: `Por día: $${(p.valuePerDay ?? 0).toLocaleString()}`,
-                    cls: "bg-emerald-100 text-emerald-700",
-                  }
-                : p.paymentMode === "fixed_fortnight"
-                ? {
-                    text: `Fijo quincenal: $${(
-                      p.fixedFortnightPay ?? 0
-                    ).toLocaleString()}`,
-                    cls: "bg-indigo-100 text-indigo-700",
-                  }
-                : p.paymentMode === "fixed_monthly"
-                ? {
-                    text: `Fijo mensual: $${(
-                      p.fixedMonthlyPay ?? 0
-                    ).toLocaleString()}`,
-                    cls: "bg-blue-100 text-blue-700",
-                  }
-                : {
-                    // per_hour
-                    text: `Por hora: $${(
-                      p.valuePerHour ?? 0
-                    ).toLocaleString()}`,
-                    cls: "bg-fuchsia-100 text-fuchsia-700",
-                  };
 
-            return (
-              <div
-                key={p.id}
-                className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl p-5 shadow hover:shadow-lg transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xl font-extrabold text-[#8E2DA8]">
-                      {p.firstName} {p.lastName}
+        {/* Card principal */}
+        <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
+          {/* Top actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+            <div className="text-sm text-gray-600">
+              {people.length} trabajador{people.length === 1 ? "" : "es"}
+            </div>
+            <button
+              onClick={openNew}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]"
+            >
+              <span>➕</span> Añadir trabajador
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-10">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#8E2DA8]" />
+              <p className="mt-3 text-gray-600">Cargando…</p>
+            </div>
+          ) : people.length === 0 ? (
+            <div className="rounded-2xl p-6 bg-white/80 backdrop-blur border border-white/60 text-center text-gray-600">
+              Aún no hay trabajadores. ¡Agrega el primero!
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {people.map((p) => {
+                const badge =
+                  p.paymentMode === "per_day"
+                    ? {
+                        text: `Por día: $${(p.valuePerDay ?? 0).toLocaleString()}`,
+                        cls: "bg-emerald-100 text-emerald-700",
+                      }
+                    : p.paymentMode === "fixed_fortnight"
+                    ? {
+                        text: `Fijo quincenal: $${(
+                          p.fixedFortnightPay ?? 0
+                        ).toLocaleString()}`,
+                        cls: "bg-indigo-100 text-indigo-700",
+                      }
+                    : p.paymentMode === "fixed_monthly"
+                    ? {
+                        text: `Fijo mensual: $${(
+                          p.fixedMonthlyPay ?? 0
+                        ).toLocaleString()}`,
+                        cls: "bg-blue-100 text-blue-700",
+                      }
+                    : {
+                        // per_hour
+                        text: `Por hora: $${(p.valuePerHour ?? 0).toLocaleString()}`,
+                        cls: "bg-fuchsia-100 text-fuchsia-700",
+                      };
+
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl p-5 shadow hover:shadow-lg transition"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xl font-extrabold text-[#8E2DA8]">
+                          {p.firstName} {p.lastName}
+                        </div>
+                        <div className="mt-2">
+                          <span
+                            className={`text-xs font-semibold px-3 py-1 rounded-full ${badge.cls}`}
+                          >
+                            {badge.text}
+                          </span>
+                          {!p.active && (
+                            <span className="ml-2 text-xs font-semibold px-3 py-1 rounded-full bg-gray-200 text-gray-700">
+                              Inactivo
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold grid place-items-center">
+                        {p.firstName?.[0]?.toUpperCase()}
+                        {p.lastName?.[0]?.toUpperCase()}
+                      </div>
                     </div>
-                    <div className="mt-2">
-                      <span
-                        className={`text-xs font-semibold px-3 py-1 rounded-full ${badge.cls}`}
+
+                    <div className="mt-4 flex items-center gap-2">
+                      <button
+                        onClick={() => openEdit(p)}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border hover:bg-gray-50"
                       >
-                        {badge.text}
-                      </span>
-                      {!p.active && (
-                        <span className="ml-2 text-xs font-semibold px-3 py-1 rounded-full bg-gray-200 text-gray-700">
-                          Inactivo
-                        </span>
-                      )}
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => askDelete(p)}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg text-rose-600 hover:bg-rose-50"
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold grid place-items-center">
-                    {p.firstName?.[0]?.toUpperCase()}
-                    {p.lastName?.[0]?.toUpperCase()}
-                  </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
 
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    onClick={() => openEdit(p)}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border hover:bg-gray-50"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => askDelete(p)}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg text-rose-600 hover:bg-rose-50"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+          {/* Mensajes */}
+          {errorMsg && (
+            <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
+              {errorMsg}
+            </div>
+          )}
+          {infoMsg && (
+            <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-sm">
+              {infoMsg}
+            </div>
+          )}
+        </section>
 
-      {/* Mensajes */}
-      {errorMsg && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
-          {errorMsg}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de nómina"
+            text="Usa el modo 'Por hora' para cubrir turnos variables. Puedes registrar horas exactas en la pantalla de asistencia."
+          />
         </div>
-      )}
-      {infoMsg && (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-sm">
-          {infoMsg}
-        </div>
-      )}
+      </main>
+
+      <AppFooter appName="InManager" />
 
       {/* Modal Form */}
       <BaseModal

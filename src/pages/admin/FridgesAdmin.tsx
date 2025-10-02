@@ -12,6 +12,11 @@ import {
   upsertFridge,
 } from "../payroll/fridge.service";
 
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { AppFooter } from "../../components/AppFooter";
+import { BackButton } from "../../components/BackButton";
+
 type FormState = {
   name: string; // * obligatorio
   brand?: string;
@@ -229,115 +234,134 @@ export default function FridgesAdmin() {
   const nameInvalid = showErrors && !form.name.trim();
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 w-20 h-20 rounded-3xl bg-white/70 backdrop-blur border border-white/60 shadow flex items-center justify-center ring-2 ring-blue-200">
-          <span className="text-3xl">❄️</span>
-        </div>
-        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 bg-clip-text text-transparent">
-          Enfriadores
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Administra las neveras/enfriadores para el registro diario de
-          temperatura.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
+      <div className="relative">
 
-      {/* Top actions */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-sm text-gray-600">
-          {fridges.length} enfriador{fridges.length === 1 ? "" : "es"}
-        </div>
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 hover:shadow-[0_12px_30px_rgba(37,99,235,0.35)]"
-        >
-          <span>➕</span> Añadir enfriador
-        </button>
-      </div>
+        <PageHero
+          icon="❄️"
+          title="Enfriadores"
+          subtitle="Administra neveras y sus rangos para el control diario de temperatura"
+          // azules para esta sección
+          gradientClass="from-[#2563eb] via-[#06b6d4] to-[#14b8a6]"
+          iconGradientClass="from-[#3b82f6] to-[#06b6d4]"
+        />
+          <div className="absolute top-4 left-4">
+          <BackButton fallback="/admin" />
+          </div>
+          </div>
 
-      {loading ? (
-        <div className="text-center text-gray-600 py-10">Cargando…</div>
-      ) : fridges.length === 0 ? (
-        <div className="rounded-2xl p-6 bg-white/80 backdrop-blur border border-white/60 text-center text-gray-600">
-          Aún no hay enfriadores. ¡Agrega el primero!
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {fridges.map((f) => {
-            const badge =
-              f.active !== false
-                ? { text: "Activo", cls: "bg-emerald-100 text-emerald-700" }
-                : { text: "Inactivo", cls: "bg-gray-200 text-gray-700" };
 
-            return (
-              <div
-                key={f.id}
-                className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl p-5 shadow hover:shadow-lg transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xl font-extrabold text-blue-700">
-                      {f.name}
+        {/* Card principal */}
+        <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
+          {/* Top actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+            <div className="text-sm text-gray-600">
+              {fridges.length} enfriador{fridges.length === 1 ? "" : "es"}
+            </div>
+            <button
+              onClick={openNew}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 hover:shadow-[0_12px_30px_rgba(37,99,235,0.35)]"
+            >
+              <span>➕</span> Añadir enfriador
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-10">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <p className="mt-3 text-gray-600">Cargando…</p>
+            </div>
+          ) : fridges.length === 0 ? (
+            <div className="rounded-2xl p-6 bg-white/80 backdrop-blur border border-white/60 text-center text-gray-600">
+              Aún no hay enfriadores. ¡Agrega el primero!
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {fridges.map((f) => {
+                const badge =
+                  f.active !== false
+                    ? { text: "Activo", cls: "bg-emerald-100 text-emerald-700" }
+                    : { text: "Inactivo", cls: "bg-gray-200 text-gray-700" };
+
+                return (
+                  <div
+                    key={f.id}
+                    className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl p-5 shadow hover:shadow-lg transition"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xl font-extrabold text-blue-700">
+                          {f.name}
+                        </div>
+                        <div className="text-gray-600 text-sm">
+                          {f.brand || "—"} {f.model ? `· ${f.model}` : ""}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span
+                            className={`text-xs font-semibold px-3 py-1 rounded-full ${badge.cls}`}
+                          >
+                            {badge.text}
+                          </span>
+                          {f.location && (
+                            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700">
+                              {f.location}
+                            </span>
+                          )}
+                          {f.minTemp !== undefined && f.maxTemp !== undefined && (
+                            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-cyan-50 text-cyan-700">
+                              {f.minTemp}–{f.maxTemp} °C
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-400 text-white font-bold grid place-items-center">
+                        {f.name?.[0]?.toUpperCase()}
+                      </div>
                     </div>
-                    <div className="text-gray-600 text-sm">
-                      {f.brand || "—"} {f.model ? `· ${f.model}` : ""}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span
-                        className={`text-xs font-semibold px-3 py-1 rounded-full ${badge.cls}`}
+
+                    <div className="mt-4 flex items-center gap-2">
+                      <button
+                        onClick={() => openEdit(f)}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border hover:bg-gray-50"
                       >
-                        {badge.text}
-                      </span>
-                      {f.location && (
-                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700">
-                          {f.location}
-                        </span>
-                      )}
-                      {f.minTemp !== undefined && f.maxTemp !== undefined && (
-                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-cyan-50 text-cyan-700">
-                          {f.minTemp}–{f.maxTemp} °C
-                        </span>
-                      )}
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => askDelete(f)}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg text-rose-600 hover:bg-rose-50"
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-400 text-white font-bold grid place-items-center">
-                    {f.name?.[0]?.toUpperCase()}
-                  </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
 
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    onClick={() => openEdit(f)}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border hover:bg-gray-50"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => askDelete(f)}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg text-rose-600 hover:bg-rose-50"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+          {/* Mensajes (opcionales) */}
+          {errorMsg && (
+            <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
+              {errorMsg}
+            </div>
+          )}
+          {infoMsg && (
+            <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-sm">
+              {infoMsg}
+            </div>
+          )}
+        </section>
 
-      {/* Mensajes (opcionales) */}
-      {errorMsg && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
-          {errorMsg}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de temperatura"
+            text="Define el rango min–max (°C) por nevera. Así, cuando registres temperaturas diarias, podrás detectar lecturas fuera de rango rápidamente."
+          />
         </div>
-      )}
-      {infoMsg && (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-sm">
-          {infoMsg}
-        </div>
-      )}
+      </main>
+
+      <AppFooter appName="InManager" />
 
       {/* Modal Form */}
       <BaseModal
@@ -473,7 +497,6 @@ export default function FridgesAdmin() {
               className="mt-1 w-full rounded-xl border px-4 py-3 shadow-inner focus:outline-none focus:ring-2 border-gray-200 focus:ring-blue-300"
               placeholder="8"
             />
-            {/* Aviso suave si ambos están y el rango no es válido (sin bloquear escritura) */}
             {form.minTemp?.length &&
               form.maxTemp?.length &&
               toNumberOrUndef(form.minTemp) !== undefined &&
@@ -515,7 +538,6 @@ export default function FridgesAdmin() {
           onClick: () => setOpenConfirmSave(false),
         }}
       >
-        {/* Resumen de campos */}
         <div className="grid gap-3 sm:grid-cols-2">
           <FieldRow label="Nombre *" value={form.name || "—"} strong />
           <FieldRow label="Marca" value={form.brand || "—"} />

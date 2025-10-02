@@ -31,6 +31,8 @@ export interface RegisterPaymentInput {
   deductedFromStock: boolean;
   orderDate: string; // yyyy-MM-dd
   orderUID?: string; // <- si quieres forzar/seleccionar uno existente
+  seller?: SellerInfo; // 👈 NUEVO (opcional para compatibilidad)
+
 }
 
 /** Asiento mensual de ventas (genérico) */
@@ -51,6 +53,8 @@ export interface SalesMonthlyPaymentEntry {
   totalAmountCOP?: number; // útil cuando se finaliza
   createdAt?: Timestamp;
   orderUID?: string; // <- UID del pedido
+  seller?: SellerInfo; // 👈 NUEVO
+
 }
 
 /** Asiento mensual de pagos por mes del pedido (genérico) */
@@ -71,6 +75,8 @@ export interface PaymentsMonthlyEntry {
   createdAt?: Timestamp;
   paid?: boolean;
   orderUID?: string; // <- UID del pedido
+  seller?: SellerInfo; // 👈 NUEVO
+
 }
 
 /** Fila cruda leída del mes en payments_monthly/{month}/entries */
@@ -101,3 +107,10 @@ export interface PendingPaymentGroup {
   entryPaidDays?: string[];
   orderUID?: string; // <- UID del pedido
 }
+
+
+export type SellerInfo = {
+  name: string;
+  uid?: string;
+  email?: string;
+};

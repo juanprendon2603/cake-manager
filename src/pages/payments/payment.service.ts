@@ -19,6 +19,7 @@ import type {
   PendingPaymentGroup,
   RegisterPaymentInput,
   SalesMonthlyPaymentEntry,
+  SellerInfo,
 } from "../../types/payments";
 
 import {
@@ -125,6 +126,7 @@ export async function registerPayment(
     totalPayment,
     deductedFromStock,
     orderDate,
+    seller,
   } = input;
 
   const orderUID = await ensureOrderUID(input);
@@ -147,6 +149,9 @@ export async function registerPayment(
     totalPayment,
     orderDate,
     orderUID, // NUEVO
+    seller: seller
+    ? { name: seller.name, ...(seller.uid ? { uid: seller.uid } : {}), ...(seller.email ? { email: seller.email } : {}) }
+    : undefined,
   };
   if (salesSnap.exists()) {
     await updateDoc(salesRef, { sales: arrayUnion(item) });
@@ -194,6 +199,9 @@ export async function registerPayment(
     selections,
     quantity,
     orderUID, // NUEVO
+    seller: seller
+    ? { name: seller.name, uid: seller.uid, email: seller.email }
+    : undefined,
   };
   await setDoc(salesEntryRef, {
     ...salesEntry,
@@ -225,6 +233,9 @@ export async function registerPayment(
     totalPayment,
     deductedFromStock,
     orderUID, // NUEVO
+    seller: seller
+    ? { name: seller.name, uid: seller.uid, email: seller.email }
+    : undefined,
   };
   await setDoc(pEntryRef, {
     ...pEntry,
@@ -358,7 +369,7 @@ export function groupPayments(
 export async function finalizePaymentGroup(
   g: PendingPaymentGroup,
   today: string,
-  opts?: { didDeductFromStock?: boolean }
+  opts?: { didDeductFromStock?: boolean , seller?: SellerInfo}
 ): Promise<void> {
   const salesMonth = today.slice(0, 7);
   const didDeduct = opts?.didDeductFromStock ?? true; // default: se considera descontado
@@ -376,6 +387,10 @@ export async function finalizePaymentGroup(
     paid: true,
     deductedFromStock: didDeduct,
     finalizedAt: serverTimestamp(),
+    // 👇 Opcional: guarda quién finalizó (si quieres sobrescribir)
+    ...(opts?.seller
+      ? { seller: { name: opts.seller.name, uid: opts.seller.uid, email: opts.seller.email } }
+      : {}),
   });
 
   // 2) Crear venta del restante en sales_monthly (si aplica)
@@ -401,6 +416,9 @@ export async function finalizePaymentGroup(
       totalAmountCOP: g.totalAmountCOP,
       deductedFromStock: didDeduct,
       totalPayment: true,
+      seller: opts?.seller
+      ? { name: opts.seller.name, uid: opts.seller.uid, email: opts.seller.email }
+      : undefined,
     };
     await setDoc(saleRef, {
       ...saleEntry,

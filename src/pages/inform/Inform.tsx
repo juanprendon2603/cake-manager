@@ -1,3 +1,4 @@
+// src/pages/inform/Inform.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
@@ -5,10 +6,26 @@ import { format } from "date-fns";
 import { RangeControls } from "../../components/RangeControls";
 import { useRangeSummaryOptimized as useRangeSummary } from "../../hooks/useRangeSummary";
 import { useGeneralExpenses } from "../../hooks/useGeneralExpenses";
-import { AnimatedKpiCard, GradientCard, Th, Td, Badge } from "./components/Kpi";
-import { DailyRevenueChart, PaymentPie, TopFlavorsBar, RevenueBySizeRadial } from "./components/Charts";
+import {
+  AnimatedKpiCard,
+  GradientCard,
+  Th,
+  Td,
+  Badge,
+} from "./components/Kpi";
+import {
+  DailyRevenueChart,
+  PaymentPie,
+  TopFlavorsBar,
+  RevenueBySizeRadial,
+} from "./components/Charts";
 import { money } from "../../types/informs"; // ✅ import normal (no "import type")
 import { useInformeData } from "../../hooks/useInformeData";
+
+// ✨ Nuevo: UI consistente
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { AppFooter } from "../../components/AppFooter";
 
 export function Inform() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -18,7 +35,11 @@ export function Inform() {
   });
 
   const { loading, rawDocs, totals } = useRangeSummary(range);
-  const { loading: loadingGE, totals: geTotals, items: geItems } = useGeneralExpenses(range);
+  const {
+    loading: loadingGE,
+    totals: geTotals,
+    items: geItems,
+  } = useGeneralExpenses(range);
 
   // ✅ Llama el hook directamente (sin require y sin meterlo en un useMemo)
   const {
@@ -26,10 +47,11 @@ export function Inform() {
     bySizeRevenue,
     topFlavorsQty,
     dailyStats,
-    paymentPie, // ✅ ahora SÍ lo vamos a usar abajo
+    paymentPie, // ✅ usado abajo
   } = useInformeData(rawDocs, geTotals);
 
-  if (loading || loadingGE) return <FullScreenLoader message="Generando Informe... 🚀" />;
+  if (loading || loadingGE)
+    return <FullScreenLoader message="Generando Informe... 🚀" />;
 
   const {
     totalIncome,
@@ -50,27 +72,31 @@ export function Inform() {
     .slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100">
-      <main className="p-6 sm:p-12 max-w-7xl mx-auto w-full">
-        <header className="mb-8 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
-          <div className="relative z-10 py-6">
-            <h1 className="text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-              📊 Dashboard con Rangos
-            </h1>
-            <p className="text-gray-700">Filtra por mes/quincena o elige cualquier rango de fechas.</p>
-          </div>
-        </header>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
+        <PageHero
+          icon="📊"
+          title="Dashboard con Rangos"
+          subtitle="Filtra por mes/quincena o elige cualquier rango de fechas"
+        />
 
-        <div className="mb-8">
-          <RangeControls start={range.start} end={range.end} onChange={(r) => setRange(r)} />
-          <p className="text-center text-sm text-gray-600 mt-2">
+        {/* Controles de rango */}
+        <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8 mb-10">
+          <div className="mb-4">
+            <RangeControls
+              start={range.start}
+              end={range.end}
+              onChange={(r) => setRange(r)}
+            />
+          </div>
+          <p className="text-center text-sm text-gray-600">
             Rango: <span className="font-semibold">{range.start}</span> —{" "}
             <span className="font-semibold">{range.end}</span>
           </p>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {/* KPIs */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           <AnimatedKpiCard
             label="💰 Total Ingresos"
             value={money(totalIncome)}
@@ -95,7 +121,11 @@ export function Inform() {
             trend={netTotal >= 0 ? "up" : "down"}
             subtitle={`${
               totals.totalSalesCash + totals.totalSalesTransfer
-                ? ((netTotal / (totals.totalSalesCash + totals.totalSalesTransfer)) * 100).toFixed(1)
+                ? (
+                    (netTotal /
+                      (totals.totalSalesCash + totals.totalSalesTransfer)) *
+                    100
+                  ).toFixed(1)
                 : "0"
             }% margen`}
           />
@@ -107,15 +137,15 @@ export function Inform() {
             trend="stable"
             subtitle={`${totalDaysWithSales} días activos`}
           />
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        {/* Gráficas */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           <GradientCard title="📈 Ventas vs Gastos Diarios" gradient="blue">
             <DailyRevenueChart data={dailyStats} />
           </GradientCard>
 
           <GradientCard title="💳 Métodos de Pago" gradient="green">
-            {/* ✅ usa paymentPie del hook para evitar variable sin uso y duplicación */}
             <PaymentPie data={paymentPie} />
           </GradientCard>
 
@@ -134,9 +164,10 @@ export function Inform() {
           <GradientCard title="📏 Ingresos por Tamaño" gradient="orange">
             <RevenueBySizeRadial data={bySizeData} />
           </GradientCard>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
+        {/* Tarjetas resumen rápidas */}
+        <section className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-6 shadow-xl text-white text-center">
             <div className="text-4xl mb-2">💰</div>
             <p className="text-lg font-semibold opacity-90">Total Ingresos</p>
@@ -153,7 +184,9 @@ export function Inform() {
 
           <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-6 shadow-xl text-white text-center">
             <div className="text-4xl mb-2">🧾</div>
-            <p className="text-lg font-semibold opacity-90">Gastos Generales</p>
+            <p className="text-lg font-semibold opacity-90">
+              Gastos Generales
+            </p>
             <p className="text-3xl font-bold">{money(generalExpensesTotal)}</p>
           </div>
 
@@ -171,52 +204,68 @@ export function Inform() {
               {money(netTotal)}
             </p>
           </div>
-        </div>
+        </section>
 
-        <details className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4 mb-10">
-          <summary className="cursor-pointer font-semibold text-purple-700">
-            Ver gastos generales del rango ({geItems.length})
-          </summary>
-          {geItems.length === 0 ? (
-            <p className="text-sm text-gray-500 mt-2">No hay gastos generales en el rango.</p>
-          ) : (
-            <div className="mt-3 rounded-xl overflow-hidden border border-purple-100">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-purple-50 text-purple-800">
-                    <Th>Fecha</Th>
-                    <Th>Descripción</Th>
-                    <Th className="text-center">Método</Th>
-                    <Th className="text-right">Valor</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {geItems.map((g, idx) => (
-                    <tr key={idx} className="even:bg-white odd:bg-purple-50/30">
-                      <Td>{g.date}</Td>
-                      <Td className="text-gray-800">{g.description || "-"}</Td>
-                      <Td className="text-center">
-                        <Badge tone={g.paymentMethod === "cash" ? "green" : "purple"}>
-                          {g.paymentMethod === "cash" ? "Efectivo" : "Transferencia"}
-                        </Badge>
-                      </Td>
-                      <Td className="text-right font-medium">{money(g.value)}</Td>
+        {/* Tabla de gastos generales */}
+        <section className="mb-10">
+          <details className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4">
+            <summary className="cursor-pointer font-semibold text-purple-700">
+              Ver gastos generales del rango ({geItems.length})
+            </summary>
+            {geItems.length === 0 ? (
+              <p className="text-sm text-gray-500 mt-2">
+                No hay gastos generales en el rango.
+              </p>
+            ) : (
+              <div className="mt-3 rounded-xl overflow-hidden border border-purple-100">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-purple-50 text-purple-800">
+                      <Th>Fecha</Th>
+                      <Th>Descripción</Th>
+                      <Th className="text-center">Método</Th>
+                      <Th className="text-right">Valor</Th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-white font-bold text-purple-900">
-                    <Td className="text-right" colSpan={3}>
-                      Totales
-                    </Td>
-                    <Td className="text-right">{money(generalExpensesTotal)}</Td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </details>
+                  </thead>
+                  <tbody>
+                    {geItems.map((g, idx) => (
+                      <tr key={idx} className="even:bg-white odd:bg-purple-50/30">
+                        <Td>{g.date}</Td>
+                        <Td className="text-gray-800">
+                          {g.description || "-"}
+                        </Td>
+                        <Td className="text-center">
+                          <Badge
+                            tone={g.paymentMethod === "cash" ? "green" : "purple"}
+                          >
+                            {g.paymentMethod === "cash"
+                              ? "Efectivo"
+                              : "Transferencia"}
+                          </Badge>
+                        </Td>
+                        <Td className="text-right font-medium">
+                          {money(g.value)}
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-white font-bold text-purple-900">
+                      <Td className="text-right" colSpan={3}>
+                        Totales
+                      </Td>
+                      <Td className="text-right">
+                        {money(generalExpensesTotal)}
+                      </Td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </details>
+        </section>
 
+        {/* CTA Volver */}
         <div className="text-center">
           <Link
             to="/"
@@ -225,12 +274,17 @@ export function Inform() {
             <span className="mr-2">🏠</span> Volver al Inicio
           </Link>
         </div>
+
+        {/* Tip */}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de análisis"
+            text="Combina el filtro por quincena con la vista de ‘Métodos de Pago’ para identificar rápidamente cambios en el mix de cobro."
+          />
+        </div>
       </main>
 
-      <footer className="text-center py-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-        <div className="text-lg font-semibold">🎂 CakeManager Pro Dashboard</div>
-        <div className="text-sm opacity-80 mt-1">© 2025 - Análisis Avanzado de Ventas</div>
-      </footer>
+      <AppFooter appName="InManager" />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+// src/pages/admin/categories/CategoriesAdmin.tsx
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import BaseModal from "../../../components/BaseModal";
@@ -18,6 +19,11 @@ import {
   validateDraft,
   type DraftCat,
 } from "./utils";
+
+import { PageHero } from "../../../components/ui/PageHero";
+import { ProTipBanner } from "../../../components/ui/ProTipBanner";
+import { AppFooter } from "../../../components/AppFooter";
+import { BackButton } from "../../../components/BackButton";
 
 export default function CategoriesAdmin() {
   const { role } = useAuth();
@@ -108,41 +114,64 @@ export default function CategoriesAdmin() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 w-20 h-20 rounded-3xl bg-white/70 backdrop-blur border border-white/60 shadow flex items-center justify-center ring-2 ring-purple-200">
-          <span className="text-3xl">🧩</span>
-        </div>
-        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-          Catálogo de Categorías
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Crea <b>atributos</b> y define <b>precios por combinación</b>.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+      <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
+  
+       <div className="relative">
+        
+       <PageHero
+          icon="🧩"
+          title="Catálogo de Categorías"
+          subtitle="Crea atributos y define precios por combinación"
+        />
 
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-sm text-gray-600">
-          {items.length} categoría{items.length === 1 ? "" : "s"}
-        </div>
-        <button
-          onClick={onNew}
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-[0_12px_30px_rgba(147,51,234,0.35)]"
-        >
-          <span>➕</span> Nueva categoría
-        </button>
-      </div>
+                  <div className="absolute top-4 left-4">
+                  <BackButton fallback="/admin" />
+                  </div>
+                  </div>
 
-      {loading ? (
-        <div className="text-center text-gray-500 py-10">Cargando…</div>
-      ) : items.length === 0 ? (
-        <div className="rounded-2xl p-6 bg-white/80 backdrop-blur border border-white/60 text-center text-gray-600">
-          Aún no hay categorías. ¡Agrega la primera!
-        </div>
-      ) : (
-        <CategoryList items={items} onEdit={onEdit} onDelete={setToDelete} />
-      )}
 
+
+        {/* Card principal */}
+        <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
+          {/* Top actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+            <div className="text-sm text-gray-600">
+              {items.length} categoría{items.length === 1 ? "" : "s"}
+            </div>
+            <button
+              onClick={onNew}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]"
+            >
+              <span>➕</span> Nueva categoría
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-10">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#8E2DA8]" />
+              <p className="mt-3 text-gray-600">Cargando…</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="rounded-2xl p-6 bg-white/80 backdrop-blur border border-white/60 text-center text-gray-600">
+              Aún no hay categorías. ¡Agrega la primera!
+            </div>
+          ) : (
+            <CategoryList items={items} onEdit={onEdit} onDelete={setToDelete} />
+          )}
+        </section>
+
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip del catálogo"
+            text="Mantén tus atributos simples (ej. Tamaño, Sabor) y usa precios por combinación solo cuando realmente cambie el costo."
+          />
+        </div>
+      </main>
+
+      <AppFooter appName="InManager" />
+
+      {/* Editor */}
       <CategoryEditor
         open={openEditor}
         draft={draft}
@@ -151,6 +180,7 @@ export default function CategoriesAdmin() {
         onSave={onSave}
       />
 
+      {/* Confirmar eliminación */}
       <BaseModal
         isOpen={!!toDelete}
         onClose={() => setToDelete(null)}

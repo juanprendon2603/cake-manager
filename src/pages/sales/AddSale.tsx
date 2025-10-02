@@ -19,6 +19,7 @@ import type { PaymentMethod } from "../inform/types";
 import Step1Category from "./steps/Step1Category";
 import StepDetailsGeneric from "./steps/StepDetailsGeneric";
 import StepSelectOption from "./steps/StepSelectOption";
+import { useAuth } from "../../contexts/AuthContext";
 
 const getErr = (e: unknown) =>
   e instanceof Error ? e.message : "Error al procesar la venta.";
@@ -26,6 +27,20 @@ const getErr = (e: unknown) =>
 export default function AddSale() {
   const nav = useNavigate();
   const { addToast } = useToast();
+  const { user, profile } = useAuth(); // 👈 NUEVO
+
+  const sellerName = useMemo(() => {
+    const f = (profile?.firstName || "").trim();
+    const l = (profile?.lastName || "").trim();
+    const byFL = [f, l].filter(Boolean).join(" ");
+    const dn =
+      (profile?.displayName || "").trim() ||
+      (user?.displayName || "").trim();
+    const mail = (user?.email || "").trim();
+    const fromEmail = mail ? mail.split("@")[0] : "";
+    return byFL || dn || fromEmail || "Usuario";
+  }, [profile, user]);
+
 
   const [loading, setLoading] = useState(true);
   const [cats, setCats] = useState<ProductCategory[]>([]);
@@ -127,6 +142,11 @@ export default function AddSale() {
         paymentMethod: pm,
         dayKey,
         monthKey,
+        seller: {
+          name: sellerName,
+          uid: user?.uid,
+          email: user?.email || undefined,
+        },
       });
 
       addToast({
@@ -164,6 +184,11 @@ export default function AddSale() {
         paymentMethod: pm,
         dayKey,
         monthKey,
+        seller: {
+          name: sellerName,
+          uid: user?.uid,
+          email: user?.email || undefined,
+        },
       });
       addToast({
         type: "success",
@@ -267,6 +292,10 @@ export default function AddSale() {
             <span className="text-gray-600">Cantidad:</span>
             <span className="font-semibold">x{parseInt(qty || "0", 10)}</span>
           </div>
+          <div className="flex justify-between">
+              <span className="text-gray-600">Vendedor:</span>
+              <span className="font-semibold">{sellerName}</span>
+            </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Total:</span>
             <span className="font-bold text-green-600">

@@ -18,6 +18,8 @@ interface Props {
   paidAmountToday: number;
   onConfirm: () => void;
   loading?: boolean;
+  sellerName?: string; // 👈 NUEVO
+
 }
 
 export default function PaymentConfirmModal({
@@ -34,6 +36,8 @@ export default function PaymentConfirmModal({
   paidAmountToday,
   onConfirm,
   loading = false,
+  sellerName,
+
 }: Props) {
   return (
     <BaseModal
@@ -101,6 +105,12 @@ export default function PaymentConfirmModal({
       </div>
 
       {loading && <p className="text-xs text-gray-500">Procesando…</p>}
+        {sellerName && (
+        <div className="mt-2 flex justify-between text-sm">
+          <span className="text-gray-600">Vendedor:</span>
+          <span className="font-semibold">{sellerName}</span>
+        </div>
+      )}
     </BaseModal>
   );
 }

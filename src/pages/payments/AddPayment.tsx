@@ -25,15 +25,32 @@ import {
   tryDecrementStockGeneric,
 } from "../catalog/catalog.service";
 import type { CategoryStep, ProductCategory } from "../stock/stock.model";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function AddPayment() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { user, profile } = useAuth(); // 👈 NUEVO
+
 
   const [loadingCats, setLoadingCats] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const sellerName = useMemo(() => {
+    const f = (profile?.firstName || "").trim();
+    const l = (profile?.lastName || "").trim();
+    const byFL = [f, l].filter(Boolean).join(" ");
+    const dn =
+      (profile?.displayName || "").trim() ||
+      (user?.displayName || "").trim();
+    const mail = (user?.email || "").trim();
+    const fromEmail = mail ? mail.split("@")[0] : "";
+    return byFL || dn || fromEmail || "Usuario";
+  }, [profile, user]);
+
+
 
   // Modal “sin stock”
   const [showNoStock, setShowNoStock] = useState(false);
@@ -154,6 +171,11 @@ export function AddPayment() {
         totalPayment: state.isTotalPayment,
         deductedFromStock: false, // se pondrá en true si logramos descontar
         orderDate: state.orderDate,
+        seller: {
+          name: sellerName,
+          uid: user?.uid,
+          email: user?.email || undefined,
+        },
       };
 
       if (state.deductFromStock) {
@@ -200,7 +222,11 @@ export function AddPayment() {
     if (!pendingInput) return;
     try {
       setSaving(true);
-      await registerPayment({ ...pendingInput, deductedFromStock: false });
+      await registerPayment({ ...pendingInput, deductedFromStock: false,  seller: pendingInput.seller ?? {
+        name: sellerName,
+        uid: user?.uid,
+        email: user?.email || undefined,
+      }, });
       addToast({
         type: "success",
         title: "Abono registrado",
@@ -287,6 +313,8 @@ export function AddPayment() {
         onConfirm={onConfirm}
         loading={saving}
         affectingSteps={affectingSteps}
+        sellerName={sellerName}  // 👈 NUEVO (ver componente abajo)
+
       />
 
       {/* Modal: continuar sin stock */}
