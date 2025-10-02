@@ -1,3 +1,4 @@
+// src/pages/expenses/AddGeneralExpense.tsx (ajusta la ruta del archivo si es distinta)
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -7,6 +8,11 @@ import { useToast } from "../../hooks/useToast";
 import type { PaymentMethod } from "../../types/stock";
 import { paymentLabel } from "../../utils/formatters";
 import { registerGeneralExpense } from "../sales/sales.service"; // ajusta la ruta si tu service está en otra carpeta
+
+// ✨ UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
 export function AddGeneralExpense() {
   const [description, setDescription] = useState("");
@@ -30,7 +36,6 @@ export function AddGeneralExpense() {
     return true;
   };
 
-  // helper para errores sin 'any'
   const getErrorMessage = (e: unknown): string =>
     e instanceof Error ? e.message : "Error al registrar el gasto.";
 
@@ -78,26 +83,19 @@ export function AddGeneralExpense() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-12 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
-          <div className="relative z-10 py-8">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
-                💸
-              </div>
-            </div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
-              Registrar Gasto General
-            </h1>
-            <p className="text-xl text-gray-700 font-medium mb-8">
-              Añade un gasto general del mes
-            </p>
-            <div className="absolute top-4 left-4">
-              <BackButton />
-            </div>
+        {/* ====== PageHero + Back ====== */}
+        <div className="relative mb-6">
+          <PageHero
+            icon="💼"
+            title="Registrar Gasto General"
+            subtitle="Añade un gasto general del mes"
+          />
+          <div className="absolute top-4 left-4 z-20">
+            <BackButton fallback="/general-expenses" />
           </div>
-        </header>
+        </div>
 
+        {/* ====== Form ====== */}
         <section className="max-w-xl mx-auto bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -181,21 +179,19 @@ export function AddGeneralExpense() {
           )}
         </section>
 
+        {/* ====== Tip ====== */}
         <div className="mt-8 max-w-xl mx-auto">
-          <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-5 shadow-lg text-center">
-            <p className="text-sm opacity-90">Tip</p>
-            <p className="text-base">
-              Usa descripciones claras para facilitar tu resumen mensual.
-            </p>
-          </div>
+          <ProTipBanner
+            title="Tip de gastos generales"
+            text="Mantén categorías y descripciones consistentes para comparar tus meses fácilmente."
+          />
         </div>
       </main>
 
-      <footer className="text-center text-sm text-gray-400 py-6">
-        © 2025 CakeManager. Todos los derechos reservados.
-      </footer>
+      {/* ====== Footer ====== */}
+      <AppFooter appName="InManager" />
 
-      {/* Modal reutilizable */}
+      {/* ====== Modal ====== */}
       <BaseModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}

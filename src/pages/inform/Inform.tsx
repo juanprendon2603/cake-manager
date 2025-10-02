@@ -1,31 +1,26 @@
 // src/pages/inform/Inform.tsx
+import { format } from "date-fns";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
-import { format } from "date-fns";
 import { RangeControls } from "../../components/RangeControls";
-import { useRangeSummaryOptimized as useRangeSummary } from "../../hooks/useRangeSummary";
 import { useGeneralExpenses } from "../../hooks/useGeneralExpenses";
-import {
-  AnimatedKpiCard,
-  GradientCard,
-  Th,
-  Td,
-  Badge,
-} from "./components/Kpi";
+import { useInformeData } from "../../hooks/useInformeData";
+import { useRangeSummaryOptimized as useRangeSummary } from "../../hooks/useRangeSummary";
+import { money } from "../../types/informs"; // ✅ import normal (no "import type")
 import {
   DailyRevenueChart,
   PaymentPie,
-  TopFlavorsBar,
   RevenueBySizeRadial,
+  TopFlavorsBar,
 } from "./components/Charts";
-import { money } from "../../types/informs"; // ✅ import normal (no "import type")
-import { useInformeData } from "../../hooks/useInformeData";
+import { AnimatedKpiCard, Badge, GradientCard, Td, Th } from "./components/Kpi";
 
 // ✨ Nuevo: UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { BackButton } from "../../components/BackButton";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
-import { AppFooter } from "../../components/AppFooter";
 
 export function Inform() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -74,11 +69,16 @@ export function Inform() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
-        <PageHero
-          icon="📊"
-          title="Dashboard con Rangos"
-          subtitle="Filtra por mes/quincena o elige cualquier rango de fechas"
-        />
+        <div className="relative">
+          <PageHero
+            icon="📊"
+            title="Dashboard con Rangos"
+            subtitle="Filtra por mes/quincena o elige cualquier rango de fechas"
+          />
+          <div className="absolute top-4 left-4">
+            <BackButton fallback="/admin" />
+          </div>
+        </div>
 
         {/* Controles de rango */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8 mb-10">
@@ -184,9 +184,7 @@ export function Inform() {
 
           <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-6 shadow-xl text-white text-center">
             <div className="text-4xl mb-2">🧾</div>
-            <p className="text-lg font-semibold opacity-90">
-              Gastos Generales
-            </p>
+            <p className="text-lg font-semibold opacity-90">Gastos Generales</p>
             <p className="text-3xl font-bold">{money(generalExpensesTotal)}</p>
           </div>
 
@@ -229,14 +227,19 @@ export function Inform() {
                   </thead>
                   <tbody>
                     {geItems.map((g, idx) => (
-                      <tr key={idx} className="even:bg-white odd:bg-purple-50/30">
+                      <tr
+                        key={idx}
+                        className="even:bg-white odd:bg-purple-50/30"
+                      >
                         <Td>{g.date}</Td>
                         <Td className="text-gray-800">
                           {g.description || "-"}
                         </Td>
                         <Td className="text-center">
                           <Badge
-                            tone={g.paymentMethod === "cash" ? "green" : "purple"}
+                            tone={
+                              g.paymentMethod === "cash" ? "green" : "purple"
+                            }
                           >
                             {g.paymentMethod === "cash"
                               ? "Efectivo"

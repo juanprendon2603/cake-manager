@@ -17,13 +17,13 @@ import {
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDKcGfxVG1E_XJvcwqCu3gKxKL2NKCeL6g",
-  authDomain: "cakemanager-6f280.firebaseapp.com",
-  projectId: "cakemanager-6f280",
-  storageBucket: "cakemanager-6f280.appspot.com",
-  messagingSenderId: "395000089513",
-  appId: "1:395000089513:web:38d00ad84e0ff56a28d2b8",
-  measurementId: "G-ZT1PWHC7M8",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 // ✅ Evita doble inicialización con HMR/StrictMode

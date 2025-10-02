@@ -49,7 +49,9 @@ function slugify(s: string) {
 }
 
 /* -------------------------- Normalización de steps ------------------------- */
-function normalizeSteps(steps: CategoryStep[] | undefined): CategoryStep[] {
+export function normalizeSteps(
+  steps: CategoryStep[] | undefined
+): CategoryStep[] {
   return (steps || []).map((s) => {
     const normOptions: CategoryOption[] = (s.options || []).map((o) => ({
       key: slugify(o.label || o.key || ""),
@@ -74,7 +76,7 @@ function normalizeSteps(steps: CategoryStep[] | undefined): CategoryStep[] {
  *  Usa la posición de los steps para vincular la selección antigua a la nueva.
  *  Formato admitido por par: "stepKey:optKey" (también "stepKey=optKey").
  */
-function normalizeVariantPrices(
+export function normalizeVariantPrices(
   variantPrices: Record<string, number> | undefined,
   originalSteps: CategoryStep[] | undefined,
   newSteps: CategoryStep[]

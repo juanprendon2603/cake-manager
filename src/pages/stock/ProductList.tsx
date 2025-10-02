@@ -1,3 +1,4 @@
+// src/pages/stock/ProductList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
@@ -5,11 +6,15 @@ import { useStock } from "../../hooks/useStock";
 import { listCategories } from "../catalog/catalog.service";
 import type { ProductCategory } from "./stock.model";
 
+// ✨ UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
 /* ------------------------------ Helpers UI ------------------------------ */
 function parseVariantParts(
   variantKey: string
 ): Array<{ stepKey: string; optKey: string }> {
-  // "tamano:libra|sabor:chocolate"  ó  "tamano=libra|sabor=chocolate"
   if (!variantKey) return [];
   return variantKey.split("|").map((pair) => {
     const idx = pair.indexOf(":") >= 0 ? pair.indexOf(":") : pair.indexOf("=");
@@ -42,87 +47,7 @@ function chipsFromVariant(
   });
 }
 
-/* -------------------------------- Header -------------------------------- */
-function Header({
-  categories,
-  category,
-  setCategory,
-}: {
-  categories: ProductCategory[];
-  category: ProductCategory | null;
-  setCategory: (c: ProductCategory | null) => void;
-}) {
-  return (
-    <header className="mb-10 relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
-      <div className="relative z-10 py-6">
-        <div className="sm:hidden mb-3">
-          <BackButton />
-        </div>
-        <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
-          <BackButton />
-        </div>
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl shadow-lg">
-              📦
-            </div>
-          </div>
-          <h2 className="text-4xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Inventario por Variantes
-          </h2>
-          <p className="text-lg text-gray-700 mt-2">
-            Consulta y gestiona el stock por combinación de opciones.
-          </p>
-
-          {/* Selector de categoría */}
-          <div className="mt-6 max-w-xl mx-auto">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Categoría
-            </label>
-            <select
-              className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
-              value={category?.id || ""}
-              onChange={(e) => {
-                const next =
-                  categories.find((c) => c.id === e.target.value) || null;
-                setCategory(next);
-              }}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
-            {[
-              { icon: "🧩", title: "Variantes", desc: "Por combinación" },
-              { icon: "⚡", title: "Gestión", desc: "Rápida" },
-              { icon: "📊", title: "Resumen", desc: "Al instante" },
-              { icon: "🔒", title: "Acciones", desc: "Seguras" },
-            ].map((b, i) => (
-              <div
-                key={i}
-                className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow"
-              >
-                <div className="text-2xl">{b.icon}</div>
-                <div className="text-xs text-gray-600">{b.title}</div>
-                <div className="text-sm font-semibold text-purple-600">
-                  {b.desc}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-/* ------------------------------- EmptyState ------------------------------- */
+/* -------------------------------- EmptyState ------------------------------- */
 function EmptyState() {
   return (
     <div className="text-center py-16">
@@ -156,7 +81,7 @@ function StockCard({
         isResetting ? "ring-2 ring-red-300 scale-[0.99]" : ""
       }`}
     >
-      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10" />
+      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10 pointer-events-none" />
       <div className="relative z-10 flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow">
@@ -172,7 +97,6 @@ function StockCard({
           className="inline-flex items-center gap-1 bg-gradient-to-r from-red-500 to-rose-500 hover:opacity-95 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm transition-colors"
           title="Reiniciar a 0"
         >
-          {/* trash/reset icon */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
@@ -275,51 +199,67 @@ export function ProductList() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
-        <Header
-          categories={categories}
-          category={category}
-          setCategory={setCategory}
-        />
-        <StatsBar
-          totalVariants={stats.totalVariants}
-          totalUnits={stats.totalUnits}
-        />
+        {/* ====== Hero + Back ====== */}
+        <div className="relative">
+          <PageHero
+            icon="📦"
+            title="Inventario por Variantes"
+            subtitle="Consulta y gestiona el stock por combinación de opciones"
+          />
+          <div className="absolute top-4 left-4 z-20">
+            <BackButton fallback="/admin" />
+          </div>
+        </div>
 
-        <section className="rounded-3xl p-6 sm:p-8 bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
+        {/* ====== Selector de categoría ====== */}
+        <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+          <div className="max-w-xl mx-auto">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Categoría
+            </label>
+            <select
+              className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
+              value={category?.id || ""}
+              onChange={(e) => {
+                const next =
+                  categories.find((c) => c.id === e.target.value) || null;
+                setCategory(next);
+              }}
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        {/* ====== Lista de variantes ====== */}
+        {/* ====== Lista de variantes ====== */}
+        <section className="mt-8 rounded-3xl p-6 sm:p-8 bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
           {loading ? (
             <FullScreenLoader message="Cargando variantes..." />
           ) : stocks.length === 0 ? (
             <EmptyState />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stocks.map((v) => (
-                <StockCard
-                  key={v.variantKey}
-                  variantKey={v.variantKey}
-                  stock={v.stock}
-                  onReset={handleReset}
-                  isResetting={pendingVariant === v.variantKey}
-                  category={category}
-                />
-              ))}
+              {/* ... */}
             </div>
           )}
         </section>
 
-        <div className="mt-10">
-          <div className="relative rounded-2xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7]" />
-            <div className="relative z-10 p-6 text-white text-center">
-              <p className="text-sm opacity-90">Resumen visual</p>
-              <p className="text-xl font-bold">Inventario actualizado</p>
-            </div>
-          </div>
+        {/* ====== Tip ====== */}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de inventario"
+            text="Usa el buscador por categoría y reinicia variantes obsoletas a 0 para mantener el stock limpio."
+          />
         </div>
       </main>
 
-      <footer className="text-center text-sm text-white py-6 bg-gradient-to-r from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]">
-        © 2025 CakeManager. Todos los derechos reservados.
-      </footer>
+      {/* ====== Footer ====== */}
+      <AppFooter appName="InManager" />
     </div>
   );
 }

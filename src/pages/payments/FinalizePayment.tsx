@@ -2,8 +2,9 @@
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "../../components/BackButton";
-import BaseModal from "../../components/BaseModal";
+// import BaseModal from "../../components/BaseModal"; // ⬅️ ya no se usa aquí
 import { FullScreenLoader } from "../../components/FullScreenLoader";
+import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import type {
   PaymentsMonthlyRow,
@@ -20,7 +21,14 @@ import {
   finalizePaymentGroup,
   groupPayments,
 } from "./payment.service";
-import { useAuth } from "../../contexts/AuthContext";
+
+// ✨ UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
+// ➕ Modal reutilizable de “sin stock”
+import NoStockModal from "../../components/NoStockModal";
 
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 const localToday = () => format(new Date(), "yyyy-MM-dd");
@@ -50,7 +58,7 @@ function buildPrettySelections(
         return parts
           .filter((kv) => kv.length === 2)
           .map(([k, v]) => ({ label: k, value: v }));
-      } catch { }
+      } catch {}
     }
     return pretty;
   }
@@ -65,7 +73,7 @@ function buildPrettySelections(
       return parts
         .filter((kv) => kv.length === 2)
         .map(([k, v]) => ({ label: k, value: v }));
-    } catch { }
+    } catch {}
   }
   return [];
 }
@@ -87,7 +95,7 @@ function ymd(Y: number, M: number, D: number) {
 export function FinalizePayment() {
   const { addToast } = useToast();
   const now = new Date();
-  const { user, profile } = useAuth(); // 👈 NUEVO
+  const { user, profile } = useAuth();
 
   const defaultMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
 
@@ -102,19 +110,32 @@ export function FinalizePayment() {
   const [pendingFinalize, setPendingFinalize] =
     useState<PendingPaymentGroup | null>(null);
 
+  // ➕ Contexto para NoStockModal
+  const [noStockCtx, setNoStockCtx] = useState<{
+    selectedParts: {
+      stepKey: string;
+      stepLabel: string;
+      optionKey: string;
+      optionLabel: string;
+    }[];
+    currentStock: number;
+    requestedQty: number;
+  }>({
+    selectedParts: [],
+    currentStock: 0,
+    requestedQty: 0,
+  });
 
   const sellerName = useMemo(() => {
     const f = (profile?.firstName || "").trim();
     const l = (profile?.lastName || "").trim();
     const byFL = [f, l].filter(Boolean).join(" ");
     const dn =
-      (profile?.displayName || "").trim() ||
-      (user?.displayName || "").trim();
+      (profile?.displayName || "").trim() || (user?.displayName || "").trim();
     const mail = (user?.email || "").trim();
     const fromEmail = mail ? mail.split("@")[0] : "";
     return byFL || dn || fromEmail || "Usuario";
-  }, [profile, user]); // 👈 NUEVO
-
+  }, [profile, user]);
 
   // catálogo para labels
   const [catsLoading, setCatsLoading] = useState(true);
@@ -192,6 +213,22 @@ export function FinalizePayment() {
     }
   }, [month, groupsByDay]);
 
+  // Helper: construir partes seleccionadas con labels bonitos para el modal
+  function buildSelectedPartsForNoStock(group: PendingPaymentGroup) {
+    const cat = catById[group.categoryId] ?? null;
+    const steps = (cat?.steps || []).filter((s) => s.affectsStock);
+    return steps.map((s) => {
+      const optKey = String(group.selections?.[s.key] ?? "");
+      const opt = (s.options || []).find((o) => o.key === optKey);
+      return {
+        stepKey: s.key,
+        stepLabel: s.label,
+        optionKey: optKey,
+        optionLabel: opt?.label || optKey || "",
+      };
+    });
+  }
+
   // Intento de finalización con manejo de stock
   const onConfirm = async () => {
     if (!selected) return;
@@ -203,7 +240,11 @@ export function FinalizePayment() {
       if (selected.deductedFromStock) {
         await finalizePaymentGroup(selected, today, {
           didDeductFromStock: true,
-          seller: { name: sellerName, uid: user?.uid, email: user?.email || undefined }, // 👈 NUEVO
+          seller: {
+            name: sellerName,
+            uid: user?.uid,
+            email: user?.email || undefined,
+          },
         });
         addToast({
           type: "success",
@@ -229,13 +270,23 @@ export function FinalizePayment() {
       if (!dec.decremented) {
         // Mostrar modal “sin stock”: decidir si continuar sin descontar
         setPendingFinalize(selected);
+        setNoStockCtx({
+          selectedParts: buildSelectedPartsForNoStock(selected),
+          currentStock: dec.current ?? 0,
+          requestedQty: selected.quantity,
+        });
         setShowNoStock(true);
         return;
       }
 
       // Se logró descontar; finalizar marcando didDeduct=true
       await finalizePaymentGroup(selected, today, {
-        didDeductFromStock: true, seller: { name: sellerName, uid: user?.uid, email: user?.email || undefined }, // 👈 NUEVO
+        didDeductFromStock: true,
+        seller: {
+          name: sellerName,
+          uid: user?.uid,
+          email: user?.email || undefined,
+        },
       });
       addToast({
         type: "success",
@@ -268,8 +319,11 @@ export function FinalizePayment() {
       const today = localToday();
       await finalizePaymentGroup(pendingFinalize, today, {
         didDeductFromStock: false,
-        seller: { name: sellerName, uid: user?.uid, email: user?.email || undefined }, // 👈 NUEVO
-
+        seller: {
+          name: sellerName,
+          uid: user?.uid,
+          email: user?.email || undefined,
+        },
       });
       addToast({
         type: "success",
@@ -314,46 +368,42 @@ export function FinalizePayment() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-8 relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
-          <div className="relative z-10 py-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl shadow-xl ring-4 ring-purple-200">
-                  💳
-                </div>
-                <div>
-                  <h1 className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent">
-                    Gestión de Abonos
-                  </h1>
-                  <p className="text-gray-700">
-                    Finaliza pedidos desde el calendario.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-end gap-3">
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 mb-1">Mes</label>
-                  <input
-                    type="month"
-                    value={month}
-                    onChange={(e) => setMonth(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-purple-200 bg-white text-sm font-medium text-purple-700"
-                  />
-                </div>
-                <div className="hidden sm:block mt-6">
-                  <BackButton />
-                </div>
-              </div>
-            </div>
+        {/* ====== PageHero + Back ====== */}
+        <div className="relative mb-6">
+          <PageHero
+            icon="💳"
+            title="Gestión de Abonos"
+            subtitle="Finaliza pedidos desde el calendario"
+          />
+          <div className="absolute top-4 left-4 z-20">
+            <BackButton fallback="/payment-management" />
           </div>
-        </header>
+        </div>
 
-        {/* Calendario + Lista del día */}
+        {/* ====== Controles ====== */}
+        <section className="rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-4 sm:p-6 mb-6">
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Mes</label>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="px-3 py-2 rounded-lg border-2 border-purple-200 bg-white/90 text-sm font-medium text-purple-700"
+              />
+            </div>
+            {selectedDay && (
+              <div className="text-xs text-gray-600">
+                Día seleccionado: <strong>{selectedDay}</strong>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ====== Calendario + Lista del día ====== */}
         <section className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6">
           {/* Calendario */}
-          <div className="bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6">
+          <div className="rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6">
             <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-500 mb-2">
               {weekdayHeaders.map((h) => (
                 <div key={h} className="py-1">
@@ -387,8 +437,8 @@ export function FinalizePayment() {
                       isSelected
                         ? "border-[#8E2DA8] ring-2 ring-[#8E2DA8]/30 bg-purple-50"
                         : any
-                          ? "border-purple-200/70 bg-purple-50/40 hover:bg-purple-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50",
+                        ? "border-purple-200/70 bg-purple-50/40 hover:bg-purple-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50",
                     ].join(" ")}
                     title={c.date}
                   >
@@ -415,8 +465,9 @@ export function FinalizePayment() {
                               ? "bg-emerald-500"
                               : "bg-[#8E2DA8]",
                           ].join(" ")}
-                          title={`${g.categoryName} · ${g.quantity
-                            } · pendiente ${g.restante.toLocaleString("es-CO")}`}
+                          title={`${g.categoryName} · ${
+                            g.quantity
+                          } · pendiente ${g.restante.toLocaleString("es-CO")}`}
                         />
                       ))}
                       {dayGroups.length > 4 && (
@@ -432,7 +483,7 @@ export function FinalizePayment() {
           </div>
 
           {/* Lista del día */}
-          <div className="bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6">
+          <div className="rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-800">
                 {selectedDay ? `Pedidos ${selectedDay}` : "Selecciona un día"}
@@ -445,7 +496,7 @@ export function FinalizePayment() {
             </div>
 
             {!selectedDay ||
-              (groupsByDay.get(selectedDay)?.length ?? 0) === 0 ? (
+            (groupsByDay.get(selectedDay)?.length ?? 0) === 0 ? (
               <div className="text-center py-10 text-gray-500">
                 No hay pedidos para este día.
               </div>
@@ -462,7 +513,7 @@ export function FinalizePayment() {
                   return (
                     <div
                       key={g.groupKey}
-                      className="border border-[#E8D4F2] rounded-xl p-4 hover:shadow-sm transition"
+                      className="border border-[#E8D4F2] rounded-xl p-4 hover:shadow-sm transition bg-white/90"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -538,6 +589,14 @@ export function FinalizePayment() {
             )}
           </div>
         </section>
+
+        {/* ====== Tip ====== */}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de finalización"
+            text="Selecciona un día con pedidos: los puntos morados son pendientes y los verdes finalizados. Si no hay stock, puedes finalizar sin descontar."
+          />
+        </div>
       </main>
 
       {selected && (
@@ -551,32 +610,21 @@ export function FinalizePayment() {
         />
       )}
 
-      {/* Modal: continuar finalizando sin stock */}
-      <BaseModal
+      {/* Modal: continuar finalizando sin stock (reutilizable) */}
+      <NoStockModal
         isOpen={showNoStock}
         onClose={() => {
           setShowNoStock(false);
           setPendingFinalize(null);
         }}
-        headerAccent="amber"
-        title="Inventario insuficiente"
-        description="No hay stock suficiente para este pedido. ¿Deseas finalizar sin descontar inventario?"
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => {
-            setShowNoStock(false);
-            setPendingFinalize(null);
-          },
-        }}
-        primaryAction={{
-          label: "Finalizar sin descontar",
-          onClick: handleFinalizeWithoutStock,
-        }}
+        onContinue={handleFinalizeWithoutStock}
+        selectedParts={noStockCtx.selectedParts}
+        currentStock={noStockCtx.currentStock}
+        requestedQty={noStockCtx.requestedQty}
       />
 
-      <footer className="text-center text-sm text-gray-400 py-6">
-        © 2025 CakeManager. Todos los derechos reservados.
-      </footer>
+      {/* ====== Footer ====== */}
+      <AppFooter appName="InManager" />
     </div>
   );
 }

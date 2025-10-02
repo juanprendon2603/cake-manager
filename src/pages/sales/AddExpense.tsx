@@ -10,9 +10,13 @@ import type { PaymentMethod } from "../../types/stock";
 import { paymentLabel } from "../../utils/formatters";
 import { registerExpense } from "./sales.service";
 
+// ✨ UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
 const easeM3 = cubicBezier(0.4, 0, 0.2, 1);
 
-// helper para manejar errores sin 'any'
 const getErrorMessage = (e: unknown): string =>
   e instanceof Error ? e.message : "Error al registrar el gasto.";
 
@@ -83,30 +87,20 @@ export function AddExpense() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
-      <main className="flex-grow px-6 py-8 sm:py-12 max-w-5xl mx-auto w-full">
-        <header className="mb-12 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10"></div>
-
-          <div className="relative z-10 py-8">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
-                💸
-              </div>
-            </div>
-
-            <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
-              Registrar Gasto
-            </h1>
-            <p className="text-xl text-gray-700 font-medium mb-8">
-              Añade un gasto del día con su método de pago.
-            </p>
-
-            <div className="absolute top-4 left-4">
-              <BackButton />
-            </div>
+      <main className="flex-grow px-6 py-8 sm:p-12 max-w-5xl mx-auto w-full">
+        {/* ====== PageHero + Back ====== */}
+        <div className="relative mb-6">
+          <PageHero
+            icon="💸"
+            title="Registrar Gasto"
+            subtitle="Añade un gasto del día con su método de pago"
+          />
+          <div className="absolute top-4 left-4 z-20">
+            <BackButton fallback="/sales" />
           </div>
-        </header>
+        </div>
 
+        {/* ====== Form Card ====== */}
         <section className="max-w-xl mx-auto bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <motion.div
@@ -208,21 +202,19 @@ export function AddExpense() {
           </form>
         </section>
 
+        {/* ====== Tip ====== */}
         <div className="mt-8 max-w-xl mx-auto">
-          <div className="bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white rounded-xl p-5 shadow-lg text-center">
-            <p className="text-sm opacity-90">Tip</p>
-            <p className="text-base">
-              Usa descripciones claras para facilitar tu resumen diario.
-            </p>
-          </div>
+          <ProTipBanner
+            title="Tip de gastos"
+            text="Usa descripciones claras y separa compras por tipo para facilitar el resumen diario."
+          />
         </div>
       </main>
 
-      <footer className="text-center text-sm text-gray-400 py-6">
-        © 2025 CakeManager. Todos los derechos reservados.
-      </footer>
+      {/* ====== Footer ====== */}
+      <AppFooter appName="InManager" />
 
-      {/* Modal reutilizable */}
+      {/* ====== Modal de confirmación ====== */}
       <BaseModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}

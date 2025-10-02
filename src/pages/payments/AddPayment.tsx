@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { BackButton } from "../../components/BackButton";
-import BaseModal from "../../components/BaseModal";
+// import BaseModal from "../../components/BaseModal"; // ya no lo usamos aquí para "sin stock"
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
 
@@ -20,18 +20,25 @@ import {
   registerPayment,
 } from "./payment.service";
 
+import { useAuth } from "../../contexts/AuthContext";
 import {
   listCategories,
   tryDecrementStockGeneric,
 } from "../catalog/catalog.service";
 import type { CategoryStep, ProductCategory } from "../stock/stock.model";
-import { useAuth } from "../../contexts/AuthContext";
+
+// ✨ UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
+// ➕ Modal reutilizable de “sin stock”
+import NoStockModal from "../../components/NoStockModal";
 
 export function AddPayment() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { user, profile } = useAuth(); // 👈 NUEVO
-
+  const { user, profile } = useAuth();
 
   const [loadingCats, setLoadingCats] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,20 +50,33 @@ export function AddPayment() {
     const l = (profile?.lastName || "").trim();
     const byFL = [f, l].filter(Boolean).join(" ");
     const dn =
-      (profile?.displayName || "").trim() ||
-      (user?.displayName || "").trim();
+      (profile?.displayName || "").trim() || (user?.displayName || "").trim();
     const mail = (user?.email || "").trim();
     const fromEmail = mail ? mail.split("@")[0] : "";
     return byFL || dn || fromEmail || "Usuario";
   }, [profile, user]);
-
-
 
   // Modal “sin stock”
   const [showNoStock, setShowNoStock] = useState(false);
   const [pendingInput, setPendingInput] = useState<RegisterPaymentInput | null>(
     null
   );
+
+  // ➕ Contexto para NoStockModal (partes con labels, stock actual, cantidad pedida)
+  const [noStockCtx, setNoStockCtx] = useState<{
+    selectedParts: {
+      stepKey: string;
+      stepLabel: string;
+      optionKey: string;
+      optionLabel: string;
+    }[];
+    currentStock: number;
+    requestedQty: number;
+  }>({
+    selectedParts: [],
+    currentStock: 0,
+    requestedQty: 0,
+  });
 
   const [cats, setCats] = useState<ProductCategory[]>([]);
   const [cat, setCat] = useState<ProductCategory | null>(null);
@@ -146,6 +166,22 @@ export function AddPayment() {
     setShowConfirm(true);
   };
 
+  // Helper: construir partes seleccionadas con labels bonitos
+  function buildSelectedParts() {
+    if (!cat) return [];
+    const steps = (cat.steps || []).filter((s) => s.affectsStock);
+    return steps.map((s) => {
+      const optKey = String(state.selections[s.key] ?? "");
+      const opt = (s.options || []).find((o) => o.key === optKey);
+      return {
+        stepKey: s.key,
+        stepLabel: s.label,
+        optionKey: optKey,
+        optionLabel: opt?.label || optKey || "",
+      };
+    });
+  }
+
   const onConfirm = async () => {
     if (!cat) return;
     const qty = parseInt(state.quantity, 10);
@@ -169,7 +205,7 @@ export function AddPayment() {
         paidAmountToday: paid,
         paymentMethod: state.paymentMethod,
         totalPayment: state.isTotalPayment,
-        deductedFromStock: false, // se pondrá en true si logramos descontar
+        deductedFromStock: false,
         orderDate: state.orderDate,
         seller: {
           name: sellerName,
@@ -184,6 +220,11 @@ export function AddPayment() {
         if (!dec.decremented) {
           // No hay stock suficiente: preguntamos qué hacer
           setPendingInput(baseInput); // si continúa, se registra sin descontar
+          setNoStockCtx({
+            selectedParts: buildSelectedParts(),
+            currentStock: dec.current ?? 0,
+            requestedQty: qty,
+          });
           setShowNoStock(true);
           setShowConfirm(false);
           return;
@@ -222,11 +263,15 @@ export function AddPayment() {
     if (!pendingInput) return;
     try {
       setSaving(true);
-      await registerPayment({ ...pendingInput, deductedFromStock: false,  seller: pendingInput.seller ?? {
-        name: sellerName,
-        uid: user?.uid,
-        email: user?.email || undefined,
-      }, });
+      await registerPayment({
+        ...pendingInput,
+        deductedFromStock: false,
+        seller: pendingInput.seller ?? {
+          name: sellerName,
+          uid: user?.uid,
+          email: user?.email || undefined,
+        },
+      });
       addToast({
         type: "success",
         title: "Abono registrado",
@@ -256,27 +301,19 @@ export function AddPayment() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        <header className="mb-12 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
-          <div className="relative z-10 py-8">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl shadow-xl ring-4 ring-purple-200">
-                💳
-              </div>
-            </div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent mb-4 drop-shadow-[0_2px_12px_rgba(142,45,168,0.25)]">
-              Registrar Abono/Pago
-            </h1>
-            <p className="text-xl text-gray-700 font-medium mb-8">
-              Registra abonos o pagos totales y actualiza el inventario si lo
-              deseas.
-            </p>
-            <div className="absolute top-4 left-4">
-              <BackButton />
-            </div>
-          </div>
-        </header>
+        {/* ====== PageHero + Back ====== */}
+        <div className="relative mb-6">
+          <PageHero
+            icon="💳"
+            title="Registrar Abono/Pago"
+            subtitle="Registra abonos o pagos totales y actualiza el inventario si lo deseas"
+          />
+        </div>
+        <div className="absolute top-4 left-4 z-20">
+          <BackButton fallback="/payment-management" />
+        </div>
 
+        {/* ====== Formulario ====== */}
         <AddPaymentForm
           state={state}
           setState={patch}
@@ -288,11 +325,18 @@ export function AddPayment() {
           onChangeCategory={setCat}
           affectingSteps={affectingSteps}
         />
+
+        {/* ====== Tip ====== */}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de abonos"
+            text="Si el cliente paga el total, marca ‘Pago total’ para cerrar el pedido automáticamente al finalizar."
+          />
+        </div>
       </main>
 
-      <footer className="text-center text-sm text-gray-400 py-6">
-        © 2025 CakeManager. Todos los derechos reservados.
-      </footer>
+      {/* ====== Footer ====== */}
+      <AppFooter appName="InManager" />
 
       {/* Modal de confirmación estándar */}
       <PaymentConfirmModal
@@ -313,53 +357,21 @@ export function AddPayment() {
         onConfirm={onConfirm}
         loading={saving}
         affectingSteps={affectingSteps}
-        sellerName={sellerName}  // 👈 NUEVO (ver componente abajo)
-
+        sellerName={sellerName}
       />
 
-      {/* Modal: continuar sin stock */}
-      <BaseModal
+      {/* Modal: continuar sin stock (reutilizable) */}
+      <NoStockModal
         isOpen={showNoStock}
         onClose={() => {
           setShowNoStock(false);
           setPendingInput(null);
         }}
-        headerAccent="amber"
-        title="Inventario insuficiente"
-        description="No hay stock suficiente para esta combinación. ¿Deseas registrar el abono sin descontar inventario?"
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => {
-            setShowNoStock(false);
-            setPendingInput(null);
-          },
-        }}
-        primaryAction={{
-          label: "Registrar sin descontar",
-          onClick: handleConfirmWithoutStock,
-        }}
-      >
-        {cat && (
-          <div className="space-y-2 text-sm text-gray-700">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Categoría</span>
-              <span className="font-medium">{cat.name}</span>
-            </div>
-            {Object.entries(state.selections).map(([k, v]) => (
-              <div key={k} className="flex justify-between">
-                <span className="text-gray-500 capitalize">{k}</span>
-                <span className="font-medium capitalize">{v || "—"}</span>
-              </div>
-            ))}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Cantidad</span>
-              <span className="font-medium">
-                x{parseInt(state.quantity || "0", 10)}
-              </span>
-            </div>
-          </div>
-        )}
-      </BaseModal>
+        onContinue={handleConfirmWithoutStock}
+        selectedParts={noStockCtx.selectedParts}
+        currentStock={noStockCtx.currentStock}
+        requestedQty={noStockCtx.requestedQty}
+      />
     </div>
   );
 }

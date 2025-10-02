@@ -1,3 +1,4 @@
+// src/pages/stock/AddStockForm.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -5,11 +6,16 @@ import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
 
+// ✅ UI consistente
+import { AppFooter } from "../../components/AppFooter";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
+
 import {
   buildVariantKey,
   listCategories,
   persistGenericStockUpdate,
-} from "../../pages/catalog/catalog.service"; // <-- si buildVariantKey está en otro archivo, ajústalo
+} from "../../pages/catalog/catalog.service";
 import { ConfirmUpdateModal } from "./components/ConfirmUpdateModal";
 import {
   todayKey,
@@ -18,33 +24,13 @@ import {
   type ProductCategory,
 } from "./stock.model";
 
-/* -------------------------------------------------------------------------- */
-/*                               Tipos de Form                                 */
-/* -------------------------------------------------------------------------- */
-
-type LineRow = {
-  /** Selecciones de TODOS los steps que afectan stock */
-  selections: Record<string, string>; // { tamano: "libra", sabor: "chocolate" }
-  qty: number | "";
-};
-
-type PrimaryGroup = {
-  primaryOpt: string; // ej. "libra"
-  rows: LineRow[]; // múltiples filas dentro del grupo
-};
-
-type PrettyForm = {
-  categoryId: string;
-  date: string; // YYYY-MM-DD
-  groups: PrimaryGroup[];
-};
-
+/* ------------------------------- Tipos Form ------------------------------- */
+type LineRow = { selections: Record<string, string>; qty: number | "" };
+type PrimaryGroup = { primaryOpt: string; rows: LineRow[] };
+type PrettyForm = { categoryId: string; date: string; groups: PrimaryGroup[] };
 type Props = { defaultCategoryId?: string };
 
-/* -------------------------------------------------------------------------- */
-/*                                Componente                                   */
-/* -------------------------------------------------------------------------- */
-
+/* -------------------------------- Componente ------------------------------ */
 export function AddStockForm({ defaultCategoryId }: Props) {
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -54,7 +40,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
   const [cat, setCat] = useState<ProductCategory | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Carga categorías
+  // Cargar categorías
   useEffect(() => {
     (async () => {
       try {
@@ -76,35 +62,34 @@ export function AddStockForm({ defaultCategoryId }: Props) {
     [cat]
   );
 
-  const primaryStep: CategoryStep | null = useMemo(() => {
-    // step primario = el primer step que afecta stock
-    return affectingSteps.length ? affectingSteps[0] : null;
-  }, [affectingSteps]);
+  const primaryStep: CategoryStep | null = useMemo(
+    () => (affectingSteps.length ? affectingSteps[0] : null),
+    [affectingSteps]
+  );
 
-  const restSteps: CategoryStep[] = useMemo(() => {
-    return affectingSteps.slice(1);
-  }, [affectingSteps]);
+  const restSteps: CategoryStep[] = useMemo(
+    () => affectingSteps.slice(1),
+    [affectingSteps]
+  );
 
-  const primaryOptions: CategoryOption[] = useMemo(() => {
-    return (primaryStep?.options || []).filter((o) => o.active !== false);
-  }, [primaryStep]);
+  const primaryOptions: CategoryOption[] = useMemo(
+    () => (primaryStep?.options || []).filter((o) => o.active !== false),
+    [primaryStep]
+  );
 
-  // Construye valores iniciales “bonitos”
+  // Valores por defecto bonitos
   const defaultGroups: PrimaryGroup[] = useMemo(() => {
     if (!cat || !primaryStep) return [];
     const firstPrimary = (primaryStep.options || [])
       .filter((o) => o.active !== false)
       .map((o) => o.key);
 
-    // Para cada opción del step primario, crea una fila vacía con selecciones mínimas
     return firstPrimary.map((optKey) => ({
       primaryOpt: optKey,
       rows: [
         {
           selections: {
-            // el primario se fija a esta opción
             [primaryStep.key]: optKey,
-            // los demás steps se inicializan vacío
             ...Object.fromEntries(restSteps.map((s) => [s.key, ""])),
           },
           qty: "",
@@ -140,7 +125,6 @@ export function AddStockForm({ defaultCategoryId }: Props) {
   const onConfirmSubmit = async (data: PrettyForm) => {
     if (!cat) return;
 
-    // Construir movimientos desde groups -> rows
     const movements = (data.groups || [])
       .flatMap((g) => g.rows || [])
       .filter((r) => Number(r.qty) > 0)
@@ -162,15 +146,8 @@ export function AddStockForm({ defaultCategoryId }: Props) {
 
     try {
       setLoading(true);
-      await persistGenericStockUpdate({
-        categoryId: cat.id,
-        movements,
-      });
-      reset({
-        categoryId: cat.id,
-        date: todayKey(),
-        groups: defaultGroups,
-      });
+      await persistGenericStockUpdate({ categoryId: cat.id, movements });
+      reset({ categoryId: cat.id, date: todayKey(), groups: defaultGroups });
       addToast({
         type: "success",
         title: "¡Stock actualizado! 🎉",
@@ -197,59 +174,47 @@ export function AddStockForm({ defaultCategoryId }: Props) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
-        {/* Header */}
-        <header className="mb-12 relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl opacity-10" />
-          <div className="relative z-10 py-8">
-            <div className="sm:hidden mb-4">
-              <BackButton />
-            </div>
-            <div className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2">
-              <BackButton />
-            </div>
-            <div className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl shadow-lg">
-                  📦
-                </div>
-              </div>
-              <h2 className="text-4xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-                Inventario de Productos
-              </h2>
-              <p className="text-xl text-gray-700 font-medium">
-                Agrega o incrementa el stock por combinación
-              </p>
-
-              {/* Selector de categoría */}
-              <div className="mt-6 max-w-xl mx-auto">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Categoría
-                </label>
-                <select
-                  value={cat?.id || ""}
-                  onChange={(e) => {
-                    const next =
-                      cats.find((c) => c.id === e.target.value) || null;
-                    setCat(next);
-                  }}
-                  className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
-                >
-                  {cats.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        {/* ======= Hero + Back ======= */}
+        <div className="relative">
+          <PageHero
+            icon="📦"
+            title="Inventario de Productos"
+            subtitle="Agrega o incrementa el stock por combinación"
+          />
+          <div className="absolute top-4 left-4 z-20">
+            <BackButton fallback="/admin" />
           </div>
-        </header>
+        </div>
 
-        {/* Form */}
+        {/* ======= Selector de categoría ======= */}
+        <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+          <div className="max-w-xl mx-auto">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Categoría
+            </label>
+            <select
+              value={cat?.id || ""}
+              onChange={(e) => {
+                const next = cats.find((c) => c.id === e.target.value) || null;
+                setCat(next);
+              }}
+              className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
+            >
+              {cats.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        {/* ======= Form ======= */}
         {cat && primaryStep ? (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-12">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 mt-8">
             <section className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5" />
+              {/* capa decorativa sin bloquear clics */}
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5 pointer-events-none" />
               <div className="relative z-10 p-6 sm:p-8 rounded-3xl bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                   <div>
@@ -280,14 +245,12 @@ export function AddStockForm({ defaultCategoryId }: Props) {
                   </div>
                 </div>
 
-                {/* Tarjetas por opción del step primario */}
                 <GroupCards
                   control={control}
                   primaryStep={primaryStep}
                   restSteps={restSteps}
                   options={primaryOptions}
                 />
-                {/* /Tarjetas */}
 
                 <div className="mt-6 flex items-center justify-center">
                   <button
@@ -305,36 +268,37 @@ export function AddStockForm({ defaultCategoryId }: Props) {
             </section>
           </form>
         ) : (
-          <div className="rounded-2xl p-6 bg-white/70 border-2 border-white/60 text-center">
+          <div className="rounded-2xl p-6 bg-white/70 border-2 border-white/60 text-center mt-8">
             <p className="text-gray-600">
               Esta categoría no tiene pasos que afecten stock.
             </p>
           </div>
         )}
+
+        {/* ======= Tip ======= */}
+        <div className="mt-8">
+          <ProTipBanner
+            title="Tip de inventario"
+            text="Usa varios ‘Agregar’ por opción primaria para cargar combinaciones rápidas (tamaño + sabor + etc.)."
+          />
+        </div>
       </main>
 
-      <footer className="text-center py-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-        <div className="text-lg font-semibold">🎂 CakeManager Pro</div>
-        <div className="text-sm opacity-80 mt-1">
-          © 2025 - Sistema de Inventario Avanzado
-        </div>
-      </footer>
+      {/* ======= Footer ======= */}
+      <AppFooter appName="InManager" />
 
-      {/* Modal de confirmación con el shape nuevo */}
+      {/* ======= Modal confirmación ======= */}
       <ConfirmUpdateModal
         open={showConfirmModal}
         category={cat}
         date={watchAll.date}
-        rows={
-          // Convertimos groups->rows para el modal
-          (watchAll.groups || []).flatMap((g) =>
-            (g.rows || []).map((r) => ({
-              variantKey: buildVariantKey(cat!, r.selections),
-              parts: r.selections,
-              qty: Number(r.qty || 0),
-            }))
-          )
-        }
+        rows={(watchAll.groups || []).flatMap((g) =>
+          (g.rows || []).map((r) => ({
+            variantKey: buildVariantKey(cat!, r.selections),
+            parts: r.selections,
+            qty: Number(r.qty || 0),
+          }))
+        )}
         onCancel={() => setShowConfirmModal(false)}
         onConfirm={() => handleSubmit(onConfirmSubmit)()}
       />
@@ -342,10 +306,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                     Tarjetas agrupadas por step primario                    */
-/* -------------------------------------------------------------------------- */
-
+/* ------------------- Tarjetas agrupadas por step primario ------------------ */
 function GroupCards({
   control,
   primaryStep,
@@ -357,16 +318,7 @@ function GroupCards({
   restSteps: CategoryStep[];
   options: CategoryOption[];
 }) {
-  // groups es un array paralelo a options (mismo orden)
-  const { fields } = useFieldArray({
-    control,
-    name: "groups",
-    keyName: "_k",
-  });
-
-  // Asegurar que el array groups tenga una entrada por cada opción del primario
-  // (por si se cambia de categoría y RHF mantiene cosas viejas)
-  // No forzamos aquí; preferimos que defaultValues ya haya creado la estructura.
+  const { fields } = useFieldArray({ control, name: "groups", keyName: "_k" });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -397,19 +349,16 @@ function PrimaryGroupCard({
   restSteps: CategoryStep[];
   options: CategoryOption[];
 }) {
-  // Acceso a rows dentro del grupo
   const { fields, append, remove } = useFieldArray({
     control,
     name: `groups.${groupIndex}.rows`,
     keyName: "_k",
   });
 
-  // primaryOpt controlado (solo lectura visual)
   return (
     <div className="group relative rounded-2xl border-2 border-purple-200/50 bg-gradient-to-br from-white/80 to-purple-50/40 backdrop-blur-sm p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10" />
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10 pointer-events-none" />
       <div className="relative z-10">
-        {/* Encabezado del grupo */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow-lg">
@@ -439,7 +388,6 @@ function PrimaryGroupCard({
             onClick={() =>
               append({
                 selections: {
-                  // Fijamos el primario al valor actual del grupo
                   [primaryStep.key]:
                     (control._formValues?.groups?.[groupIndex]
                       ?.primaryOpt as string) || "",
@@ -455,14 +403,12 @@ function PrimaryGroupCard({
           </button>
         </div>
 
-        {/* Filas */}
         <div className="space-y-3">
           {fields.map((row, rIdx) => (
             <div
               key={row._k}
               className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end bg-white/70 rounded-xl p-4 border border-purple-200/50"
             >
-              {/* Selects de steps restantes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {restSteps.map((s) => (
                   <div key={s.key}>
@@ -493,7 +439,6 @@ function PrimaryGroupCard({
                 ))}
               </div>
 
-              {/* Cantidad + eliminar */}
               <div className="flex items-end gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -532,7 +477,6 @@ function PrimaryGroupCard({
             </div>
           ))}
 
-          {/* Hint cuando no hay filas */}
           {fields.length === 0 && (
             <div className="text-sm text-gray-500 italic">
               No hay filas. Usa “Agregar” para crear una combinación.

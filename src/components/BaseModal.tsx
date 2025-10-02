@@ -39,11 +39,11 @@ interface BaseModalProps {
   description?: React.ReactNode;
   primaryAction?: Action;
   secondaryAction?: Action;
-  /** nuevo: controla el ancho máximo del modal */
   size?: Size;
-  /** nuevo: clases extra para el cuerpo (para poner scroll, etc.) */
   bodyClassName?: string;
   children?: React.ReactNode;
+  /** NUEVO: icono en el header */
+  icon?: React.ReactNode;
 }
 
 export default function BaseModal({
@@ -57,14 +57,18 @@ export default function BaseModal({
   size = "md",
   bodyClassName,
   children,
+  icon,
 }: BaseModalProps) {
   const accent = accentMap[headerAccent];
   const width = sizeMap[size];
+  const headerIcon = icon ?? "📌";
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -88,8 +92,9 @@ export default function BaseModal({
                 <div className="relative z-10 flex items-start gap-3">
                   <div
                     className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center text-white text-lg`}
+                    aria-hidden
                   >
-                    📌
+                    {headerIcon}
                   </div>
                   <div>
                     {title && (
@@ -108,7 +113,14 @@ export default function BaseModal({
             )}
 
             {/* Body */}
-            <div className={`p-6 ${bodyClassName ?? ""}`}>{children}</div>
+            <div className={`p-6 ${bodyClassName ?? ""}`}>
+              {children ?? (
+                <div className="text-sm text-gray-500">
+                  {/* Fallback si no pasas children */}
+                  Sin contenido adicional.
+                </div>
+              )}
+            </div>
 
             {/* Footer */}
             {(primaryAction || secondaryAction) && (

@@ -13,6 +13,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import logoUrl from "../../assets/logo.png";
 import { FullScreenLoaderSession } from "../../components/FullScreenLoaderSession";
 import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
 import { auth, db } from "../../lib/firebase";
 
 /* ========================= Utils ========================= */
@@ -74,6 +75,7 @@ export default function Login() {
   const nav = useNavigate();
   const location = useLocation() as any;
   const { user } = useAuth();
+  const { addToast } = useToast();
   const from = location.state?.from?.pathname || "/";
 
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -84,8 +86,16 @@ export default function Login() {
   const [showPwd2, setShowPwd2] = useState(false);
   const [remember, setRemember] = useState(true);
 
-  const [submitting, setSubmitting] = useState(false); // ⬅️ nuevo
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function showErrorToast(message: string, title = "Error") {
+    setError(message);
+    addToast({ type: "error", title, message });
+  }
+  function showSuccessToast(message: string, title = "Listo") {
+    addToast({ type: "success", title, message });
+  }
 
   // Si ya hay sesión, vete fuera del login
   useEffect(() => {
@@ -118,37 +128,41 @@ export default function Login() {
       if (mode === "login") {
         const gate = await canRegisterOrSignIn(eLower);
         if (!gate.allow) {
-          setError(
+          showErrorToast(
             gate.reason === "config-error"
               ? "No se pudo validar el acceso. Inténtalo de nuevo."
-              : "Tu correo no está autorizado por el administrador."
+              : "Tu correo no está autorizado por el administrador.",
+            "Acceso restringido"
           );
           setSubmitting(false);
           return;
         }
         await signInWithEmailAndPassword(auth, eLower, password);
-        // No navegamos aquí: esperamos a que useAuth() actualice `user`
+        // Esperamos a que useAuth() propague `user`
+        showSuccessToast("Bienvenido de vuelta 👋", "Sesión iniciada");
       } else {
         if (password !== confirm) {
-          setError("Las contraseñas no coinciden.");
+          showErrorToast("Las contraseñas no coinciden.", "Validación");
           setSubmitting(false);
           return;
         }
         const gate = await canRegisterOrSignIn(eLower);
         if (!gate.allow) {
-          setError(
+          showErrorToast(
             gate.reason === "config-error"
               ? "No se pudo validar el acceso. Inténtalo de nuevo."
-              : "Tu correo no está autorizado para crear cuenta."
+              : "Tu correo no está autorizado para crear cuenta.",
+            "Registro restringido"
           );
           setSubmitting(false);
           return;
         }
         await createUserWithEmailAndPassword(auth, eLower, password);
-        // Igual: esperamos a que `user` se propague
+        // Esperamos a que `user` se propague
+        showSuccessToast("Tu cuenta fue creada 🎉", "Registro completado");
       }
     } catch (err: any) {
-      setError(fbErrorToMessage(err?.code));
+      showErrorToast(fbErrorToMessage(err?.code));
       setSubmitting(false); // sólo bajamos el loader si hubo error
     }
   }
@@ -211,7 +225,7 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Alert de error */}
+          {/* Alert de error (inline, opcional) */}
           {error && (
             <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
               {error}
@@ -416,6 +430,7 @@ function ForgotPasswordModal({
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -424,8 +439,15 @@ function ForgotPasswordModal({
     try {
       await sendPasswordResetEmail(auth, value.trim());
       setSent(true);
+      addToast({
+        type: "success",
+        title: "Enlace enviado",
+        message: "Revisa tu bandeja de entrada o spam.",
+      });
     } catch (error: any) {
-      setErr(fbErrorToMessage(error?.code));
+      const msg = fbErrorToMessage(error?.code);
+      setErr(msg);
+      addToast({ type: "error", title: "No se pudo enviar", message: msg });
     } finally {
       setBusy(false);
     }

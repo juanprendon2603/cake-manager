@@ -20,10 +20,10 @@ import {
   type DraftCat,
 } from "./utils";
 
-import { PageHero } from "../../../components/ui/PageHero";
-import { ProTipBanner } from "../../../components/ui/ProTipBanner";
 import { AppFooter } from "../../../components/AppFooter";
 import { BackButton } from "../../../components/BackButton";
+import { PageHero } from "../../../components/ui/PageHero";
+import { ProTipBanner } from "../../../components/ui/ProTipBanner";
 
 export default function CategoriesAdmin() {
   const { role } = useAuth();
@@ -116,21 +116,17 @@ export default function CategoriesAdmin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
-  
-       <div className="relative">
-        
-       <PageHero
-          icon="🧩"
-          title="Catálogo de Categorías"
-          subtitle="Crea atributos y define precios por combinación"
-        />
+        <div className="relative">
+          <PageHero
+            icon="🧩"
+            title="Catálogo de Categorías"
+            subtitle="Crea atributos y define precios por combinación"
+          />
 
-                  <div className="absolute top-4 left-4">
-                  <BackButton fallback="/admin" />
-                  </div>
-                  </div>
-
-
+          <div className="absolute top-4 left-4">
+            <BackButton fallback="/admin" />
+          </div>
+        </div>
 
         {/* Card principal */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
@@ -157,7 +153,11 @@ export default function CategoriesAdmin() {
               Aún no hay categorías. ¡Agrega la primera!
             </div>
           ) : (
-            <CategoryList items={items} onEdit={onEdit} onDelete={setToDelete} />
+            <CategoryList
+              items={items}
+              onEdit={onEdit}
+              onDelete={setToDelete}
+            />
           )}
         </section>
 
