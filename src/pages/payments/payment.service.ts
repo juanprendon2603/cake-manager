@@ -28,16 +28,19 @@ import {
 } from "../catalog/catalog.service";
 import type { ProductCategory } from "../stock/stock.model";
 
-/** Utils */
-const orderMonthOf = (orderDay: string) => orderDay.slice(0, 7);
-const shortId = () => Math.random().toString(36).slice(2, 8);
+/* ------------------------------- Utils ---------------------------------- */
+const orderMonthOf = (orderDay: string): string => orderDay.slice(0, 7);
+const shortId = (): string => Math.random().toString(36).slice(2, 8);
 
-/** Construye variantKey desde categoría + selections (proxy al de catálogo) */
+/**
+ * Construye variantKey desde categoría + selections
+ * Usa LLAVE DE STOCK (solo steps con affectsStock) para inventario.
+ */
 export function buildVariantKeyFromSelections(
   category: ProductCategory,
   selections: Record<string, string>
-) {
-  return buildVariantKey(category, selections);
+): string {
+  return buildVariantKey(category, selections, { mode: "stock" });
 }
 
 /** Descuenta stock reutilizando tu servicio genérico de catálogo */
@@ -54,7 +57,10 @@ export async function deductStockIfRequested(
   });
 }
 
-/** Busca si hay UN pedido abierto (no finalizado) que coincida exactamente */
+/**
+ * Busca si hay UN pedido abierto (no finalizado) que coincida exactamente
+ * con (día del pedido, categoría, variantKey, cantidad y total).
+ */
 async function findSingleOpenOrderUID(params: {
   orderDay: string;
   categoryId: string;
@@ -79,8 +85,7 @@ async function findSingleOpenOrderUID(params: {
       if (data.categoryId !== params.categoryId) return false;
       if (data.variantKey !== params.variantKey) return false;
       if (Number(data.quantity) !== Number(params.quantity)) return false;
-      if (Number(data.totalAmountCOP) !== Number(params.totalAmount))
-        return false;
+      if (Number(data.totalAmountCOP) !== Number(params.totalAmount)) return false;
       // abierto = no totalPayment true
       return !data.totalPayment;
     });
@@ -92,7 +97,7 @@ async function findSingleOpenOrderUID(params: {
   return undefined;
 }
 
-/** Asegura un orderUID robusto: usa el de input, luego reusa si hay 1 match, si no genera nuevo */
+/** Asegura un orderUID robusto: reuse si hay 1 match, si no genera nuevo */
 async function ensureOrderUID(input: RegisterPaymentInput): Promise<string> {
   if (input.orderUID) return input.orderUID;
 
@@ -109,7 +114,7 @@ async function ensureOrderUID(input: RegisterPaymentInput): Promise<string> {
   return `ord_${input.orderDate}_${shortId()}`;
 }
 
-/** Registrar pago/abono (100% genérico + orderUID) */
+/* ------------------------- Registrar pago/abono -------------------------- */
 export async function registerPayment(
   input: RegisterPaymentInput
 ): Promise<void> {
@@ -138,8 +143,8 @@ export async function registerPayment(
     id: Date.now().toString(),
     categoryId,
     categoryName,
-    variantKey,
-    selections,
+    variantKey, // stock key
+    selections, // TODOS los atributos (incluye 'tipo')
     quantity,
     amount: totalAmount,
     partialAmount: paidAmountToday,
@@ -148,10 +153,14 @@ export async function registerPayment(
     deductedFromStock,
     totalPayment,
     orderDate,
-    orderUID, // NUEVO
+    orderUID,
     seller: seller
-    ? { name: seller.name, ...(seller.uid ? { uid: seller.uid } : {}), ...(seller.email ? { email: seller.email } : {}) }
-    : undefined,
+      ? {
+          name: seller.name,
+          ...(seller.uid ? { uid: seller.uid } : {}),
+          ...(seller.email ? { email: seller.email } : {}),
+        }
+      : undefined,
   };
   if (salesSnap.exists()) {
     await updateDoc(salesRef, { sales: arrayUnion(item) });
@@ -198,10 +207,10 @@ export async function registerPayment(
     variantKey,
     selections,
     quantity,
-    orderUID, // NUEVO
+    orderUID,
     seller: seller
-    ? { name: seller.name, uid: seller.uid, email: seller.email }
-    : undefined,
+      ? { name: seller.name, uid: seller.uid, email: seller.email }
+      : undefined,
   };
   await setDoc(salesEntryRef, {
     ...salesEntry,
@@ -232,10 +241,10 @@ export async function registerPayment(
     quantity,
     totalPayment,
     deductedFromStock,
-    orderUID, // NUEVO
+    orderUID,
     seller: seller
-    ? { name: seller.name, uid: seller.uid, email: seller.email }
-    : undefined,
+      ? { name: seller.name, uid: seller.uid, email: seller.email }
+      : undefined,
   };
   await setDoc(pEntryRef, {
     ...pEntry,
@@ -243,7 +252,7 @@ export async function registerPayment(
   } as DocumentData);
 }
 
-/** Lectura mensual (genérico) */
+/* ---------------------------- Lecturas/agrupado --------------------------- */
 export async function fetchPaymentsEntriesForMonth(
   month: string
 ): Promise<PaymentsMonthlyRow[]> {
@@ -304,7 +313,7 @@ export function groupPayments(
           paymentMethod: e.paymentMethod,
           deductedFromStock: !!e.deductedFromStock,
           hasTotalPayment: !!e.totalPayment,
-          orderUID: e.orderUID, // NUEVO
+          orderUID: e.orderUID,
         },
         total: e.totalAmountCOP,
         abonado: e.amountCOP,
@@ -369,7 +378,7 @@ export function groupPayments(
 export async function finalizePaymentGroup(
   g: PendingPaymentGroup,
   today: string,
-  opts?: { didDeductFromStock?: boolean , seller?: SellerInfo}
+  opts?: { didDeductFromStock?: boolean; seller?: SellerInfo }
 ): Promise<void> {
   const salesMonth = today.slice(0, 7);
   const didDeduct = opts?.didDeductFromStock ?? true; // default: se considera descontado
@@ -387,9 +396,14 @@ export async function finalizePaymentGroup(
     paid: true,
     deductedFromStock: didDeduct,
     finalizedAt: serverTimestamp(),
-    // 👇 Opcional: guarda quién finalizó (si quieres sobrescribir)
     ...(opts?.seller
-      ? { seller: { name: opts.seller.name, uid: opts.seller.uid, email: opts.seller.email } }
+      ? {
+          seller: {
+            name: opts.seller.name,
+            uid: opts.seller.uid,
+            email: opts.seller.email,
+          },
+        }
       : {}),
   });
 
@@ -400,7 +414,9 @@ export async function finalizePaymentGroup(
       { month: salesMonth },
       { merge: true }
     );
-    const saleRef = doc(collection(db, "sales_monthly", salesMonth, "entries"));
+    const saleRef = doc(
+      collection(db, "sales_monthly", salesMonth, "entries")
+    );
     const saleEntry: SalesMonthlyPaymentEntry = {
       kind: "payment",
       finalization: true,
@@ -417,8 +433,12 @@ export async function finalizePaymentGroup(
       deductedFromStock: didDeduct,
       totalPayment: true,
       seller: opts?.seller
-      ? { name: opts.seller.name, uid: opts.seller.uid, email: opts.seller.email }
-      : undefined,
+        ? {
+            name: opts.seller.name,
+            uid: opts.seller.uid,
+            email: opts.seller.email,
+          }
+        : undefined,
     };
     await setDoc(saleRef, {
       ...saleEntry,

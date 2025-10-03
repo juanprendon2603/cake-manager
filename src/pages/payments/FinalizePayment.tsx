@@ -29,6 +29,7 @@ import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
 // ➕ Modal reutilizable de “sin stock”
 import NoStockModal from "../../components/NoStockModal";
+import { Wallet } from "lucide-react";
 
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 const localToday = () => format(new Date(), "yyyy-MM-dd");
@@ -371,8 +372,8 @@ export function FinalizePayment() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-            icon="💳"
-            title="Gestión de Abonos"
+  icon={<Wallet className="w-10 h-10" />}
+  title="Gestión de Abonos"
             subtitle="Finaliza pedidos desde el calendario"
           />
           <div className="absolute top-4 left-4 z-20">

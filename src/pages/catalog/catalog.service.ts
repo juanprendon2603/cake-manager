@@ -65,7 +65,8 @@ export function normalizeSteps(
       label: s.label || s.key || "",
       type: "select",
       required: true,
-      affectsStock: true,
+      // Respetar lo que marcaste en el editor:
+      affectsStock: s.affectsStock !== false,
       multi: false,
       options: normOptions,
     } as CategoryStep;
@@ -154,10 +155,10 @@ export async function upsertCategory(cat: ProductCategory): Promise<void> {
   const id = (cat.id || slugify(cat.name)).trim();
   if (!id) throw new Error("Falta id/nombre de la categoría");
 
-  // Normalizar steps (key desde label, requerido y afecta stock)
+  // Normalizar steps (respetando affectsStock del editor)
   const stepsNormalized = normalizeSteps(cat.steps);
 
-  // Normalizar precios con las nuevas keys
+  // Normalizar precios con las nuevas keys (si existían)
   const variantPricesNormalized = normalizeVariantPrices(
     (cat as any).variantPrices || {},
     cat.steps || [],
@@ -184,28 +185,63 @@ export async function deleteCategory(id: string): Promise<void> {
   await deleteDoc(doc(CATEGORIES_COL, id));
 }
 
-/* ------------------------------- Variantes -------------------------------- */
+/* ------------------------------- Llaves ----------------------------------- */
+/** Normaliza pares "stepKey:valueKey" en orden de steps */
+function buildKeyFrom(
+  steps: { key: string }[],
+  selections: Record<string, string | string[] | undefined>
+): string {
+  return (steps || [])
+    .map((s) => {
+      const raw = selections[s.key];
+      const v = Array.isArray(raw) ? raw[0] : (raw ?? "");
+      return `${s.key}:${String(v)}`;
+    })
+    .join("|");
+}
+
+/**
+ * buildVariantKey:
+ *  - mode: 'price' → usa TODOS los steps (para matriz de precios)
+ *  - mode: 'stock' → usa SOLO steps con affectsStock === true (para consolidar inventario)
+ */
 export function buildVariantKey(
   category: ProductCategory,
-  selections: SelectedValues
+  selections: SelectedValues,
+  opts?: { mode?: "price" | "stock" }
 ): string {
-  const keys = (category.steps || [])
-    .filter((s) => s.affectsStock)
-    .map((s) => `${s.key}:${String(selections[s.key] ?? "")}`);
-  return keys.join("|"); // orden estable por steps
+  // ⬇️ Por defecto, STOCK (para que lecturas/escrituras coincidan)
+  const mode = opts?.mode ?? "stock";
+  const stepsAll = category?.steps || [];
+  const steps =
+    mode === "stock"
+      ? stepsAll.filter((s) => s.affectsStock !== false)
+      : stepsAll;
+  return buildKeyFrom(steps, selections as Record<string, string>);
 }
+
+/** Azúcar sintáctico */
+export const buildPriceKey = (
+  cat: ProductCategory,
+  sel: SelectedValues
+): string => buildVariantKey(cat, sel, { mode: "price" });
+
+export const buildStockKey = (
+  cat: ProductCategory,
+  sel: SelectedValues
+): string => buildVariantKey(cat, sel, { mode: "stock" });
 
 /* --------------------------------- Precios -------------------------------- */
 export function computePrice(
   category: ProductCategory,
   selections: SelectedValues
 ): number {
-  // Si existen precios por combinación, se usa eso
+  // Si existen precios por combinación, se usa eso (llave de PRECIO = todos los steps)
   const vp = (category as any).variantPrices as
     | Record<string, number>
     | undefined;
   if (vp && Object.keys(vp).length > 0) {
-    const key = buildVariantKey(category, selections);
+    const key = buildPriceKey(category, selections);
     return Number(vp[key] ?? 0);
   }
 
@@ -282,11 +318,10 @@ export async function tryDecrementStockGeneric(
 /* --------------------------- Movimientos por fecha ------------------------- */
 
 /**
- * Persistir movimientos de stock por fecha:
+ * Persistir movimientos de stock:
  * - Actualiza stock total por variante (/catalog_stock/{cat}/variants/{variant})
- * - Acumula delta del día (/catalog_stock_daily/{cat}/days/{YYYY-MM-DD}/variants/{variant})
+ * - Si quisieras llevar diario, aquí puedes escribir a otra subcolección.
  */
-/* --------------------------- Movimientos por fecha ------------------------- */
 type StockMovement = { variantKey: string; delta: number };
 export async function persistGenericStockUpdate(args: {
   categoryId: string;

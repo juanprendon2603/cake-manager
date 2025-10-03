@@ -2,6 +2,14 @@
 import { Link } from "react-router-dom";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
+import {
+  CreditCard,
+  PlusCircle,
+  CheckCircle2,
+  Lock,
+  BarChart3,
+  Zap,
+} from "lucide-react";
 
 export function PaymentManagement() {
   const actions = [
@@ -9,7 +17,7 @@ export function PaymentManagement() {
       to: "/payment-management/add",
       title: "Agregar Abono",
       desc: "Registra nuevos abonos en el sistema.",
-      icon: "➕",
+      icon: <PlusCircle className="w-7 h-7 text-[#8E2DA8]" />,
       gradient: "from-emerald-500 to-teal-500",
       bgGradient: "from-emerald-50 to-teal-50",
       borderColor: "border-emerald-200",
@@ -24,7 +32,7 @@ export function PaymentManagement() {
       to: "/payment-management/finalize",
       title: "Finalizar Abono",
       desc: "Completa y procesa los abonos pendientes.",
-      icon: "✅",
+      icon: <CheckCircle2 className="w-7 h-7 text-[#8E2DA8]" />,
       gradient: "from-blue-500 to-cyan-500",
       bgGradient: "from-blue-50 to-cyan-50",
       borderColor: "border-blue-200",
@@ -42,7 +50,7 @@ export function PaymentManagement() {
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
         {/* Header con el mismo gradiente de marca */}
         <PageHero
-          icon="💳"
+          icon={<CreditCard className="w-10 h-10" />}
           title="Gestión de Abonos"
           subtitle="Administra y procesa los abonos de manera sencilla"
           gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
@@ -68,7 +76,7 @@ export function PaymentManagement() {
                 <div className="flex items-start gap-6">
                   {/* Icono */}
                   <div className="flex-shrink-0 -mt-12 rounded-2xl p-4 bg-white shadow-lg ring-2 ring-white/80">
-                    <span className="text-3xl">{action.icon}</span>
+                    {action.icon}
                   </div>
 
                   {/* Contenido */}
@@ -121,7 +129,7 @@ export function PaymentManagement() {
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
           <div className="rounded-2xl p-6 bg-white/70 backdrop-blur border border-white/60 shadow-lg text-center">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-xl mx-auto mb-4">
-              🔒
+              <Lock className="w-6 h-6 text-white" />
             </div>
             <h4 className="font-bold text-gray-800 mb-2">Cobros Seguros</h4>
             <p className="text-sm text-gray-600">
@@ -131,7 +139,7 @@ export function PaymentManagement() {
 
           <div className="rounded-2xl p-6 bg-white/70 backdrop-blur border border-white/60 shadow-lg text-center">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xl mx-auto mb-4">
-              📊
+              <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <h4 className="font-bold text-gray-800 mb-2">Seguimiento</h4>
             <p className="text-sm text-gray-600">
@@ -141,7 +149,7 @@ export function PaymentManagement() {
 
           <div className="rounded-2xl p-6 bg-white/70 backdrop-blur border border-white/60 shadow-lg text-center">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl mx-auto mb-4">
-              ⚡
+              <Zap className="w-6 h-6 text-white" />
             </div>
             <h4 className="font-bold text-gray-800 mb-2">Rapidez</h4>
             <p className="text-sm text-gray-600">

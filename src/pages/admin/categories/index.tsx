@@ -24,6 +24,7 @@ import { AppFooter } from "../../../components/AppFooter";
 import { BackButton } from "../../../components/BackButton";
 import { PageHero } from "../../../components/ui/PageHero";
 import { ProTipBanner } from "../../../components/ui/ProTipBanner";
+import { Boxes } from "lucide-react";
 
 export default function CategoriesAdmin() {
   const { role } = useAuth();
@@ -118,8 +119,8 @@ export default function CategoriesAdmin() {
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
         <div className="relative">
           <PageHero
-            icon="🧩"
-            title="Catálogo de Categorías"
+  icon={<Boxes className="w-10 h-10" />}
+  title="Catálogo de Categorías"
             subtitle="Crea atributos y define precios por combinación"
           />
 

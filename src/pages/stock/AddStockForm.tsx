@@ -23,6 +23,7 @@ import {
   type CategoryStep,
   type ProductCategory,
 } from "./stock.model";
+import { Package } from "lucide-react";
 
 /* ------------------------------- Tipos Form ------------------------------- */
 type LineRow = { selections: Record<string, string>; qty: number | "" };
@@ -57,8 +58,9 @@ export function AddStockForm({ defaultCategoryId }: Props) {
     })();
   }, [defaultCategoryId]);
 
+  // SOLO los steps que afectan stock
   const affectingSteps = useMemo(
-    () => (cat?.steps || []).filter((s) => s.affectsStock),
+    () => (cat?.steps || []).filter((s) => s.affectsStock !== false),
     [cat]
   );
 
@@ -129,7 +131,8 @@ export function AddStockForm({ defaultCategoryId }: Props) {
       .flatMap((g) => g.rows || [])
       .filter((r) => Number(r.qty) > 0)
       .map((r) => ({
-        variantKey: buildVariantKey(cat, r.selections),
+        // ⬇️ LLAVE DE STOCK: solo steps con affectsStock = true
+        variantKey: buildVariantKey(cat, r.selections, { mode: "stock" }),
         delta: Number(r.qty),
       }));
 
@@ -177,7 +180,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
         {/* ======= Hero + Back ======= */}
         <div className="relative">
           <PageHero
-            icon="📦"
+            icon={<Package className="w-10 h-10" />}
             title="Inventario de Productos"
             subtitle="Agrega o incrementa el stock por combinación"
           />
@@ -294,7 +297,8 @@ export function AddStockForm({ defaultCategoryId }: Props) {
         date={watchAll.date}
         rows={(watchAll.groups || []).flatMap((g) =>
           (g.rows || []).map((r) => ({
-            variantKey: buildVariantKey(cat!, r.selections),
+            // ⬇️ LLAVE DE STOCK para la previsualización
+            variantKey: cat ? buildVariantKey(cat, r.selections, { mode: "stock" }) : "",
             parts: r.selections,
             qty: Number(r.qty || 0),
           }))

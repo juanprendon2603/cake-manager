@@ -9,6 +9,7 @@ import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton"; // 👈 NUEVO
+import { Users } from "lucide-react";
 
 
 type RoleSel = "user" | "admin";
@@ -263,8 +264,8 @@ export default function AllowlistAdmin() {
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
 <div className="relative">
   <PageHero
-    icon="👥"
-    title="Gestión de Usuarios"
+  icon={<Users className="w-10 h-10" />}
+  title="Gestión de Usuarios"
     subtitle="Autoriza correos, asigna roles y guarda nombre y apellido"
   />
   <div className="absolute top-4 left-4">

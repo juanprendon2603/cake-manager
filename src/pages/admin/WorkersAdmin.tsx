@@ -15,6 +15,7 @@ import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
+import { UserCog } from "lucide-react";
 
 type FormState = {
   firstName: string;
@@ -192,8 +193,8 @@ export default function WorkersAdmin() {
           <div className="relative">
         
           <PageHero
-          icon="🧑‍🍳"
-          title="Trabajadores"
+    icon={<UserCog className="w-10 h-10" />}
+    title="Trabajadores"
           subtitle="Administra el personal que participa en la nómina"
         />
                   <div className="absolute top-4 left-4">

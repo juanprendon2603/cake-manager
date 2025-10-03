@@ -21,6 +21,7 @@ import {
 // ⬇️ NUEVO: usa tus componentes reutilizables
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { Snowflake } from "lucide-react";
 
 const FridgeTemperature: React.FC = () => {
   const navigate = useNavigate();
@@ -138,8 +139,8 @@ const FridgeTemperature: React.FC = () => {
       {/* ⬇️ PageHero (coherente con el navbar/branding) */}
       <div className="w-full max-w-6xl px-4">
         <PageHero
-          icon="❄️"
-          title="Registro de Temperatura"
+    icon={<Snowflake className="w-10 h-10" />}
+    title="Registro de Temperatura"
           subtitle="Registra la temperatura de tus enfriadores en la mañana y en la tarde."
           gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
           iconGradientClass="from-blue-600 to-cyan-600"

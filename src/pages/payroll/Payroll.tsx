@@ -7,6 +7,7 @@ import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
+import { BriefcaseBusiness } from "lucide-react";
 
 /* ========================= Helpers generales ========================= */
 
@@ -170,10 +171,10 @@ const Payroll: React.FC = () => {
                <div className="relative">
                 
                <PageHero
-          icon="💼"
-          title="Nómina"
-          subtitle="Pagos por quincena y por mes"
-        />
+  icon={<BriefcaseBusiness className="w-10 h-10" />}
+  title="Nómina"
+  subtitle="Pagos por quincena y por mes"
+/>
         
                           <div className="absolute top-4 left-4">
                           <BackButton fallback="/admin" />

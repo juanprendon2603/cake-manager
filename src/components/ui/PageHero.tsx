@@ -1,7 +1,8 @@
 // src/components/ui/PageHero.tsx
+import type { ReactNode } from "react";
 
 type PageHeroProps = {
-  icon?: string; // emoji o pequeño ícono
+  icon?: ReactNode; // ahora acepta componente React o string
   title: string;
   subtitle?: string;
   gradientClass?: string; // franja de fondo

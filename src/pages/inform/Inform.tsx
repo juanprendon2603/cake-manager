@@ -1,26 +1,35 @@
 // src/pages/inform/Inform.tsx
 import { format } from "date-fns";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { RangeControls } from "../../components/RangeControls";
 import { useGeneralExpenses } from "../../hooks/useGeneralExpenses";
 import { useInformeData } from "../../hooks/useInformeData";
 import { useRangeSummaryOptimized as useRangeSummary } from "../../hooks/useRangeSummary";
-import { money } from "../../types/informs"; // ✅ import normal (no "import type")
+import { money } from "../../types/informs";
+
+// Charts
 import {
   DailyRevenueChart,
   PaymentPie,
-  RevenueBySizeRadial,
   TopFlavorsBar,
+  AttributeRevenueStacked, // 👈 nuevo
 } from "./components/Charts";
-import { AnimatedKpiCard, Badge, GradientCard, Td, Th } from "./components/Kpi";
 
-// ✨ Nuevo: UI consistente
+// ✨ UI consistente
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { AnimatedKpiCard, Badge, GradientCard, Td, Th } from "./components/Kpi";
+import { BarChart3 } from "lucide-react";
+
+function ucFirst(s: string) {
+  if (!s) return "";
+  const t = s.trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 
 export function Inform() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -36,14 +45,30 @@ export function Inform() {
     items: geItems,
   } = useGeneralExpenses(range);
 
-  // ✅ Llama el hook directamente (sin require y sin meterlo en un useMemo)
+  // Datos agregados (incluye revenueByAttributeStacks)
   const {
     totals: computed,
-    bySizeRevenue,
     topFlavorsQty,
     dailyStats,
-    paymentPie, // ✅ usado abajo
+    paymentPie,
+    revenueByAttributeStacks, // 👈 lo usamos para graficar por atributo
   } = useInformeData(rawDocs, geTotals);
+
+  // ⚠️ IMPORTANTE: este useMemo debe ir ANTES del early-return
+  // para mantener el orden de hooks estable entre renders.
+  const attributeCards = useMemo(() => {
+    // revenueByAttributeStacks = [{ attribute, categories, data }]
+    return (revenueByAttributeStacks ?? []).map((s) => {
+      // Título bonito con mayúscula
+      const title = `Ingresos por ${ucFirst(s.attribute)}`;
+      return {
+        key: s.attribute,
+        title,
+        categories: s.categories,
+        data: s.data,
+      };
+    });
+  }, [revenueByAttributeStacks]);
 
   if (loading || loadingGE)
     return <FullScreenLoader message="Generando Informe... 🚀" />;
@@ -58,20 +83,12 @@ export function Inform() {
     generalExpensesTotal,
   } = computed;
 
-  // ✅ tipado explícito para evitar unknown[]
-  const bySizeData: { name: string; value: number }[] = Array.from(
-    bySizeRevenue.entries() as IterableIterator<[string, number]>
-  )
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
         <div className="relative">
           <PageHero
-            icon="📊"
+            icon={<BarChart3 className="w-10 h-10" />}
             title="Dashboard con Rangos"
             subtitle="Filtra por mes/quincena o elige cualquier rango de fechas"
           />
@@ -139,7 +156,7 @@ export function Inform() {
           />
         </section>
 
-        {/* Gráficas */}
+        {/* Gráficas fijas */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           <GradientCard title="📈 Ventas vs Gastos Diarios" gradient="blue">
             <DailyRevenueChart data={dailyStats} />
@@ -160,10 +177,26 @@ export function Inform() {
               )}
             />
           </GradientCard>
+        </section>
 
-          <GradientCard title="📏 Ingresos por Tamaño" gradient="orange">
-            <RevenueBySizeRadial data={bySizeData} />
-          </GradientCard>
+        {/* 🔥 Gráficas GENÉRICAS por ATRIBUTO, apiladas por categoría */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {attributeCards.length === 0 ? (
+            <GradientCard title="Ingresos por atributo" gradient="orange">
+              <p className="text-sm text-gray-600">
+                No se encontraron atributos para este rango.
+              </p>
+            </GradientCard>
+          ) : (
+            attributeCards.map((card) => (
+              <GradientCard key={card.key} title={`📏 ${card.title}`} gradient="orange">
+                <AttributeRevenueStacked
+                  data={card.data}
+                  categories={card.categories}
+                />
+              </GradientCard>
+            ))
+          )}
         </section>
 
         {/* Tarjetas resumen rápidas */}

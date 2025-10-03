@@ -1,3 +1,4 @@
+// src/hooks/useStock.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchCategoryStockOnce,
@@ -7,7 +8,7 @@ import {
 } from "../pages/stock/stock.repository";
 
 type UseStockArgs = {
-  categoryId: string; // p.ej. "tortas"
+  categoryId: string; // p.ej. "bizcochos"
   realtime?: boolean; // default true
 };
 
@@ -22,19 +23,27 @@ export function useStock({ categoryId, realtime = true }: UseStockArgs) {
 
     const run = async () => {
       setLoading(true);
-      if (realtime) {
-        unsub = watchCategoryStock(categoryId, (items) => {
+      try {
+        if (realtime) {
+          unsub = watchCategoryStock(categoryId, (items) => {
+            // items viene de /catalog_stock/{cat}/variants
+            // Debe tener { variantKey, stock }
+            setStocks(items);
+            setLoading(false);
+          });
+        } else {
+          const items = await fetchCategoryStockOnce(categoryId);
           setStocks(items);
           setLoading(false);
-        });
-      } else {
-        const items = await fetchCategoryStockOnce(categoryId);
-        setStocks(items);
+        }
+      } catch (e) {
+        console.error(e);
+        setStocks([]);
         setLoading(false);
       }
     };
-    run();
 
+    run();
     return () => {
       if (unsub) unsub();
     };
@@ -43,12 +52,13 @@ export function useStock({ categoryId, realtime = true }: UseStockArgs) {
   /** Resetear una variante específica a 0 (o a un valor dado). */
   const resetVariant = useCallback(
     async (variantKey: string, to = 0) => {
-      if (!categoryId) return;
+      if (!categoryId || !variantKey) return;
       setPendingVariant(variantKey);
       try {
         await setVariantStock(categoryId, variantKey, to);
       } finally {
-        setTimeout(() => setPendingVariant(null), 800);
+        // pequeño delay visual para feedback
+        setTimeout(() => setPendingVariant(null), 600);
       }
     },
     [categoryId]
@@ -57,7 +67,10 @@ export function useStock({ categoryId, realtime = true }: UseStockArgs) {
   /** Stats simples sobre la categoría actual. */
   const stats = useMemo(() => {
     const totalVariants = stocks.length;
-    const totalUnits = stocks.reduce((acc, v) => acc + Number(v.stock || 0), 0);
+    const totalUnits = stocks.reduce(
+      (acc, v) => acc + Number(v?.stock ?? 0),
+      0
+    );
     return { totalVariants, totalUnits };
   }, [stocks]);
 

@@ -7,11 +7,11 @@ import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
 
 import type { ProductCategory, SelectedValues } from "../../types/catalog";
-import { buildVariantKey } from "../../types/catalog"; // o desde catalog.service si lo tienes allí
 import {
   computePrice,
   listCategories,
   tryDecrementStockGeneric,
+  buildVariantKey,      // si prefieres explícito, puedes usar buildStockKey
 } from "../catalog/catalog.service";
 import { buildKeys, registerGenericSale } from "./sales.service";
 
@@ -21,14 +21,15 @@ import Step1Category from "./steps/Step1Category";
 import StepDetailsGeneric from "./steps/StepDetailsGeneric";
 import StepSelectOption from "./steps/StepSelectOption";
 
-// ⬇️ NUEVO: UI consistente
+// UI consistente
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
-// ⬇️ NUEVO: modal específico
+// modal específico
 import NoStockModal from "../../components/NoStockModal";
+import { ShoppingCart } from "lucide-react";
 
 const getErr = (e: unknown) =>
   e instanceof Error ? e.message : "Error al procesar la venta.";
@@ -60,34 +61,35 @@ export default function AddSale() {
   const [cats, setCats] = useState<ProductCategory[]>([]);
   const [cat, setCat] = useState<ProductCategory | null>(null);
 
-  const [stepIdx, setStepIdx] = useState(-1); // -1: categoría; 0..N-1: steps; N: detalles
-  const steps = useMemo(
-    () => (cat?.steps || []).filter((s) => s.affectsStock),
+  // 🚩 antes: steps = solo affectsStock; AHORA: saleSteps = TODOS los pasos
+  const saleSteps = useMemo(() => cat?.steps || [], [cat]);
+  const stockSteps = useMemo(
+    () => (cat?.steps || []).filter((s) => s.affectsStock !== false),
     [cat]
   );
 
+  const [stepIdx, setStepIdx] = useState(-1); // -1: categoría; 0..N-1: steps; N: detalles
+
   const [sel, setSel] = useState<SelectedValues>({});
   const [qty, setQty] = useState("1");
+
+  // 💰 precio se calcula con TODAS las selecciones (computePrice ya usa llave de precio = todos los steps)
   const unitPrice = useMemo(
     () => (cat ? computePrice(cat, sel) : 0),
     [cat, sel]
   );
+
   const [totalPrice, setTotalPrice] = useState("");
   const [pm, setPm] = useState<PaymentMethod>("cash");
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [showNoStock, setShowNoStock] = useState(false);
 
-  // ⬇️ NUEVO: contexto para el modal de “sin stock”
   const [noStockCtx, setNoStockCtx] = useState<{
     selectedParts: Part[];
     currentStock: number;
     requestedQty: number;
-  }>({
-    selectedParts: [],
-    currentStock: 0,
-    requestedQty: 0,
-  });
+  }>({ selectedParts: [], currentStock: 0, requestedQty: 0 });
 
   // Carga de categorías
   useEffect(() => {
@@ -111,12 +113,12 @@ export default function AddSale() {
   // Recalcular total cuando cambian precio o cantidad
   useEffect(() => {
     const q = Math.max(1, parseInt(qty || "1", 10) || 1);
-    if (cat && steps.length && Object.keys(sel).length === steps.length) {
+    if (cat && saleSteps.length && Object.keys(sel).length === saleSteps.length) {
       setTotalPrice(String(unitPrice * q));
     } else {
       setTotalPrice("");
     }
-  }, [cat, steps.length, sel, unitPrice, qty]);
+  }, [cat, saleSteps.length, sel, unitPrice, qty]);
 
   const goNext = () => setStepIdx((i) => i + 1);
   const goBack = () => setStepIdx((i) => i - 1);
@@ -124,22 +126,22 @@ export default function AddSale() {
   const handleSelectCategory = (c: ProductCategory) => {
     setCat(c);
     setSel({});
-    setStepIdx(0); // primer step
+    setStepIdx(0); // primer step (de TODOS)
   };
 
   const handleSelectOption = (stepKey: string, value: string) => {
     setSel((prev) => ({ ...prev, [stepKey]: value }));
-    if (stepIdx + 1 < steps.length) goNext();
-    else setStepIdx(steps.length); // ir a detalles
+    if (stepIdx + 1 < saleSteps.length) goNext();
+    else setStepIdx(saleSteps.length); // ir a detalles
   };
 
-  // ⬇️ NUEVO: helper para construir las partes con labels
+  // helper para mostrar etiquetas bonitas
   function buildSelectedParts(
     cat: ProductCategory,
     selections: SelectedValues
   ): Part[] {
     const out: Part[] = [];
-    for (const s of (cat.steps || []).filter((st) => st.affectsStock)) {
+    for (const s of cat.steps || []) {
       const optKey = String(selections[s.key] ?? "");
       const opt = (s.options || []).find((o) => o.key === optKey);
       out.push({
@@ -155,23 +157,25 @@ export default function AddSale() {
   const handleConfirm = async () => {
     try {
       if (!cat) throw new Error("Selecciona una categoría.");
-      if (steps.length === 0)
-        throw new Error("La categoría no tiene pasos de stock.");
-      if (Object.keys(sel).length !== steps.length)
+      if (saleSteps.length === 0)
+        throw new Error("La categoría no tiene configurados atributos.");
+      if (Object.keys(sel).length !== saleSteps.length)
         throw new Error("Completa todas las opciones.");
+
       const q = parseInt(qty || "0", 10);
       if (!Number.isFinite(q) || q <= 0) throw new Error("Cantidad inválida.");
+
       const total = parseFloat(totalPrice || "0");
       if (!Number.isFinite(total) || total <= 0)
         throw new Error("Total inválido.");
 
-      const variantKey = buildVariantKey(cat, sel);
+      // 🔑 para stock: usa SOLO pasos con affectsStock (por compatibilidad, buildVariantKey por defecto ya es 'stock' en tu service)
+      const variantKey = buildVariantKey(cat, sel, { mode: "stock" });
       const { dayKey, monthKey } = buildKeys();
 
       // Intenta decrementar
       const dec = await tryDecrementStockGeneric(cat.id, variantKey, q);
       if (!dec.decremented) {
-        // ⬇️ NUEVO: llena contexto para el modal
         setNoStockCtx({
           selectedParts: buildSelectedParts(cat, sel),
           currentStock: dec.current ?? 0,
@@ -183,8 +187,8 @@ export default function AddSale() {
 
       await registerGenericSale({
         categoryId: cat.id,
-        variantKey,
-        selections: sel,
+        variantKey,      // ← llave de stock
+        selections: sel, // ← guarda todas las selecciones para auditoría/precio
         quantity: q,
         unitPriceCOP: unitPrice,
         amountCOP: total,
@@ -220,7 +224,7 @@ export default function AddSale() {
   const handleConfirmWithoutStock = async () => {
     if (!cat) return;
     const q = Math.max(1, parseInt(qty || "1", 10) || 1);
-    const variantKey = buildVariantKey(cat, sel);
+    const variantKey = buildVariantKey(cat, sel, { mode: "stock" });
     const { dayKey, monthKey } = buildKeys();
     try {
       await registerGenericSale({
@@ -262,19 +266,23 @@ export default function AddSale() {
 
   const onConfirmClick = () => setShowConfirm(true);
 
+  const currStep = stepIdx >= 0 && stepIdx < saleSteps.length ? saleSteps[stepIdx] : null;
   const title =
     stepIdx < 0
       ? "¿Qué vas a vender?"
-      : stepIdx < steps.length
-      ? steps[stepIdx]?.label || "Selecciona una opción"
+      : stepIdx < saleSteps.length
+      ? currStep?.label || "Selecciona una opción"
       : "Detalles de la venta";
 
   const subtitle =
     stepIdx < 0
       ? "Elige la categoría"
-      : stepIdx < steps.length
+      : stepIdx < saleSteps.length
       ? "Selecciona una opción para continuar"
       : "Confirma y registra la venta";
+
+  // Helper para mostrar labels en el modal de confirmación
+  const selectedPartsForConfirm: Part[] = cat ? buildSelectedParts(cat, sel) : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
@@ -282,7 +290,7 @@ export default function AddSale() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-            icon="🛒"
+            icon={<ShoppingCart className="w-8 h-8 text-white-600" />}
             title="Registrar Venta"
             subtitle="Vende productos, descuenta inventario y registra el método de pago"
           />
@@ -308,16 +316,16 @@ export default function AddSale() {
               />
             )}
 
-            {stepIdx >= 0 && stepIdx < steps.length && cat && (
+            {stepIdx >= 0 && stepIdx < saleSteps.length && cat && (
               <StepSelectOption
-                step={steps[stepIdx]}
-                value={sel[steps[stepIdx].key] ?? null}
-                onSelect={(opt) => handleSelectOption(steps[stepIdx].key, opt)}
+                step={saleSteps[stepIdx]}
+                value={sel[saleSteps[stepIdx].key] ?? null}
+                onSelect={(opt) => handleSelectOption(saleSteps[stepIdx].key, opt)}
                 onBack={() => (stepIdx === 0 ? setStepIdx(-1) : goBack())}
               />
             )}
 
-            {stepIdx === steps.length && cat && (
+            {stepIdx === saleSteps.length && cat && (
               <StepDetailsGeneric
                 selections={sel}
                 quantity={qty}
@@ -327,7 +335,7 @@ export default function AddSale() {
                 setTotalPrice={setTotalPrice}
                 paymentMethod={pm}
                 setPaymentMethod={setPm}
-                onBack={() => setStepIdx(Math.max(0, steps.length - 1))}
+                onBack={() => setStepIdx(Math.max(0, saleSteps.length - 1))}
                 onConfirm={onConfirmClick}
               />
             )}
@@ -343,7 +351,7 @@ export default function AddSale() {
         </div>
       </main>
 
-      {/* ====== Modales ====== */}
+      {/* ====== Modal Confirmar ====== */}
       <BaseModal
         isOpen={showConfirm}
         onClose={() => setShowConfirm(false)}
@@ -357,10 +365,10 @@ export default function AddSale() {
         primaryAction={{ label: "🚀 Registrar venta", onClick: handleConfirm }}
       >
         <div className="space-y-2 text-sm">
-          {Object.entries(sel).map(([k, v]) => (
-            <div className="flex justify-between" key={k}>
-              <span className="text-gray-600 capitalize">{k}:</span>
-              <span className="font-semibold capitalize">{v}</span>
+          {selectedPartsForConfirm.map((p) => (
+            <div className="flex justify-between" key={p.stepKey}>
+              <span className="text-gray-600">{p.stepLabel}:</span>
+              <span className="font-semibold">{p.optionLabel}</span>
             </div>
           ))}
           <div className="flex justify-between">
@@ -380,7 +388,7 @@ export default function AddSale() {
         </div>
       </BaseModal>
 
-      {/* ⬇️ NUEVO: Modal específico de sin stock */}
+      {/* ====== Modal Sin Stock ====== */}
       <NoStockModal
         isOpen={showNoStock}
         onClose={() => setShowNoStock(false)}

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { BackButton } from "../../components/BackButton";
-// import BaseModal from "../../components/BaseModal"; // ya no lo usamos aquí para "sin stock"
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
 
@@ -27,13 +26,14 @@ import {
 } from "../catalog/catalog.service";
 import type { CategoryStep, ProductCategory } from "../stock/stock.model";
 
-// ✨ UI consistente
+// UI consistente
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
-// ➕ Modal reutilizable de “sin stock”
+// Modal reutilizable de “sin stock”
 import NoStockModal from "../../components/NoStockModal";
+import { CreditCard } from "lucide-react";
 
 export function AddPayment() {
   const navigate = useNavigate();
@@ -62,7 +62,7 @@ export function AddPayment() {
     null
   );
 
-  // ➕ Contexto para NoStockModal (partes con labels, stock actual, cantidad pedida)
+  // Contexto para NoStockModal
   const [noStockCtx, setNoStockCtx] = useState<{
     selectedParts: {
       stepKey: string;
@@ -108,18 +108,16 @@ export function AddPayment() {
     })();
   }, []);
 
-  // Steps que afectan stock
-  const affectingSteps = useMemo<CategoryStep[]>(
-    () => (cat?.steps || []).filter((s) => s.affectsStock),
+  // ⚠️ AHORA: usamos TODOS los steps (para capturar atributos de precio y auditoría)
+  const allSteps = useMemo<CategoryStep[]>(
+    () => (cat?.steps || []),
     [cat]
   );
 
-  // Inicializar selections cuando hay categoría
+  // Inicializar selections cuando hay categoría (TODOS los steps)
   useEffect(() => {
     if (!cat) return;
-    const baseSel = Object.fromEntries(
-      (cat.steps || []).filter((s) => s.affectsStock).map((s) => [s.key, ""])
-    );
+    const baseSel = Object.fromEntries((cat.steps || []).map((s) => [s.key, ""]));
     setState((s) => ({ ...s, categoryId: cat.id, selections: baseSel }));
   }, [cat]);
 
@@ -138,7 +136,8 @@ export function AddPayment() {
 
   const validateBeforeConfirm = (): string | null => {
     if (!cat) return "Selecciona una categoría.";
-    for (const st of affectingSteps) {
+    // ✅ Validamos TODOS los steps (incluye los que no afectan stock, p. ej. 'tipo')
+    for (const st of allSteps) {
       if (!state.selections[st.key]) return `Selecciona “${st.label}”.`;
     }
     const qty = parseInt(state.quantity, 10);
@@ -166,11 +165,10 @@ export function AddPayment() {
     setShowConfirm(true);
   };
 
-  // Helper: construir partes seleccionadas con labels bonitos
+  // Partes con labels (TODOS los steps)
   function buildSelectedParts() {
     if (!cat) return [];
-    const steps = (cat.steps || []).filter((s) => s.affectsStock);
-    return steps.map((s) => {
+    return (cat.steps || []).map((s) => {
       const optKey = String(state.selections[s.key] ?? "");
       const opt = (s.options || []).find((o) => o.key === optKey);
       return {
@@ -187,19 +185,20 @@ export function AddPayment() {
     const qty = parseInt(state.quantity, 10);
     const total = parseFloat(state.totalAmount);
     const paid = state.isTotalPayment ? total : parseFloat(state.partialAmount);
+
+    // 🔑 buildVariantKeyFromSelections devuelve LLAVE DE STOCK (solo steps affectsStock)
     const variantKey = buildVariantKeyFromSelections(cat, state.selections);
 
     setSaving(true);
     try {
       const today = format(new Date(), "yyyy-MM-dd");
 
-      // Payload base
       const baseInput: RegisterPaymentInput = {
         today,
         categoryId: cat.id,
         categoryName: cat.name,
-        selections: state.selections,
-        variantKey,
+        selections: state.selections, // guardamos TODO (incluye 'tipo')
+        variantKey,                   // para stock/reconciliación
         quantity: qty,
         totalAmount: total,
         paidAmountToday: paid,
@@ -215,11 +214,10 @@ export function AddPayment() {
       };
 
       if (state.deductFromStock) {
-        // Intentar descontar stock primero
+        // Descontar con LLAVE DE STOCK
         const dec = await tryDecrementStockGeneric(cat.id, variantKey, qty);
         if (!dec.decremented) {
-          // No hay stock suficiente: preguntamos qué hacer
-          setPendingInput(baseInput); // si continúa, se registra sin descontar
+          setPendingInput(baseInput);
           setNoStockCtx({
             selectedParts: buildSelectedParts(),
             currentStock: dec.current ?? 0,
@@ -232,7 +230,6 @@ export function AddPayment() {
         baseInput.deductedFromStock = true;
       }
 
-      // Registrar pago/abono
       await registerPayment(baseInput);
 
       addToast({
@@ -301,10 +298,10 @@ export function AddPayment() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        {/* ====== PageHero + Back ====== */}
+        {/* PageHero + Back */}
         <div className="relative mb-6">
           <PageHero
-            icon="💳"
+            icon={<CreditCard className="w-10 h-10" />}
             title="Registrar Abono/Pago"
             subtitle="Registra abonos o pagos totales y actualiza el inventario si lo deseas"
           />
@@ -313,7 +310,7 @@ export function AddPayment() {
           <BackButton fallback="/payment-management" />
         </div>
 
-        {/* ====== Formulario ====== */}
+        {/* Formulario */}
         <AddPaymentForm
           state={state}
           setState={patch}
@@ -323,10 +320,10 @@ export function AddPayment() {
           categories={cats}
           selectedCategory={cat}
           onChangeCategory={setCat}
-          affectingSteps={affectingSteps}
+          steps={allSteps} // ⬅️ ahora pasamos TODOS los steps
         />
 
-        {/* ====== Tip ====== */}
+        {/* Tip */}
         <div className="mt-8">
           <ProTipBanner
             title="Tip de abonos"
@@ -335,10 +332,10 @@ export function AddPayment() {
         </div>
       </main>
 
-      {/* ====== Footer ====== */}
+      {/* Footer */}
       <AppFooter appName="InManager" />
 
-      {/* Modal de confirmación estándar */}
+      {/* Modal de confirmación */}
       <PaymentConfirmModal
         isOpen={showConfirm}
         onClose={() => setShowConfirm(false)}
@@ -356,11 +353,12 @@ export function AddPayment() {
         }
         onConfirm={onConfirm}
         loading={saving}
-        affectingSteps={affectingSteps}
+        // aunque el prop se llame affectingSteps, le pasamos TODOS para que muestre 'tipo' también
+        affectingSteps={allSteps}
         sellerName={sellerName}
       />
 
-      {/* Modal: continuar sin stock (reutilizable) */}
+      {/* Modal: continuar sin stock */}
       <NoStockModal
         isOpen={showNoStock}
         onClose={() => {

@@ -14,6 +14,7 @@ import { registerExpense } from "./sales.service";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { Receipt } from "lucide-react";
 
 const easeM3 = cubicBezier(0.4, 0, 0.2, 1);
 
@@ -91,8 +92,8 @@ export function AddExpense() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-            icon="💸"
-            title="Registrar Gasto"
+  icon={<Receipt className="w-10 h-10" />}
+  title="Registrar Gasto"
             subtitle="Añade un gasto del día con su método de pago"
           />
           <div className="absolute top-4 left-4 z-20">

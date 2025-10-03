@@ -11,7 +11,8 @@ type Props = {
   categories: ProductCategory[];
   selectedCategory: ProductCategory | null;
   onChangeCategory: (c: ProductCategory | null) => void;
-  affectingSteps: CategoryStep[];
+  /** ⬅️ AHORA: todos los steps (no solo los que afectan stock) */
+  steps: CategoryStep[];
 };
 
 export default function AddPaymentForm({
@@ -23,7 +24,7 @@ export default function AddPaymentForm({
   categories,
   selectedCategory,
   onChangeCategory,
-  affectingSteps,
+  steps,
 }: Props) {
   const {
     quantity,
@@ -42,8 +43,9 @@ export default function AddPaymentForm({
     const next = categories.find((c) => c.id === id) || null;
     onChangeCategory(next);
     if (next) {
+      // ⬇️ Inicializa selections con TODOS los steps
       const baseSel = Object.fromEntries(
-        (next.steps || []).filter((s) => s.affectsStock).map((s) => [s.key, ""])
+        (next.steps || []).map((s) => [s.key, ""])
       );
       setState({ categoryId: next.id, selections: baseSel });
     } else {
@@ -78,8 +80,8 @@ export default function AddPaymentForm({
           </select>
         </div>
 
-        {/* Steps que afectan stock (dinámicos) */}
-        {affectingSteps.map((st) => {
+        {/* Atributos (TODOS los steps) */}
+        {steps.map((st) => {
           const opts = (st.options || []).filter((o) => o.active !== false);
           return (
             <div key={st.key}>
@@ -105,6 +107,11 @@ export default function AddPaymentForm({
                   </option>
                 ))}
               </select>
+              {st.affectsStock === false && (
+                <p className="text-xs text-gray-500 mt-1">
+                  * No afecta inventario, pero sí la combinación de precio.
+                </p>
+              )}
             </div>
           );
         })}

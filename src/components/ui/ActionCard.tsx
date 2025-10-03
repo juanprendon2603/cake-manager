@@ -1,11 +1,12 @@
 // src/components/ui/ActionCard.tsx
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 export type ActionItem = {
   to: string;
   title: string;
   desc: string;
-  icon: string;
+  icon: ReactNode; // antes era string
   gradient: string; // franja superior
   bgGradient: string; // fondo de la tarjeta
   borderColor: string; // p.ej. 'border-emerald-200'

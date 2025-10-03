@@ -22,6 +22,7 @@ import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
 import type { ComponentPropsWithoutRef } from "react";
 import { BackButton } from "../../components/BackButton";
+import { CalendarDays, CalendarRange } from "lucide-react";
 
 type ThProps = ComponentPropsWithoutRef<"th">;
 type TdProps = ComponentPropsWithoutRef<"td">;
@@ -82,8 +83,8 @@ export function DailySummary() {
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
         <div className="relative">
           <PageHero
-            icon="📅"
-            title="Resumen por Rango"
+  icon={<CalendarRange className="w-10 h-10" />}
+  title="Resumen por Rango"
             subtitle="Consulta ventas, abonos y gastos entre fechas (mensual, quincenal o personalizado)"
           />
           <div className="absolute top-4 left-4">

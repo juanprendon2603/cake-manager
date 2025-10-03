@@ -13,6 +13,7 @@ import { registerGeneralExpense } from "../sales/sales.service"; // ajusta la ru
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { BriefcaseBusiness } from "lucide-react";
 
 export function AddGeneralExpense() {
   const [description, setDescription] = useState("");
@@ -86,8 +87,8 @@ export function AddGeneralExpense() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-            icon="💼"
-            title="Registrar Gasto General"
+  icon={<BriefcaseBusiness className="w-10 h-10" />}
+  title="Registrar Gasto General"
             subtitle="Añade un gasto general del mes"
           />
           <div className="absolute top-4 left-4 z-20">

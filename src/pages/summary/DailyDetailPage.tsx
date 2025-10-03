@@ -10,6 +10,7 @@ import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { db } from "../../lib/firebase";
 import type { Expense, Sale } from "../../types/finance";
 import { DailyDetailContent } from "./DailyDetailContent";
+import { CalendarDays } from "lucide-react";
 
 type PaymentMethod = "cash" | "transfer";
 
@@ -176,8 +177,8 @@ export function DailyDetailPage() {
         {/* BackButton + PageHero */}
         <div className="mb-6 sm:mb-8 relative">
           <PageHero
-            icon="📅"
-            title={`Detalle del día ${fecha}`}
+  icon={<CalendarDays className="w-10 h-10" />}
+  title={`Detalle del día ${fecha}`}
             subtitle="Ventas, abonos y gastos del día seleccionado (esquema mensual)."
             gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
             iconGradientClass="from-[#8E2DA8] to-[#A855F7]"

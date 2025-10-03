@@ -14,6 +14,7 @@ import {
 // ⬇️ NUEVO: usa los componentes
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { Users } from "lucide-react";
 
 // Helpers para horas
 function hhmmToMinutes(hhmm?: string) {
@@ -154,8 +155,8 @@ const PayrollSimple: React.FC = () => {
       {/* ⬇️ PageHero (reemplaza el header manual) */}
       <div className="w-full max-w-6xl px-4">
         <PageHero
-          icon="👥"
-          title="Registro de Asistencia"
+  icon={<Users className="w-10 h-10" />}
+  title="Registro de Asistencia"
           subtitle="Marca la asistencia diaria del equipo de trabajo"
           gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
           iconGradientClass="from-[#8E2DA8] to-[#A855F7]"

@@ -10,6 +10,7 @@ import type { ProductCategory } from "./stock.model";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { Boxes } from "lucide-react";
 
 /* ------------------------------ Helpers UI ------------------------------ */
 function parseVariantParts(
@@ -26,10 +27,7 @@ function parseVariantParts(
   });
 }
 
-function chipsFromVariant(
-  variantKey: string,
-  category: ProductCategory | null
-) {
+function chipsFromVariant(variantKey: string, category: ProductCategory | null) {
   const pairs = parseVariantParts(variantKey);
   const steps = category?.steps || [];
   return pairs.map(({ stepKey, optKey }) => {
@@ -55,6 +53,39 @@ function EmptyState() {
         0
       </div>
       <p className="mt-4 text-gray-600">No hay variantes registradas.</p>
+    </div>
+  );
+}
+
+/* --------------------------------- StatsBar -------------------------------- */
+function StatsBar({
+  totalVariants,
+  totalUnits,
+}: {
+  totalVariants: number;
+  totalUnits: number;
+}) {
+  const cards = useMemo(
+    () => [
+      { icon: "🧩", title: "Variantes", value: totalVariants },
+      { icon: "📦", title: "Unidades totales", value: totalUnits },
+    ],
+    [totalVariants, totalUnits]
+  );
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      {cards.map((c, i) => (
+        <div
+          key={i}
+          className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow"
+        >
+          <div className="text-2xl">{c.icon}</div>
+          <div className="text-xs text-gray-600">{c.title}</div>
+          <div className="text-sm font-semibold text-purple-600">
+            {c.value}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -89,7 +120,7 @@ function StockCard({
           </div>
           <div>
             <h3 className="text-xl font-extrabold text-[#8E2DA8]">Variante</h3>
-            <p className="text-xs text-gray-500">Combinación seleccionada</p>
+            <p className="text-xs text-gray-500">Combinación</p>
           </div>
         </div>
         <button
@@ -97,18 +128,6 @@ function StockCard({
           className="inline-flex items-center gap-1 bg-gradient-to-r from-red-500 to-rose-500 hover:opacity-95 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm transition-colors"
           title="Reiniciar a 0"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-4 h-4"
-          >
-            <path
-              fillRule="evenodd"
-              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 100 2h.278l.863 10.356A2 2 0 007.134 18h5.732a2 2 0 001.993-1.644L15.722 6H16a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0010 2H9zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-              clipRule="evenodd"
-            />
-          </svg>
           Reset
         </button>
       </div>
@@ -124,37 +143,6 @@ function StockCard({
       <div className="mt-3 bg-[#FDF8FF] border border-[#E8D4F2] rounded-lg p-4 text-center">
         <p className="text-gray-800 font-semibold">Stock: {Number(stock)}</p>
       </div>
-    </div>
-  );
-}
-
-/* --------------------------------- StatsBar -------------------------------- */
-function StatsBar({
-  totalVariants,
-  totalUnits,
-}: {
-  totalVariants: number;
-  totalUnits: number;
-}) {
-  const cards = useMemo(
-    () => [
-      { icon: "🧩", title: "Variantes", value: totalVariants },
-      { icon: "📦", title: "Unidades totales", value: totalUnits },
-    ],
-    [totalVariants, totalUnits]
-  );
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-      {cards.map((c, i) => (
-        <div
-          key={i}
-          className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow"
-        >
-          <div className="text-2xl">{c.icon}</div>
-          <div className="text-xs text-gray-600">{c.title}</div>
-          <div className="text-sm font-semibold text-purple-600">{c.value}</div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -202,7 +190,7 @@ export function ProductList() {
         {/* ====== Hero + Back ====== */}
         <div className="relative">
           <PageHero
-            icon="📦"
+            icon={<Boxes className="w-10 h-10" />}
             title="Inventario por Variantes"
             subtitle="Consulta y gestiona el stock por combinación de opciones"
           />
@@ -235,16 +223,32 @@ export function ProductList() {
           </div>
         </section>
 
+        {/* ====== Resumen ====== */}
+        <div className="mt-6">
+          <StatsBar
+            totalVariants={stats.totalVariants}
+            totalUnits={stats.totalUnits}
+          />
+        </div>
+
         {/* ====== Lista de variantes ====== */}
-        {/* ====== Lista de variantes ====== */}
-        <section className="mt-8 rounded-3xl p-6 sm:p-8 bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
+        <section className="mt-4 rounded-3xl p-6 sm:p-8 bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
           {loading ? (
             <FullScreenLoader message="Cargando variantes..." />
           ) : stocks.length === 0 ? (
             <EmptyState />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* ... */}
+              {stocks.map((row) => (
+                <StockCard
+                  key={row.variantKey}
+                  variantKey={row.variantKey}
+                  stock={row.stock}
+                  onReset={handleReset}
+                  isResetting={pendingVariant === row.variantKey}
+                  category={category}
+                />
+              ))}
             </div>
           )}
         </section>

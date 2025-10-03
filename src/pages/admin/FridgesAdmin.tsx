@@ -16,6 +16,7 @@ import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
+import { Snowflake } from "lucide-react";
 
 type FormState = {
   name: string; // * obligatorio
@@ -239,8 +240,8 @@ export default function FridgesAdmin() {
       <div className="relative">
 
         <PageHero
-          icon="❄️"
-          title="Enfriadores"
+    icon={<Snowflake className="w-10 h-10" />}
+    title="Enfriadores"
           subtitle="Administra neveras y sus rangos para el control diario de temperatura"
           // azules para esta sección
           gradientClass="from-[#2563eb] via-[#06b6d4] to-[#14b8a6]"

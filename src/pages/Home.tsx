@@ -2,6 +2,15 @@
 import { Link } from "react-router-dom";
 import logoUrl from "../assets/logo.png";
 import { AppFooter } from "../components/AppFooter";
+import {
+  Package,
+  Receipt,
+  BarChart3,
+  CreditCard,
+  Clock,
+  Users,
+} from "lucide-react";
+
 
 export function Home() {
   const cards = [
@@ -9,38 +18,39 @@ export function Home() {
       to: "/stock",
       title: "Gestión de Stock",
       desc: "Administra tus productos y cantidades disponibles.",
-      icon: "📦",
+      icon: <Package className="w-6 h-6 text-[#8E2DA8]" />,
       gradient: "from-purple-500 to-indigo-500",
     },
     {
       to: "/sales",
       title: "Gestión de Ventas",
       desc: "Registra y controla las ventas diarias.",
-      icon: "🧾",
+      icon: <Receipt className="w-6 h-6 text-[#8E2DA8]" />,
       gradient: "from-pink-500 to-rose-500",
     },
     {
       to: "/daily",
       title: "Resumen Diario",
       desc: "Consulta el resumen de ventas y gastos por día.",
-      icon: "📊",
+      icon: <BarChart3 className="w-6 h-6 text-[#8E2DA8]" />,
       gradient: "from-cyan-500 to-blue-500",
     },
     {
       to: "/payment-management",
       title: "Gestión de Abonos",
       desc: "Registra y finaliza abonos de pedidos.",
-      icon: "💳",
+      icon: <CreditCard className="w-6 h-6 text-[#8E2DA8]" />,
       gradient: "from-emerald-500 to-teal-500",
     },
     {
       to: "/payroll-simple",
       title: "Gestión de Asistencia",
       desc: "Registra la asistencia.",
-      icon: "🕒",
+      icon: <Clock className="w-6 h-6 text-[#8E2DA8]" />,
       gradient: "from-amber-500 to-orange-500",
     },
   ];
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
@@ -65,32 +75,33 @@ export function Home() {
           </p>
 
           {/* Quick KPIs */}
-          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
-            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-              <div className="text-2xl">📦</div>
-              <div className="text-xs text-gray-600">Inventario</div>
-              <div className="text-sm font-semibold text-[#8E2DA8]">Stock</div>
-            </div>
-            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-              <div className="text-2xl">💵</div>
-              <div className="text-xs text-gray-600">Ventas</div>
-              <div className="text-sm font-semibold text-[#8E2DA8]">
-                Diarias
-              </div>
-            </div>
-            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-              <div className="text-2xl">📈</div>
-              <div className="text-xs text-gray-600">Resumen</div>
-              <div className="text-sm font-semibold text-[#8E2DA8]">
-                General
-              </div>
-            </div>
-            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-              <div className="text-2xl">👥</div>
-              <div className="text-xs text-gray-600">Asistencia</div>
-              <div className="text-sm font-semibold text-[#8E2DA8]">Equipo</div>
-            </div>
-          </div>
+{/* Quick KPIs */}
+<div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+    <Package className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+    <div className="text-xs text-gray-600">Inventario</div>
+    <div className="text-sm font-semibold text-[#8E2DA8]">Stock</div>
+  </div>
+
+  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+    <Receipt className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+    <div className="text-xs text-gray-600">Ventas</div>
+    <div className="text-sm font-semibold text-[#8E2DA8]">Diarias</div>
+  </div>
+
+  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+    <BarChart3 className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+    <div className="text-xs text-gray-600">Resumen</div>
+    <div className="text-sm font-semibold text-[#8E2DA8]">General</div>
+  </div>
+
+  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+    <Users className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+    <div className="text-xs text-gray-600">Asistencia</div>
+    <div className="text-sm font-semibold text-[#8E2DA8]">Equipo</div>
+  </div>
+</div>
+          
         </header>
 
         {/* Action Cards */}
