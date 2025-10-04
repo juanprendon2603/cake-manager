@@ -1,4 +1,3 @@
-// src/pages/catalog/catalog.service.ts
 import {
   collection,
   deleteDoc,
@@ -20,22 +19,19 @@ import type {
 } from "../../types/catalog";
 import type { GenericSale, VariantStock } from "../sales/sales.service";
 
-/* ------------------------------- Colecciones ------------------------------ */
 const CATEGORIES_COL = collection(
   db,
   "catalog_categories"
 ) as CollectionReference<ProductCategory>;
 
-const STOCK_ROOT = collection(db, "catalog_stock"); // /catalog_stock/{categoryId}/variants/{variantKey}
+const STOCK_ROOT = collection(db, "catalog_stock");
 
 const SALES_COL = collection(
   db,
   "sales_generic"
 ) as CollectionReference<GenericSale>;
 
-/* ------------------------- Helpers comunes/limpieza ------------------------ */
 function clean<T extends object>(obj: T): T {
-  // Elimina undefined anidados sin forzar nulls
   return JSON.parse(JSON.stringify(obj)) as T;
 }
 function slugify(s: string) {
@@ -48,7 +44,6 @@ function slugify(s: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-/* -------------------------- Normalización de steps ------------------------- */
 export function normalizeSteps(
   steps: CategoryStep[] | undefined
 ): CategoryStep[] {
@@ -65,7 +60,6 @@ export function normalizeSteps(
       label: s.label || s.key || "",
       type: "select",
       required: true,
-      // Respetar lo que marcaste en el editor:
       affectsStock: s.affectsStock !== false,
       multi: false,
       options: normOptions,
@@ -73,10 +67,6 @@ export function normalizeSteps(
   });
 }
 
-/** Re-mapea las llaves de variantPrices a las llaves normalizadas:
- *  Usa la posición de los steps para vincular la selección antigua a la nueva.
- *  Formato admitido por par: "stepKey:optKey" (también "stepKey=optKey").
- */
 export function normalizeVariantPrices(
   variantPrices: Record<string, number> | undefined,
   originalSteps: CategoryStep[] | undefined,
@@ -137,7 +127,6 @@ export function normalizeVariantPrices(
   return out;
 }
 
-/* ----------------------------- Categorías CRUD ---------------------------- */
 export async function listCategories(opts?: {
   includeInactive?: boolean;
 }): Promise<ProductCategory[]> {
@@ -155,10 +144,8 @@ export async function upsertCategory(cat: ProductCategory): Promise<void> {
   const id = (cat.id || slugify(cat.name)).trim();
   if (!id) throw new Error("Falta id/nombre de la categoría");
 
-  // Normalizar steps (respetando affectsStock del editor)
   const stepsNormalized = normalizeSteps(cat.steps);
 
-  // Normalizar precios con las nuevas keys (si existían)
   const variantPricesNormalized = normalizeVariantPrices(
     (cat as any).variantPrices || {},
     cat.steps || [],
@@ -173,7 +160,7 @@ export async function upsertCategory(cat: ProductCategory): Promise<void> {
     active: cat.active !== false,
     pricingMode: "fixed_per_combo" as const,
     steps: stepsNormalized,
-    variantPrices: variantPricesNormalized, // precios por combinación
+    variantPrices: variantPricesNormalized,
     createdAt: cat.createdAt ?? Date.now(),
     updatedAt: Date.now(),
   });
@@ -184,9 +171,6 @@ export async function upsertCategory(cat: ProductCategory): Promise<void> {
 export async function deleteCategory(id: string): Promise<void> {
   await deleteDoc(doc(CATEGORIES_COL, id));
 }
-
-/* ------------------------------- Llaves ----------------------------------- */
-/** Normaliza pares "stepKey:valueKey" en orden de steps */
 function buildKeyFrom(
   steps: { key: string }[],
   selections: Record<string, string | string[] | undefined>
@@ -194,23 +178,17 @@ function buildKeyFrom(
   return (steps || [])
     .map((s) => {
       const raw = selections[s.key];
-      const v = Array.isArray(raw) ? raw[0] : (raw ?? "");
+      const v = Array.isArray(raw) ? raw[0] : raw ?? "";
       return `${s.key}:${String(v)}`;
     })
     .join("|");
 }
 
-/**
- * buildVariantKey:
- *  - mode: 'price' → usa TODOS los steps (para matriz de precios)
- *  - mode: 'stock' → usa SOLO steps con affectsStock === true (para consolidar inventario)
- */
 export function buildVariantKey(
   category: ProductCategory,
   selections: SelectedValues,
   opts?: { mode?: "price" | "stock" }
 ): string {
-  // ⬇️ Por defecto, STOCK (para que lecturas/escrituras coincidan)
   const mode = opts?.mode ?? "stock";
   const stepsAll = category?.steps || [];
   const steps =
@@ -220,7 +198,6 @@ export function buildVariantKey(
   return buildKeyFrom(steps, selections as Record<string, string>);
 }
 
-/** Azúcar sintáctico */
 export const buildPriceKey = (
   cat: ProductCategory,
   sel: SelectedValues
@@ -231,12 +208,10 @@ export const buildStockKey = (
   sel: SelectedValues
 ): string => buildVariantKey(cat, sel, { mode: "stock" });
 
-/* --------------------------------- Precios -------------------------------- */
 export function computePrice(
   category: ProductCategory,
   selections: SelectedValues
 ): number {
-  // Si existen precios por combinación, se usa eso (llave de PRECIO = todos los steps)
   const vp = (category as any).variantPrices as
     | Record<string, number>
     | undefined;
@@ -245,7 +220,6 @@ export function computePrice(
     return Number(vp[key] ?? 0);
   }
 
-  // Compatibilidad con categorías antiguas (base + deltas)
   if ((category as any).pricingMode === "base_plus_deltas") {
     let price = (category as any).basePrice || 0;
     for (const step of category.steps || []) {
@@ -262,7 +236,6 @@ export function computePrice(
   return 0;
 }
 
-/* ---------------------------------- Stock --------------------------------- */
 const variantsCol = (categoryId: string) =>
   collection(
     STOCK_ROOT,
@@ -315,13 +288,6 @@ export async function tryDecrementStockGeneric(
   });
 }
 
-/* --------------------------- Movimientos por fecha ------------------------- */
-
-/**
- * Persistir movimientos de stock:
- * - Actualiza stock total por variante (/catalog_stock/{cat}/variants/{variant})
- * - Si quisieras llevar diario, aquí puedes escribir a otra subcolección.
- */
 type StockMovement = { variantKey: string; delta: number };
 export async function persistGenericStockUpdate(args: {
   categoryId: string;
@@ -349,7 +315,6 @@ export async function persistGenericStockUpdate(args: {
   }
 }
 
-/* ---------------------------------- Venta --------------------------------- */
 export function buildKeys() {
   const d = new Date();
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);

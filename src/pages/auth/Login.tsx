@@ -1,4 +1,3 @@
-// src/pages/auth/Login.tsx
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -15,8 +14,6 @@ import { FullScreenLoaderSession } from "../../components/FullScreenLoaderSessio
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { auth, db } from "../../lib/firebase";
-
-/* ========================= Utils ========================= */
 
 function fbErrorToMessage(code?: string) {
   switch (code) {
@@ -39,10 +36,6 @@ function fbErrorToMessage(code?: string) {
   }
 }
 
-/** Lee app_config/auth.
- * Si no existe o está sin inicializar/vacía → permite PRIMER usuario.
- * Si initialized=true → permite solo si email ∈ (allowlist ∪ admins).
- */
 async function canRegisterOrSignIn(email: string) {
   const e = email.toLowerCase().trim();
   try {
@@ -68,8 +61,6 @@ async function canRegisterOrSignIn(email: string) {
     return { allow: true, reason: "assume-first-user" };
   }
 }
-
-/* ========================= Página ========================= */
 
 export default function Login() {
   const nav = useNavigate();
@@ -97,14 +88,12 @@ export default function Login() {
     addToast({ type: "success", title, message });
   }
 
-  // Si ya hay sesión, vete fuera del login
   useEffect(() => {
     if (user) {
       nav(from, { replace: true });
     }
   }, [user, from, nav]);
 
-  // limpia errores al cambiar inputs
   useEffect(() => {
     if (error) setError(null);
   }, [email, password, confirm, mode, error]);
@@ -158,12 +147,11 @@ export default function Login() {
           return;
         }
         await createUserWithEmailAndPassword(auth, eLower, password);
-        // Esperamos a que `user` se propague
         showSuccessToast("Tu cuenta fue creada 🎉", "Registro completado");
       }
     } catch (err: any) {
       showErrorToast(fbErrorToMessage(err?.code));
-      setSubmitting(false); // sólo bajamos el loader si hubo error
+      setSubmitting(false);
     }
   }
 
@@ -176,7 +164,6 @@ export default function Login() {
   const passwordsMismatch =
     mode === "register" && confirm.length > 0 && password !== confirm;
 
-  // 🔄 Mientras enviamos credenciales y esperamos que se propague `user`, muestra loader
   if (submitting) {
     return (
       <FullScreenLoaderSession
@@ -197,12 +184,9 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex items-center justify-center px-4 py-10">
       <div className="relative w-full max-w-md">
-        {/* Glow de fondo */}
         <div className="absolute -inset-6 rounded-3xl bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] opacity-30 blur-2xl" />
 
-        {/* Card */}
         <div className="relative rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_20px_45px_rgba(142,45,168,0.18)] p-6 sm:p-8">
-          {/* Logo */}
           <div className="w-20 h-20 rounded-2xl bg-white border border-white/60 shadow mx-auto -mt-14 mb-6 flex items-center justify-center ring-2 ring-purple-200 overflow-hidden">
             <img
               src={logoUrl}
@@ -213,7 +197,6 @@ export default function Login() {
             />
           </div>
 
-          {/* Título */}
           <div className="text-center mb-6">
             <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(142,45,168,0.18)]">
               {mode === "login" ? "Bienvenido" : "Crear cuenta"}
@@ -225,14 +208,12 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Alert de error (inline, opcional) */}
           {error && (
             <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
               {error}
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="grid gap-3">
             <label className="text-sm font-semibold text-gray-700">
               Correo electrónico
@@ -314,7 +295,6 @@ export default function Login() {
               </label>
             )}
 
-            {/* opciones */}
             <div className="flex items-center justify-between text-sm">
               <label className="inline-flex items-center gap-2 select-none">
                 <input
@@ -392,15 +372,12 @@ export default function Login() {
   );
 }
 
-/* ========================= Auxiliares UI ========================= */
-
 function Spinner() {
   return (
     <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
   );
 }
 
-/** Modal inline para recuperar contraseña */
 function ForgotPasswordTrigger({ email }: { email: string }) {
   const [open, setOpen] = useState(false);
   return (

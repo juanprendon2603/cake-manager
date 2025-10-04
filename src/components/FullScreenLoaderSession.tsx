@@ -1,4 +1,3 @@
-// src/components/ui/FullScreenLoader.tsx
 import * as React from "react";
 
 type FullScreenLoaderProps = {
@@ -6,9 +5,7 @@ type FullScreenLoaderProps = {
   appName?: string;
   logoUrl?: string;
   tips?: string[];
-  progress?: number; // 0..1 (opcional; si no lo pasas, animación indeterminada)
-  // Personalización rápida con CSS vars:
-  // --brand-1, --brand-2, --bg-from, --bg-to
+  progress?: number;
 };
 
 export function FullScreenLoaderSession({
@@ -40,16 +37,14 @@ export function FullScreenLoaderSession({
       aria-modal="true"
       aria-label="Pantalla de carga"
       style={{
-        ["--brand-1" as any]: "#0EA5E9", // sky-500
-        ["--brand-2" as any]: "#6366F1", // indigo-500
-        ["--bg-from" as any]: "#F8FAFC", // slate-50
-        ["--bg-to" as any]: "#EEF2FF", // indigo-50
+        ["--brand-1" as any]: "#0EA5E9",
+        ["--brand-2" as any]: "#6366F1",
+        ["--bg-from" as any]: "#F8FAFC",
+        ["--bg-to" as any]: "#EEF2FF",
       }}
     >
-      {/* Fondo */}
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-from)] to-[var(--bg-to)]" />
 
-      {/* Sutilezas del fondo */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="absolute -top-16 left-1/4 w-64 h-64 rounded-full blur-3xl opacity-30 animate-softPulse"
@@ -67,9 +62,7 @@ export function FullScreenLoaderSession({
         />
       </div>
 
-      {/* Tarjeta central */}
       <div className="relative mx-4 w-full max-w-sm rounded-3xl bg-white/80 backdrop-blur-xl shadow-2xl border border-white/70 p-8 text-center">
-        {/* Logo opcional */}
         {logoUrl ? (
           <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-white border border-gray-100 shadow flex items-center justify-center overflow-hidden">
             <img
@@ -82,10 +75,8 @@ export function FullScreenLoaderSession({
           </div>
         ) : null}
 
-        {/* Loader geométrico */}
         <div className="mx-auto mb-6 w-40 h-40 relative">
           <svg viewBox="0 0 160 160" className="w-full h-full">
-            {/* sombra */}
             <ellipse
               cx="80"
               cy="138"
@@ -94,7 +85,6 @@ export function FullScreenLoaderSession({
               fill="rgba(0,0,0,0.06)"
             ></ellipse>
 
-            {/* Gradientes */}
             <defs>
               <linearGradient id="strokeGrad" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="var(--brand-1)" />
@@ -106,7 +96,6 @@ export function FullScreenLoaderSession({
               </radialGradient>
             </defs>
 
-            {/* Anillo de progreso determinístico (si progress) */}
             {typeof clamped === "number" ? (
               <circle
                 cx="80"
@@ -121,7 +110,6 @@ export function FullScreenLoaderSession({
                 transform="rotate(-90 80 80)"
               />
             ) : (
-              // Anillo indeterminado
               <circle
                 cx="80"
                 cy="80"
@@ -135,7 +123,6 @@ export function FullScreenLoaderSession({
               />
             )}
 
-            {/* Hexágono lineal que rota */}
             <g className="animate-rotate">
               <polygon
                 points={hexagonPoints(80, 80, 34)}
@@ -145,7 +132,6 @@ export function FullScreenLoaderSession({
               />
             </g>
 
-            {/* Puntos “constelación” que respiran */}
             {[0, 1, 2, 3, 4].map((i) => {
               const angle = (i / 5) * Math.PI * 2;
               const x = 80 + Math.cos(angle) * 52;
@@ -163,7 +149,6 @@ export function FullScreenLoaderSession({
               );
             })}
 
-            {/* Ondas suaves (decorativo) */}
             <g className="opacity-70">
               <circle
                 cx="80"
@@ -187,13 +172,11 @@ export function FullScreenLoaderSession({
           </svg>
         </div>
 
-        {/* Títulos */}
         <h2 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-[var(--brand-1)] to-[var(--brand-2)] mb-1">
           {appName}
         </h2>
         <p className="text-sm text-gray-700 mb-4">{message}</p>
 
-        {/* Barra de progreso (determinística o indeterminada) */}
         <div
           className="h-2 w-full rounded-full bg-gray-100 overflow-hidden mb-2"
           aria-hidden={clamped === undefined}
@@ -214,21 +197,18 @@ export function FullScreenLoaderSession({
           />
         </div>
 
-        {/* Tip opcional */}
         {tips?.length ? (
           <div className="min-h-[1.25rem] text-xs text-gray-500">
             <span className="inline-block animate-fade">{tips[tipIndex]}</span>
           </div>
         ) : null}
 
-        {/* Accesibilidad */}
         <div className="sr-only" aria-live="polite" aria-atomic="true">
           {message}{" "}
           {typeof clamped === "number" ? `${Math.round(clamped * 100)}%` : ""}
         </div>
       </div>
 
-      {/* Estilos locales */}
       <style>{`
         /* rotación del hexágono */
         .animate-rotate { animation: rotate 6s ease-in-out infinite; transform-origin: 80px 80px; }
@@ -297,10 +277,9 @@ export function FullScreenLoaderSession({
   );
 }
 
-/** Util para hexágono regular en SVG */
 function hexagonPoints(cx: number, cy: number, r: number) {
   const pts = Array.from({ length: 6 }).map((_, i) => {
-    const a = (Math.PI / 3) * i - Math.PI / 6; // rotado 30°
+    const a = (Math.PI / 3) * i - Math.PI / 6;
     const x = cx + r * Math.cos(a);
     const y = cy + r * Math.sin(a);
     return `${x},${y}`;

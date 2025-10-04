@@ -1,4 +1,3 @@
-// src/components/BaseModal.tsx
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
 import { easeM3 } from "../pages/sales/animations";
@@ -42,7 +41,6 @@ interface BaseModalProps {
   size?: Size;
   bodyClassName?: string;
   children?: React.ReactNode;
-  /** NUEVO: icono en el header */
   icon?: React.ReactNode;
 }
 
@@ -83,7 +81,6 @@ export default function BaseModal({
             className={`bg-white rounded-3xl w-full ${width} shadow-2xl overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             {(title || description) && (
               <div className="relative p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50">
                 <div
@@ -112,17 +109,14 @@ export default function BaseModal({
               </div>
             )}
 
-            {/* Body */}
             <div className={`p-6 ${bodyClassName ?? ""}`}>
               {children ?? (
                 <div className="text-sm text-gray-500">
-                  {/* Fallback si no pasas children */}
                   Sin contenido adicional.
                 </div>
               )}
             </div>
 
-            {/* Footer */}
             {(primaryAction || secondaryAction) && (
               <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
                 {secondaryAction && (

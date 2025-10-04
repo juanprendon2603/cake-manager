@@ -18,9 +18,7 @@ export default function PriceTable({
   onChange,
 }: {
   steps: CategoryStep[];
-  /** puede traer undefined cuando hay celdas vacías */
   prices: PriceMap;
-  /** el callback recibe SOLO números ya saneados */
   onChange: (next: Record<string, number>) => void;
 }) {
   const [filter, setFilter] = useState("");
@@ -41,7 +39,7 @@ export default function PriceTable({
   }, [combos, filter]);
 
   function setPrice(key: string, v: number) {
-    const base = toNumberMap(prices); // ← quita undefined
+    const base = toNumberMap(prices);
     base[key] = v > 0 ? v : 0;
     onChange(base);
   }
@@ -49,9 +47,8 @@ export default function PriceTable({
   function applyFill() {
     const v = Number(fillValue || 0);
     if (!(v > 0)) return;
-    const next = toNumberMap(prices); // ← quita undefined
+    const next = toNumberMap(prices);
     for (const c of combos) {
-      // rellena si no existe o si es 0
       if (!(c.key in next) || next[c.key] === 0) next[c.key] = v;
     }
     onChange(next);
@@ -123,7 +120,7 @@ export default function PriceTable({
                       type="number"
                       min={0}
                       step="1"
-                      value={prices[c.key] ?? ""} // puede ser "", ok
+                      value={prices[c.key] ?? ""}
                       onChange={(e) =>
                         setPrice(c.key, Number(e.target.value || 0))
                       }

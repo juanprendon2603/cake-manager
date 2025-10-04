@@ -73,7 +73,6 @@ export function generateCombos(steps: CategoryStep[]): ComboRow[] {
     acc: { step: CategoryStep; opt: CategoryOption }[]
   ) => {
     if (i === pools.length) {
-      // 👇 AQUÍ EL CAMBIO: usar ":" en vez de "="
       const key = acc
         .map(({ step, opt }) => `${step.key}:${opt.key}`)
         .join("|");

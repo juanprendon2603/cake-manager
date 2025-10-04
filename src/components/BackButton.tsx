@@ -1,4 +1,3 @@
-// src/components/BackButton.tsx
 import { useNavigate } from "react-router-dom";
 
 export function BackButton({
@@ -13,7 +12,7 @@ export function BackButton({
   const navigate = useNavigate();
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation(); // evita que otra capa capture el click
+    e.stopPropagation();
     if (window.history.length > 1) {
       navigate(-1);
     } else {
@@ -26,7 +25,6 @@ export function BackButton({
       type="button"
       onClick={handleClick}
       className={[
-        // asegúrate de que esté por encima de overlays
         "relative z-20 pointer-events-auto",
         "inline-flex items-center gap-2 px-4 py-2 rounded-lg",
         "bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white font-semibold",
@@ -36,11 +34,17 @@ export function BackButton({
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        fill="none" viewBox="0 0 24 24"
-        strokeWidth={2} stroke="currentColor"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+        stroke="currentColor"
         className="w-5 h-5"
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15 19l-7-7 7-7"
+        />
       </svg>
       {label}
     </button>

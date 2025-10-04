@@ -1,4 +1,3 @@
-// src/pages/admin/FridgesAdmin.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import BaseModal from "../../components/BaseModal";
@@ -12,21 +11,21 @@ import {
   upsertFridge,
 } from "../payroll/fridge.service";
 
-import { PageHero } from "../../components/ui/PageHero";
-import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { Snowflake } from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
-import { Snowflake } from "lucide-react";
+import { PageHero } from "../../components/ui/PageHero";
+import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
 type FormState = {
-  name: string; // * obligatorio
+  name: string;
   brand?: string;
   model?: string;
   serialNumber?: string;
   purchaseDate?: string;
   location?: string;
-  minTemp?: string; // opcional (si ambos se dan, valido rango)
-  maxTemp?: string; // opcional (si ambos se dan, valido rango)
+  minTemp?: string;
+  maxTemp?: string;
   active: boolean;
 };
 
@@ -65,7 +64,6 @@ export default function FridgesAdmin() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
-  // Para mostrar borde rojo en campos obligatorios tras intento fallido
   const [showErrors, setShowErrors] = useState(false);
 
   useEffect(() => {
@@ -126,10 +124,8 @@ export default function FridgesAdmin() {
   }
 
   function validate(): string | null {
-    // Nombre es obligatorio
     if (!form.name.trim()) return "El nombre es requerido.";
 
-    // Validación opcional del rango de temperatura si ambos están presentes
     const min = toNumberOrUndef(form.minTemp);
     const max = toNumberOrUndef(form.maxTemp);
     if (min !== undefined && max !== undefined && !(min < max)) {
@@ -153,7 +149,6 @@ export default function FridgesAdmin() {
   }
 
   async function doSave() {
-    // Construir payload SIN claves undefined (Firestore no las acepta)
     const id = editingId ?? buildFridgeId(form.name);
     const name = form.name.trim();
 
@@ -237,25 +232,20 @@ export default function FridgesAdmin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-      <div className="relative">
-
-        <PageHero
-    icon={<Snowflake className="w-10 h-10" />}
-    title="Enfriadores"
-          subtitle="Administra neveras y sus rangos para el control diario de temperatura"
-          // azules para esta sección
-          gradientClass="from-[#2563eb] via-[#06b6d4] to-[#14b8a6]"
-          iconGradientClass="from-[#3b82f6] to-[#06b6d4]"
-        />
+        <div className="relative">
+          <PageHero
+            icon={<Snowflake className="w-10 h-10" />}
+            title="Enfriadores"
+            subtitle="Administra neveras y sus rangos para el control diario de temperatura"
+            gradientClass="from-[#2563eb] via-[#06b6d4] to-[#14b8a6]"
+            iconGradientClass="from-[#3b82f6] to-[#06b6d4]"
+          />
           <div className="absolute top-4 left-4">
-          <BackButton fallback="/admin" />
+            <BackButton fallback="/admin" />
           </div>
-          </div>
+        </div>
 
-
-        {/* Card principal */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
-          {/* Top actions */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div className="text-sm text-gray-600">
               {fridges.length} enfriador{fridges.length === 1 ? "" : "es"}
@@ -309,11 +299,12 @@ export default function FridgesAdmin() {
                               {f.location}
                             </span>
                           )}
-                          {f.minTemp !== undefined && f.maxTemp !== undefined && (
-                            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-cyan-50 text-cyan-700">
-                              {f.minTemp}–{f.maxTemp} °C
-                            </span>
-                          )}
+                          {f.minTemp !== undefined &&
+                            f.maxTemp !== undefined && (
+                              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-cyan-50 text-cyan-700">
+                                {f.minTemp}–{f.maxTemp} °C
+                              </span>
+                            )}
                         </div>
                       </div>
                       <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-400 text-white font-bold grid place-items-center">
@@ -341,7 +332,6 @@ export default function FridgesAdmin() {
             </div>
           )}
 
-          {/* Mensajes (opcionales) */}
           {errorMsg && (
             <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
               {errorMsg}
@@ -364,7 +354,6 @@ export default function FridgesAdmin() {
 
       <AppFooter appName="InManager" />
 
-      {/* Modal Form */}
       <BaseModal
         isOpen={openForm}
         onClose={() => setOpenForm(false)}
@@ -382,7 +371,6 @@ export default function FridgesAdmin() {
         size="lg"
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* Nombre (obligatorio) */}
           <label className="text-sm font-semibold text-gray-700">
             Nombre <span className="text-rose-600">*</span>
             <input
@@ -407,7 +395,6 @@ export default function FridgesAdmin() {
             )}
           </label>
 
-          {/* Marca (opcional) */}
           <label className="text-sm font-semibold text-gray-700">
             Marca
             <input
@@ -420,7 +407,6 @@ export default function FridgesAdmin() {
             />
           </label>
 
-          {/* Modelo (opcional) */}
           <label className="text-sm font-semibold text-gray-700">
             Modelo
             <input
@@ -433,7 +419,6 @@ export default function FridgesAdmin() {
             />
           </label>
 
-          {/* Serie (opcional) */}
           <label className="text-sm font-semibold text-gray-700">
             Serie
             <input
@@ -446,7 +431,6 @@ export default function FridgesAdmin() {
             />
           </label>
 
-          {/* Fecha de compra (opcional) */}
           <label className="text-sm font-semibold text-gray-700">
             Fecha de compra
             <input
@@ -459,7 +443,6 @@ export default function FridgesAdmin() {
             />
           </label>
 
-          {/* Ubicación (opcional) */}
           <label className="text-sm font-semibold text-gray-700">
             Ubicación
             <input
@@ -472,7 +455,6 @@ export default function FridgesAdmin() {
             />
           </label>
 
-          {/* Rango temperatura (opcionales; valido si ambos) */}
           <label className="text-sm font-semibold text-gray-700">
             Temp. mínima (°C)
             <input
@@ -511,7 +493,6 @@ export default function FridgesAdmin() {
               )}
           </label>
 
-          {/* Activo */}
           <label className="text-sm font-semibold text-gray-700 inline-flex items-center gap-2 mt-2">
             <input
               type="checkbox"
@@ -526,7 +507,6 @@ export default function FridgesAdmin() {
         </div>
       </BaseModal>
 
-      {/* Confirmar guardado */}
       <BaseModal
         isOpen={openConfirmSave}
         onClose={() => setOpenConfirmSave(false)}
@@ -561,7 +541,6 @@ export default function FridgesAdmin() {
         </div>
       </BaseModal>
 
-      {/* Confirmar eliminación */}
       <BaseModal
         isOpen={openConfirmDelete}
         onClose={() => setOpenConfirmDelete(false)}
@@ -587,7 +566,6 @@ export default function FridgesAdmin() {
   );
 }
 
-/** Pequeño componente para filas del resumen en el modal */
 function FieldRow({
   label,
   value,

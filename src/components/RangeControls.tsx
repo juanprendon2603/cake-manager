@@ -1,11 +1,11 @@
 import { format, lastDayOfMonth, parseISO } from "date-fns";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
-  start: string; 
-  end: string;   
+  start: string;
+  end: string;
   onChange: (range: { start: string; end: string }) => void;
-  persistKey?: string; 
+  persistKey?: string;
 };
 
 type Mode = "month" | "range";
@@ -15,18 +15,26 @@ type Range = { start: string; end: string };
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 const ymFrom = (d: string) => d.slice(0, 7);
 const dayNum = (d: string) => Number(d.slice(8, 10));
-const fortnightFromDate = (d: string): Fortnight => (dayNum(d) <= 15 ? "Q1" : "Q2");
+const fortnightFromDate = (d: string): Fortnight =>
+  dayNum(d) <= 15 ? "Q1" : "Q2";
 
 const monthFortnightRange = (ym: string, q: Fortnight): Range => {
   const first = `${ym}-01`;
   const last = format(lastDayOfMonth(parseISO(first)), "yyyy-MM-dd");
-  return q === "Q1" ? { start: first, end: `${ym}-15` } : { start: `${ym}-16`, end: last };
+  return q === "Q1"
+    ? { start: first, end: `${ym}-15` }
+    : { start: `${ym}-16`, end: last };
 };
 
-export function RangeControls({ start, end, onChange, persistKey = "rangeControls" }: Props) {
+export function RangeControls({
+  start,
+  end,
+  onChange,
+  persistKey = "rangeControls",
+}: Props) {
   const [mode, setMode] = useState<Mode>(() => {
     const saved = localStorage.getItem(`${persistKey}:mode`);
-    return (saved === "month" || saved === "range") ? saved : "month";
+    return saved === "month" || saved === "range" ? saved : "month";
   });
 
   const derivedMonth = useMemo(() => ymFrom(start), [start]);
@@ -37,7 +45,7 @@ export function RangeControls({ start, end, onChange, persistKey = "rangeControl
 
   const [fortnight, setFortnight] = useState<Fortnight>(() => {
     const saved = localStorage.getItem(`${persistKey}:fortnight`);
-    return (saved === "Q1" || saved === "Q2") ? saved : fortnightFromDate(start);
+    return saved === "Q1" || saved === "Q2" ? saved : fortnightFromDate(start);
   });
 
   const [customStart, setCustomStart] = useState<string>(() => {
@@ -71,18 +79,15 @@ export function RangeControls({ start, end, onChange, persistKey = "rangeControl
   }, [customEnd, persistKey]);
 
   useEffect(() => {
-    // siempre sincronizamos helpers de mes/quincena
     setMonth(derivedMonth);
     setFortnight(fortnightFromDate(start));
 
-    // si NO estamos editando rango libre, refrescamos inputs
     if (mode === "month" || !rangeDirty) {
       setCustomStart(start);
       setCustomEnd(end);
     }
   }, [start, end, derivedMonth, mode, rangeDirty]);
 
-  // ========= Acciones =========
   const applyMonthFortnight = (m: string, q: Fortnight) => {
     const next = monthFortnightRange(m, q);
     lastAppliedRef.current = next;
@@ -97,7 +102,6 @@ export function RangeControls({ start, end, onChange, persistKey = "rangeControl
     lastAppliedRef.current = next;
     setRangeDirty(false);
     onChange(next);
-    // IMPORTANTE: NO cambiamos mode; así se mantiene “Rango libre” tras el loading.
   };
 
   const handleMode = (value: Mode) => {
@@ -105,7 +109,6 @@ export function RangeControls({ start, end, onChange, persistKey = "rangeControl
     if (value === "month") {
       applyMonthFortnight(month, fortnight);
     } else {
-      // no aplicamos automáticamente; dejamos que el usuario edite y pulse "Aplicar"
       setCustomStart(lastAppliedRef.current.start);
       setCustomEnd(lastAppliedRef.current.end);
       setRangeDirty(false);
@@ -132,7 +135,6 @@ export function RangeControls({ start, end, onChange, persistKey = "rangeControl
     if (mode === "range") setRangeDirty(true);
   };
 
-  // Reiniciar → Quincena actual del mes actual y cambiar a “month”
   const handleReset = () => {
     const now = todayStr();
     const ym = ymFrom(now);
@@ -203,7 +205,11 @@ export function RangeControls({ start, end, onChange, persistKey = "rangeControl
                     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                     : "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow hover:shadow-md"
                 }`}
-              title={!isCustomValid(customStart, customEnd) ? "Selecciona un rango válido" : "Aplicar rango"}
+              title={
+                !isCustomValid(customStart, customEnd)
+                  ? "Selecciona un rango válido"
+                  : "Aplicar rango"
+              }
             >
               Aplicar
             </button>

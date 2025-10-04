@@ -1,18 +1,17 @@
-import type { ReactNode } from "react";
 import {
-  ShoppingCart,
-  ClipboardList,
-  Package2,
-  Banknote,
-  Landmark,
-  BadgePercent,
-  ArrowLeft,
-  CircleCheck,
-  X,
   AlertTriangle,
+  ArrowLeft,
+  BadgePercent,
+  Banknote,
+  CircleCheck,
+  ClipboardList,
+  Landmark,
+  Package2,
+  ShoppingCart,
+  X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
-/** Helper: iniciales de texto (máx. 2 letras) */
 function getInitials(label: string): string {
   if (!label) return "?";
   const words = label.trim().split(/\s+/);
@@ -20,7 +19,6 @@ function getInitials(label: string): string {
   return words[0].charAt(0).toUpperCase() + words[1].charAt(0).toUpperCase();
 }
 
-/** Círculo de color para atributos/opciones */
 function AttrIcon({ label, color }: { label: string; color: string }) {
   return (
     <div
@@ -31,7 +29,6 @@ function AttrIcon({ label, color }: { label: string; color: string }) {
   );
 }
 
-/** Ícono para páginas */
 export function PageIcon(name?: string): ReactNode {
   switch ((name || "").toLowerCase()) {
     case "sales":
@@ -44,19 +41,13 @@ export function PageIcon(name?: string): ReactNode {
   }
 }
 
-/** Ícono para método de pago */
 export function PaymentIcon(pm: string): ReactNode {
   if (pm === "cash") return <Banknote className="w-5 h-5" />;
   if (pm === "transfer") return <Landmark className="w-5 h-5" />;
   return <BadgePercent className="w-5 h-5" />;
 }
 
-/** Ícono SOLO para opciones dinámicas (usa iniciales) */
-export function StepOptionIcon(
-  stepKey: string,
-  optKey: string,
-  label: string
-): ReactNode {
+export function StepOptionIcon(stepKey: string, label: string): ReactNode {
   const sk = stepKey.toLowerCase();
   let color = "bg-gradient-to-br from-gray-400 to-gray-600";
   if (sk.includes("sabor"))
@@ -66,7 +57,6 @@ export function StepOptionIcon(
   return <AttrIcon label={label} color={color} />;
 }
 
-/** Íconos de UI normales */
 export const Ui = {
   ArrowLeft: (props?: any) => <ArrowLeft {...props} />,
   Confirm: (props?: any) => <CircleCheck {...props} />,

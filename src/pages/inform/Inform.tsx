@@ -1,4 +1,3 @@
-// src/pages/inform/Inform.tsx
 import { format } from "date-fns";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -9,21 +8,18 @@ import { useInformeData } from "../../hooks/useInformeData";
 import { useRangeSummaryOptimized as useRangeSummary } from "../../hooks/useRangeSummary";
 import { money } from "../../types/informs";
 
-// Charts
 import {
+  CategoryAttributeBar,
   DailyRevenueChart,
   PaymentPie,
-  TopFlavorsBar,
-  AttributeRevenueStacked, // 👈 nuevo
 } from "./components/Charts";
 
-// ✨ UI consistente
+import { BarChart3 } from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { BackButton } from "../../components/BackButton";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { AnimatedKpiCard, Badge, GradientCard, Td, Th } from "./components/Kpi";
-import { BarChart3 } from "lucide-react";
 
 function ucFirst(s: string) {
   if (!s) return "";
@@ -45,30 +41,18 @@ export function Inform() {
     items: geItems,
   } = useGeneralExpenses(range);
 
-  // Datos agregados (incluye revenueByAttributeStacks)
   const {
     totals: computed,
-    topFlavorsQty,
     dailyStats,
     paymentPie,
-    revenueByAttributeStacks, // 👈 lo usamos para graficar por atributo
+    categoryTotals,
+    categoryAttributeCards,
   } = useInformeData(rawDocs, geTotals);
 
-  // ⚠️ IMPORTANTE: este useMemo debe ir ANTES del early-return
-  // para mantener el orden de hooks estable entre renders.
-  const attributeCards = useMemo(() => {
-    // revenueByAttributeStacks = [{ attribute, categories, data }]
-    return (revenueByAttributeStacks ?? []).map((s) => {
-      // Título bonito con mayúscula
-      const title = `Ingresos por ${ucFirst(s.attribute)}`;
-      return {
-        key: s.attribute,
-        title,
-        categories: s.categories,
-        data: s.data,
-      };
-    });
-  }, [revenueByAttributeStacks]);
+  const categoriesBlocks = useMemo(
+    () => categoryAttributeCards,
+    [categoryAttributeCards]
+  );
 
   if (loading || loadingGE)
     return <FullScreenLoader message="Generando Informe... 🚀" />;
@@ -90,14 +74,13 @@ export function Inform() {
           <PageHero
             icon={<BarChart3 className="w-10 h-10" />}
             title="Dashboard con Rangos"
-            subtitle="Filtra por mes/quincena o elige cualquier rango de fechas"
+            subtitle="KPIs generales y, luego, gráficos por categoría → atributos"
           />
           <div className="absolute top-4 left-4">
             <BackButton fallback="/admin" />
           </div>
         </div>
 
-        {/* Controles de rango */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8 mb-10">
           <div className="mb-4">
             <RangeControls
@@ -112,7 +95,6 @@ export function Inform() {
           </p>
         </section>
 
-        {/* KPIs */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           <AnimatedKpiCard
             label="💰 Total Ingresos"
@@ -156,7 +138,6 @@ export function Inform() {
           />
         </section>
 
-        {/* Gráficas fijas */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           <GradientCard title="📈 Ventas vs Gastos Diarios" gradient="blue">
             <DailyRevenueChart data={dailyStats} />
@@ -165,79 +146,73 @@ export function Inform() {
           <GradientCard title="💳 Métodos de Pago" gradient="green">
             <PaymentPie data={paymentPie} />
           </GradientCard>
-
-          <GradientCard title="🍰 Top Sabores por Cantidad" gradient="pink">
-            <TopFlavorsBar
-              data={topFlavorsQty.map(
-                (f: { name: string; qty: number; revenue: number }) => ({
-                  name: f.name,
-                  qty: f.qty,
-                  revenue: f.revenue,
-                })
-              )}
-            />
-          </GradientCard>
         </section>
 
-        {/* 🔥 Gráficas GENÉRICAS por ATRIBUTO, apiladas por categoría */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {attributeCards.length === 0 ? (
-            <GradientCard title="Ingresos por atributo" gradient="orange">
-              <p className="text-sm text-gray-600">
-                No se encontraron atributos para este rango.
-              </p>
-            </GradientCard>
-          ) : (
-            attributeCards.map((card) => (
-              <GradientCard key={card.key} title={`📏 ${card.title}`} gradient="orange">
-                <AttributeRevenueStacked
-                  data={card.data}
-                  categories={card.categories}
-                />
-              </GradientCard>
-            ))
-          )}
-        </section>
+        {categoriesBlocks.map((cat) => (
+          <section key={cat.category} className="mb-12">
+            <h3 className="text-xl font-bold text-purple-700 mb-4">
+              📦 {ucFirst(cat.category)}
+            </h3>
+            {cat.attributes.length === 0 ? (
+              <div className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4 text-sm text-gray-600">
+                No hay atributos con ventas en esta categoría para el rango.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {cat.attributes.map((attr) => (
+                  <GradientCard
+                    key={`${cat.category}-${attr.attribute}`}
+                    title={`Ingresos por ${ucFirst(attr.attribute)} (${ucFirst(
+                      cat.category
+                    )})`}
+                    gradient="orange"
+                  >
+                    <CategoryAttributeBar
+                      attribute={attr.attribute}
+                      data={attr.data}
+                      valueKey="revenue"
+                      valueName="Ingresos"
+                    />
+                  </GradientCard>
+                ))}
+              </div>
+            )}
+          </section>
+        ))}
 
-        {/* Tarjetas resumen rápidas */}
-        <section className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-6 shadow-xl text-white text-center">
-            <div className="text-4xl mb-2">💰</div>
-            <p className="text-lg font-semibold opacity-90">Total Ingresos</p>
-            <p className="text-3xl font-bold">{money(totalIncome)}</p>
-          </div>
+        {categoryTotals.length > 0 && (
+          <section className="mb-10">
+            <div className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4">
+              <h4 className="font-semibold text-purple-700 mb-3">
+                Totales por Categoría
+              </h4>
+              <div className="mt-3 rounded-xl overflow-hidden border border-purple-100">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-purple-50 text-purple-800">
+                      <Th>Categoría</Th>
+                      <Th className="text-right">Ingresos</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categoryTotals.map((c, idx) => (
+                      <tr
+                        key={idx}
+                        className="even:bg-white odd:bg-purple-50/30"
+                      >
+                        <Td className="text-gray-800">{c.category}</Td>
+                        <Td className="text-right font-medium">
+                          {money(c.value)}
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
 
-          <div className="bg-gradient-to-br from-red-400 to-pink-500 rounded-2xl p-6 shadow-xl text-white text-center">
-            <div className="text-4xl mb-2">💸</div>
-            <p className="text-lg font-semibold opacity-90">Gastos Diarios</p>
-            <p className="text-3xl font-bold">
-              {money(totals.totalExpensesCash + totals.totalExpensesTransfer)}
-            </p>
-          </div>
-
-          <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-6 shadow-xl text-white text-center">
-            <div className="text-4xl mb-2">🧾</div>
-            <p className="text-lg font-semibold opacity-90">Gastos Generales</p>
-            <p className="text-3xl font-bold">{money(generalExpensesTotal)}</p>
-          </div>
-
-          <div
-            className={`rounded-2xl p-6 shadow-xl text-white text-center ${
-              netTotal >= 0
-                ? "bg-gradient-to-br from-purple-500 to-indigo-600"
-                : "bg-gradient-to-br from-yellow-500 to-orange-600"
-            }`}
-          >
-            <div className="text-4xl mb-2">{netTotal >= 0 ? "🎯" : "⚠️"}</div>
-            <p className="text-lg font-semibold opacity-90">Ganancia Neta</p>
-            <p className="text-3xl font-bold">
-              {netTotal >= 0 ? "+" : ""}
-              {money(netTotal)}
-            </p>
-          </div>
-        </section>
-
-        {/* Tabla de gastos generales */}
         <section className="mb-10">
           <details className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4">
             <summary className="cursor-pointer font-semibold text-purple-700">
@@ -301,7 +276,6 @@ export function Inform() {
           </details>
         </section>
 
-        {/* CTA Volver */}
         <div className="text-center">
           <Link
             to="/"
@@ -311,11 +285,10 @@ export function Inform() {
           </Link>
         </div>
 
-        {/* Tip */}
         <div className="mt-8">
           <ProTipBanner
             title="Tip de análisis"
-            text="Combina el filtro por quincena con la vista de ‘Métodos de Pago’ para identificar rápidamente cambios en el mix de cobro."
+            text="Explora cada categoría y revisa cuál atributo explica más ingresos; así priorizas inventario/marketing por categoría."
           />
         </div>
       </main>

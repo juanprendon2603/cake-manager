@@ -1,4 +1,3 @@
-// src/components/PayrollSummaryModal.tsx
 import React, { useMemo, useState } from "react";
 import type { Person } from "../types/payroll";
 import BaseModal from "./BaseModal";
@@ -6,14 +5,13 @@ import BaseModal from "./BaseModal";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  month: string; // YYYY-MM
+  month: string;
   people: Person[];
 }
 
 type Fortnight = 1 | 2;
 type ModeKey = "fixed" | "per_day" | "per_hour";
 
-/* ----------------------- Helpers de asistencia ----------------------- */
 function isStringDay(day: any): day is "completo" | "medio" {
   return typeof day === "string";
 }
@@ -34,7 +32,6 @@ function isInFortnight(dateYYYYMMDD: string, f: Fortnight) {
 }
 const fmtH = (n: number) => (n % 1 === 0 ? `${n} h` : `${n.toFixed(2)} h`);
 
-/* -------------------- Cálculo por persona y modo --------------------- */
 function buildPerDayData(
   p: Person,
   month: string,
@@ -87,7 +84,6 @@ function buildPerHourData(
   return { qHours, mHours, qList, mList };
 }
 
-/* ---------------------------- UI helpers ----------------------------- */
 const GroupCard: React.FC<{
   title: string;
   accent: "emerald" | "sky" | "indigo";
@@ -183,7 +179,6 @@ const DayChip: React.FC<{ color: "green" | "blue"; n: number }> = ({
   );
 };
 
-/* -------------------------- Componente modal ------------------------- */
 export default function PayrollSummaryModal({
   isOpen,
   onClose,
@@ -239,7 +234,6 @@ export default function PayrollSummaryModal({
       (a.firstName + a.lastName).localeCompare(b.firstName + b.lastName, "es")
     );
 
-    // Totales por si deseas mostrarlos en el futuro
     const totals = {
       perDayQ: perDay.reduce((s, x) => s + x.qDays, 0),
       perDayM: perDay.reduce((s, x) => s + x.mDays, 0),
@@ -288,7 +282,6 @@ export default function PayrollSummaryModal({
       size="4xl"
       bodyClassName="max-h-[70vh] overflow-y-auto space-y-6"
     >
-      {/* -------- Fijos -------- */}
       <GroupCard title="Fijos" accent="indigo">
         {groups.fixed.length === 0 ? (
           <div className="text-sm text-gray-500 py-2">
@@ -315,7 +308,6 @@ export default function PayrollSummaryModal({
         )}
       </GroupCard>
 
-      {/* -------- Por día (días contados) -------- */}
       <GroupCard title="Por día" accent="emerald">
         {groups.perDay.length === 0 ? (
           <div className="text-sm text-gray-500 py-2">
@@ -339,7 +331,6 @@ export default function PayrollSummaryModal({
                 </div>
               </div>
 
-              {/* Chips de días */}
               <div className="mt-2 space-y-1">
                 <div className="flex flex-wrap items-center gap-1">
                   <TinyLabel color="green">Q</TinyLabel>
@@ -367,7 +358,6 @@ export default function PayrollSummaryModal({
         )}
       </GroupCard>
 
-      {/* -------- Por hora (horas sumadas + días listados) -------- */}
       <GroupCard title="Por hora" accent="sky">
         {groups.perHour.length === 0 ? (
           <div className="text-sm text-gray-500 py-2">
@@ -391,7 +381,6 @@ export default function PayrollSummaryModal({
                 </div>
               </div>
 
-              {/* Chips de días (donde hubo horas) */}
               <div className="mt-2 space-y-1">
                 <div className="flex flex-wrap items-center gap-1">
                   <TinyLabel color="blue">Q</TinyLabel>

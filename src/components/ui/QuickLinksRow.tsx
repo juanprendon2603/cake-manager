@@ -1,4 +1,3 @@
-// src/components/ui/QuickLinksRow.tsx
 import { Link } from "react-router-dom";
 
 type QuickLink = { to: string; label: string };

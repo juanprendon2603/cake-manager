@@ -1,12 +1,11 @@
-// src/components/ui/PageHero.tsx
 import type { ReactNode } from "react";
 
 type PageHeroProps = {
-  icon?: ReactNode; // ahora acepta componente React o string
+  icon?: ReactNode;
   title: string;
   subtitle?: string;
-  gradientClass?: string; // franja de fondo
-  iconGradientClass?: string; // azulejo del ícono
+  gradientClass?: string;
+  iconGradientClass?: string;
 };
 
 export function PageHero({

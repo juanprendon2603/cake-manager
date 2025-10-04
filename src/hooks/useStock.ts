@@ -1,4 +1,3 @@
-// src/hooks/useStock.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchCategoryStockOnce,
@@ -8,8 +7,8 @@ import {
 } from "../pages/stock/stock.repository";
 
 type UseStockArgs = {
-  categoryId: string; // p.ej. "bizcochos"
-  realtime?: boolean; // default true
+  categoryId: string;
+  realtime?: boolean;
 };
 
 export function useStock({ categoryId, realtime = true }: UseStockArgs) {
@@ -26,8 +25,6 @@ export function useStock({ categoryId, realtime = true }: UseStockArgs) {
       try {
         if (realtime) {
           unsub = watchCategoryStock(categoryId, (items) => {
-            // items viene de /catalog_stock/{cat}/variants
-            // Debe tener { variantKey, stock }
             setStocks(items);
             setLoading(false);
           });
@@ -49,7 +46,6 @@ export function useStock({ categoryId, realtime = true }: UseStockArgs) {
     };
   }, [categoryId, realtime]);
 
-  /** Resetear una variante específica a 0 (o a un valor dado). */
   const resetVariant = useCallback(
     async (variantKey: string, to = 0) => {
       if (!categoryId || !variantKey) return;
@@ -57,14 +53,12 @@ export function useStock({ categoryId, realtime = true }: UseStockArgs) {
       try {
         await setVariantStock(categoryId, variantKey, to);
       } finally {
-        // pequeño delay visual para feedback
         setTimeout(() => setPendingVariant(null), 600);
       }
     },
     [categoryId]
   );
 
-  /** Stats simples sobre la categoría actual. */
   const stats = useMemo(() => {
     const totalVariants = stocks.length;
     const totalUnits = stocks.reduce(

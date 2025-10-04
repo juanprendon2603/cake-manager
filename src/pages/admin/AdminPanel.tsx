@@ -1,16 +1,16 @@
 // src/pages/admin/AdminPanel.tsx
-import { Link } from "react-router-dom";
-import logoUrl from "../../assets/logo.png";
 import {
-  UserPlus,
-  Snowflake,
-  Users,
-  Package,
-  ReceiptText,
   BarChart3,
   CalendarDays,
+  Package,
+  ReceiptText,
+  Snowflake,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import logoUrl from "../../assets/logo.png";
 
 export default function AdminPanel() {
   const cards: {
@@ -82,7 +82,6 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        {/* Header */}
         <header className="mb-12 text-center relative">
           <div className="mx-auto mb-6 w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white/70 backdrop-blur border border-white/60 shadow-[0_10px_30px_rgba(142,45,168,0.15)] flex items-center justify-center overflow-hidden ring-2 ring-purple-200">
             <img
@@ -101,7 +100,6 @@ export default function AdminPanel() {
             Configura acceso, personal y recursos del sistema
           </p>
 
-          {/* mini-cards (mismo layout, solo cambia el emoji por icono) */}
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
             <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
               <Users className="w-6 h-6 mx-auto text-[#8E2DA8]" />
@@ -126,7 +124,6 @@ export default function AdminPanel() {
           </div>
         </header>
 
-        {/* Grid de acciones */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {cards.map((item) => (
             <Link
@@ -140,7 +137,6 @@ export default function AdminPanel() {
               <div className="relative bg-white/80 backdrop-blur-xl border border-white/70 rounded-2xl p-6 shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:shadow-[0_16px_45px_rgba(142,45,168,0.25)] transition-all duration-300">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 -mt-10 rounded-2xl p-3 bg-white shadow-md ring-2 ring-white/80">
-                    {/* mismo contenedor, ahora con icono en vez de emoji */}
                     {item.icon}
                   </div>
                   <div className="flex-1">

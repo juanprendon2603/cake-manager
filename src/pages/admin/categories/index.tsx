@@ -1,4 +1,3 @@
-// src/pages/admin/categories/CategoriesAdmin.tsx
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import BaseModal from "../../../components/BaseModal";
@@ -20,11 +19,11 @@ import {
   type DraftCat,
 } from "./utils";
 
+import { Boxes } from "lucide-react";
 import { AppFooter } from "../../../components/AppFooter";
 import { BackButton } from "../../../components/BackButton";
 import { PageHero } from "../../../components/ui/PageHero";
 import { ProTipBanner } from "../../../components/ui/ProTipBanner";
-import { Boxes } from "lucide-react";
 
 export default function CategoriesAdmin() {
   const { role } = useAuth();
@@ -119,8 +118,8 @@ export default function CategoriesAdmin() {
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
         <div className="relative">
           <PageHero
-  icon={<Boxes className="w-10 h-10" />}
-  title="Catálogo de Categorías"
+            icon={<Boxes className="w-10 h-10" />}
+            title="Catálogo de Categorías"
             subtitle="Crea atributos y define precios por combinación"
           />
 
@@ -129,9 +128,7 @@ export default function CategoriesAdmin() {
           </div>
         </div>
 
-        {/* Card principal */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
-          {/* Top actions */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div className="text-sm text-gray-600">
               {items.length} categoría{items.length === 1 ? "" : "s"}
@@ -172,7 +169,6 @@ export default function CategoriesAdmin() {
 
       <AppFooter appName="InManager" />
 
-      {/* Editor */}
       <CategoryEditor
         open={openEditor}
         draft={draft}
@@ -181,7 +177,6 @@ export default function CategoriesAdmin() {
         onSave={onSave}
       />
 
-      {/* Confirmar eliminación */}
       <BaseModal
         isOpen={!!toDelete}
         onClose={() => setToDelete(null)}

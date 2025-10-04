@@ -1,4 +1,3 @@
-// src/lib/firebase.ts
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
@@ -26,23 +25,19 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// ✅ Evita doble inicialización con HMR/StrictMode
 const app: FirebaseApp = getApps().length
   ? getApp()
   : initializeApp(firebaseConfig);
 
-// ✅ Auth con persistencia en el navegador
 export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence).catch((e) => {
   console.error("[Auth] setPersistence error:", e);
 });
 
-// Opcional: idioma de los flujos de auth
 auth.languageCode = "es";
 
 export const googleProvider = new GoogleAuthProvider();
 
-// ✅ Firestore con caché persistente y fallback seguro
 let db: Firestore;
 try {
   db = initializeFirestore(app, {
@@ -57,7 +52,6 @@ try {
 
 const storage = getStorage(app);
 
-// Analytics opcional (solo si soportado en el navegador)
 let analytics: ReturnType<typeof getAnalytics> | undefined;
 isSupported().then((yes) => {
   if (yes) analytics = getAnalytics(app);

@@ -1,5 +1,10 @@
-// src/pages/admin/categories/components/CategoryEditor.tsx
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import BaseModal from "../../../../components/BaseModal";
 import type { CategoryOption, CategoryStep } from "../../../../utils/catalog";
 import { generateCombos, slugify, type DraftCat } from "../utils";
@@ -9,30 +14,57 @@ type SetDraft = Dispatch<SetStateAction<DraftCat>>;
 
 type StepKey = "basic" | "attrs" | "prices";
 const STEPS: { key: StepKey; label: string; help: string }[] = [
-  { key: "basic",  label: "Datos básicos", help: "Ponle nombre claro y decide si estará activa para ventas." },
-  { key: "attrs",  label: "Atributos",     help: "Crea atributos (select). Marca “Afecta stock” solo en los que deben partir inventario (p. ej. Tamaño)." },
-  { key: "prices", label: "Precios",       help: "Define el precio de cada combinación de opciones activas (usa todos los atributos)." },
+  {
+    key: "basic",
+    label: "Datos básicos",
+    help: "Ponle nombre claro y decide si estará activa para ventas.",
+  },
+  {
+    key: "attrs",
+    label: "Atributos",
+    help: "Crea atributos (select). Marca “Afecta stock” solo en los que deben partir inventario (p. ej. Tamaño).",
+  },
+  {
+    key: "prices",
+    label: "Precios",
+    help: "Define el precio de cada combinación de opciones activas (usa todos los atributos).",
+  },
 ];
 
 function Stepper({ current }: { current: number }) {
   return (
     <div className="mb-5 flex items-center gap-3">
       {STEPS.map((s, i) => {
-        const done = i < current, active = i === current;
+        const done = i < current,
+          active = i === current;
         return (
           <div key={s.key} className="flex items-center gap-3">
-            <div className={[
-              "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border",
-              active ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent shadow"
-                    : done   ? "bg-green-100 text-green-700 border-green-200"
-                             : "bg-white text-gray-600 border-gray-200"
-            ].join(" ")}>
+            <div
+              className={[
+                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border",
+                active
+                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent shadow"
+                  : done
+                  ? "bg-green-100 text-green-700 border-green-200"
+                  : "bg-white text-gray-600 border-gray-200",
+              ].join(" ")}
+            >
               {i + 1}
             </div>
             <div className="text-sm">
-              <div className={active ? "font-semibold text-gray-900" : "font-medium text-gray-600"}>{s.label}</div>
+              <div
+                className={
+                  active
+                    ? "font-semibold text-gray-900"
+                    : "font-medium text-gray-600"
+                }
+              >
+                {s.label}
+              </div>
             </div>
-            {i < STEPS.length - 1 && <div className="w-10 sm:w-16 h-[2px] bg-gray-200" />}
+            {i < STEPS.length - 1 && (
+              <div className="w-10 sm:w-16 h-[2px] bg-gray-200" />
+            )}
           </div>
         );
       })}
@@ -50,7 +82,11 @@ function Explainer({ title, children }: { title: string; children: any }) {
 }
 
 export default function CategoryEditor({
-  open, draft, setDraft, onClose, onSave,
+  open,
+  draft,
+  setDraft,
+  onClose,
+  onSave,
 }: {
   open: boolean;
   draft: DraftCat;
@@ -59,11 +95,15 @@ export default function CategoryEditor({
   onSave: () => void;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
-  useEffect(() => { if (open) setStepIndex(0); }, [open]);
+  useEffect(() => {
+    if (open) setStepIndex(0);
+  }, [open]);
 
-  const combos = useMemo(() => generateCombos(draft.steps || []), [draft.steps]);
+  const combos = useMemo(
+    () => generateCombos(draft.steps || []),
+    [draft.steps]
+  );
 
-  // --- mutadores ---
   function addStep() {
     const s: CategoryStep = {
       id: crypto.randomUUID(),
@@ -71,43 +111,55 @@ export default function CategoryEditor({
       label: "",
       type: "select",
       required: true,
-      affectsStock: true, // por defecto sí; el usuario lo podrá apagar
+      affectsStock: true,
       options: [],
     };
-    setDraft(d => ({ ...d, steps: [...(d.steps || []), s] }));
+    setDraft((d) => ({ ...d, steps: [...(d.steps || []), s] }));
   }
   function addOption(stepId: string) {
-    setDraft(d => ({
+    setDraft((d) => ({
       ...d,
-      steps: d.steps.map(s => s.id === stepId
-        ? { ...s, options: [ ...(s.options || []), { key: "", label: "", active: true } as CategoryOption ] }
-        : s
+      steps: d.steps.map((s) =>
+        s.id === stepId
+          ? {
+              ...s,
+              options: [
+                ...(s.options || []),
+                { key: "", label: "", active: true } as CategoryOption,
+              ],
+            }
+          : s
       ),
     }));
   }
   function removeStep(stepId: string) {
-    setDraft(d => ({ ...d, steps: d.steps.filter(s => s.id !== stepId) }));
+    setDraft((d) => ({ ...d, steps: d.steps.filter((s) => s.id !== stepId) }));
   }
   function removeOption(stepId: string, optIndex: number) {
-    setDraft(d => ({
+    setDraft((d) => ({
       ...d,
-      steps: d.steps.map(s => s.id === stepId
-        ? { ...s, options: (s.options || []).filter((_, i) => i !== optIndex) }
-        : s
+      steps: d.steps.map((s) =>
+        s.id === stepId
+          ? {
+              ...s,
+              options: (s.options || []).filter((_, i) => i !== optIndex),
+            }
+          : s
       ),
     }));
   }
 
-  // --- validaciones por paso ---
   const basicValid = (draft.name || "").trim().length > 0;
   const attrsValid = (() => {
     const steps = draft.steps || [];
     if (steps.length === 0) return false;
-    const anyAffect = steps.some(s => s.affectsStock !== false);
-    if (!anyAffect) return false; // al menos uno debe afectar stock (p. ej. Tamaño)
+    const anyAffect = steps.some((s) => s.affectsStock !== false);
+    if (!anyAffect) return false;
     for (const s of steps) {
       if (!s.label?.trim()) return false;
-      const activeOpts = (s.options || []).filter(o => o.active !== false && !!o.label?.trim());
+      const activeOpts = (s.options || []).filter(
+        (o) => o.active !== false && !!o.label?.trim()
+      );
       if (activeOpts.length === 0) return false;
     }
     return true;
@@ -117,16 +169,23 @@ export default function CategoryEditor({
   function next() {
     if (stepIndex === 0 && !basicValid) return;
     if (stepIndex === 1 && !attrsValid) return;
-    setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
+    setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
   }
-  function prev() { setStepIndex(i => Math.max(i - 1, 0)); }
+  function prev() {
+    setStepIndex((i) => Math.max(i - 1, 0));
+  }
 
   useEffect(() => {
-    const el = document.querySelector(".modal-body-scroll") as HTMLElement | null;
+    const el = document.querySelector(
+      ".modal-body-scroll"
+    ) as HTMLElement | null;
     el?.scrollTo?.({ top: 0, behavior: "smooth" });
   }, [stepIndex]);
 
-  const primaryAction = stepIndex === STEPS.length - 1 ? { label: "Guardar", onClick: onSave } : undefined;
+  const primaryAction =
+    stepIndex === STEPS.length - 1
+      ? { label: "Guardar", onClick: onSave }
+      : undefined;
 
   return (
     <BaseModal
@@ -146,8 +205,13 @@ export default function CategoryEditor({
         <p>{STEPS[stepIndex].help}</p>
         {stepIndex === 1 && (
           <ul className="list-disc ml-5">
-            <li>Ejemplo: <b>Tamaño</b> (libra / media) <b>afecta stock = Sí</b>.</li>
-            <li>Ejemplo: <b>Tipo</b> (fría / genovesa) <b>afecta stock = No</b> para compartir inventario.</li>
+            <li>
+              Ejemplo: <b>Tamaño</b> (libra / media) <b>afecta stock = Sí</b>.
+            </li>
+            <li>
+              Ejemplo: <b>Tipo</b> (fría / genovesa) <b>afecta stock = No</b>{" "}
+              para compartir inventario.
+            </li>
           </ul>
         )}
       </Explainer>
@@ -159,18 +223,28 @@ export default function CategoryEditor({
             Nombre *
             <input
               value={draft.name}
-              onChange={(e) => setDraft(d => ({ ...d, name: e.target.value }))}
-              className={`mt-1 w-full rounded-xl border px-4 py-3 ${basicValid ? "border-gray-300" : "border-rose-300"}`}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, name: e.target.value }))
+              }
+              className={`mt-1 w-full rounded-xl border px-4 py-3 ${
+                basicValid ? "border-gray-300" : "border-rose-300"
+              }`}
               placeholder="Bizcochos"
             />
-            {!basicValid && <div className="text-xs text-rose-600 mt-1">Ingresa un nombre para continuar.</div>}
+            {!basicValid && (
+              <div className="text-xs text-rose-600 mt-1">
+                Ingresa un nombre para continuar.
+              </div>
+            )}
           </label>
 
           <label className="text-sm font-semibold text-gray-700 inline-flex items-center gap-2">
             <input
               type="checkbox"
               checked={draft.active !== false}
-              onChange={(e) => setDraft(d => ({ ...d, active: e.target.checked }))}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, active: e.target.checked }))
+              }
               className="rounded border-gray-300 text-purple-600"
             />
             Activa
@@ -183,12 +257,19 @@ export default function CategoryEditor({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold">Atributos (select)</h3>
-            <button onClick={addStep} className="px-3 py-2 rounded-lg bg-white border hover:bg-gray-50">➕ Añadir atributo</button>
+            <button
+              onClick={addStep}
+              className="px-3 py-2 rounded-lg bg-white border hover:bg-gray-50"
+            >
+              ➕ Añadir atributo
+            </button>
           </div>
 
           {(draft.steps || []).map((s) => {
             const labelOk = !!s.label?.trim();
-            const activeOpts = (s.options || []).filter(o => o.active !== false && !!o.label?.trim());
+            const activeOpts = (s.options || []).filter(
+              (o) => o.active !== false && !!o.label?.trim()
+            );
             const hasActive = activeOpts.length > 0;
 
             return (
@@ -199,52 +280,82 @@ export default function CategoryEditor({
                     <input
                       value={s.label}
                       onChange={(e) =>
-                        setDraft(d => ({
+                        setDraft((d) => ({
                           ...d,
-                          steps: d.steps.map(x => x.id === s.id
-                            ? { ...x, label: e.target.value, key: slugify(e.target.value), type: "select", required: true }
-                            : x
+                          steps: d.steps.map((x) =>
+                            x.id === s.id
+                              ? {
+                                  ...x,
+                                  label: e.target.value,
+                                  key: slugify(e.target.value),
+                                  type: "select",
+                                  required: true,
+                                }
+                              : x
                           ),
                         }))
                       }
-                      className={`mt-1 w-full rounded-xl border px-3 py-2 ${labelOk ? "border-gray-300" : "border-rose-300"}`}
+                      className={`mt-1 w-full rounded-xl border px-3 py-2 ${
+                        labelOk ? "border-gray-300" : "border-rose-300"
+                      }`}
                       placeholder="Tamaño"
                     />
-                    {!labelOk && <div className="text-xs text-rose-600 mt-1">Escribe un nombre para el atributo.</div>}
+                    {!labelOk && (
+                      <div className="text-xs text-rose-600 mt-1">
+                        Escribe un nombre para el atributo.
+                      </div>
+                    )}
                   </label>
 
-                  {/* Config editable */}
                   <div className="text-xs text-gray-700">
                     <div className="px-3 py-3 rounded-lg bg-purple-50 border border-purple-100 space-y-2">
-                      <div className="font-semibold text-purple-700">Configuración</div>
-                      <div>• Tipo: <b>select</b> (fijo)</div>
+                      <div className="font-semibold text-purple-700">
+                        Configuración
+                      </div>
+                      <div>
+                        • Tipo: <b>select</b> (fijo)
+                      </div>
                       <label className="inline-flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={s.affectsStock !== false}
                           onChange={(e) =>
-                            setDraft(d => ({
+                            setDraft((d) => ({
                               ...d,
-                              steps: d.steps.map(x => x.id === s.id ? { ...x, affectsStock: e.target.checked } : x),
+                              steps: d.steps.map((x) =>
+                                x.id === s.id
+                                  ? { ...x, affectsStock: e.target.checked }
+                                  : x
+                              ),
                             }))
                           }
                         />
                         Afecta stock
                       </label>
                       <div className="text-[11px] text-gray-500">
-                        Si está activo, el inventario se llevará por este atributo.
+                        Si está activo, el inventario se llevará por este
+                        atributo.
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Opciones */}
                 <div className="mt-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">Opciones</div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => addOption(s.id)} className="px-2 py-1 rounded bg-white border">➕ Opción</button>
-                      <button onClick={() => removeStep(s.id)} className="px-2 py-1 rounded text-rose-600 hover:bg-rose-50">Eliminar atributo</button>
+                      <button
+                        onClick={() => addOption(s.id)}
+                        className="px-2 py-1 rounded bg-white border"
+                      >
+                        ➕ Opción
+                      </button>
+                      <button
+                        onClick={() => removeStep(s.id)}
+                        className="px-2 py-1 rounded text-rose-600 hover:bg-rose-50"
+                      >
+                        Eliminar atributo
+                      </button>
                     </div>
                   </div>
 
@@ -255,15 +366,29 @@ export default function CategoryEditor({
                         <input
                           value={o.label}
                           onChange={(e) =>
-                            setDraft(d => ({
+                            setDraft((d) => ({
                               ...d,
-                              steps: d.steps.map(x => x.id === s.id
-                                ? { ...x, options: x.options!.map((y, k) => k === j ? { ...y, label: e.target.value, key: slugify(e.target.value) } : y) }
-                                : x
+                              steps: d.steps.map((x) =>
+                                x.id === s.id
+                                  ? {
+                                      ...x,
+                                      options: x.options!.map((y, k) =>
+                                        k === j
+                                          ? {
+                                              ...y,
+                                              label: e.target.value,
+                                              key: slugify(e.target.value),
+                                            }
+                                          : y
+                                      ),
+                                    }
+                                  : x
                               ),
                             }))
                           }
-                          className={`rounded border px-2 py-1 ${labelValid ? "border-gray-300" : "border-rose-300"}`}
+                          className={`rounded border px-2 py-1 ${
+                            labelValid ? "border-gray-300" : "border-rose-300"
+                          }`}
                           placeholder="Etiqueta (p. ej. Libra)"
                         />
                         <div className="flex items-center gap-2">
@@ -271,23 +396,40 @@ export default function CategoryEditor({
                             type="checkbox"
                             checked={o.active !== false}
                             onChange={(e) =>
-                              setDraft(d => ({
+                              setDraft((d) => ({
                                 ...d,
-                                steps: d.steps.map(x => x.id === s.id
-                                  ? { ...x, options: x.options!.map((y, k) => k === j ? { ...y, active: e.target.checked } : y) }
-                                  : x
+                                steps: d.steps.map((x) =>
+                                  x.id === s.id
+                                    ? {
+                                        ...x,
+                                        options: x.options!.map((y, k) =>
+                                          k === j
+                                            ? { ...y, active: e.target.checked }
+                                            : y
+                                        ),
+                                      }
+                                    : x
                                 ),
                               }))
                             }
                           />
                           <span className="text-sm text-gray-700">Activa</span>
                         </div>
-                        <button onClick={() => removeOption(s.id, j)} className="px-2 py-1 rounded text-rose-600 hover:bg-rose-50">Eliminar</button>
+                        <button
+                          onClick={() => removeOption(s.id, j)}
+                          className="px-2 py-1 rounded text-rose-600 hover:bg-rose-50"
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     );
                   })}
 
-                  {!hasActive && <div className="text-xs text-rose-600 mt-2">Agrega al menos <b>una opción activa</b>.</div>}
+                  {!hasActive && (
+                    <div className="text-xs text-rose-600 mt-2">
+                      Agrega al menos <b>una opción activa</b>.
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -297,12 +439,15 @@ export default function CategoryEditor({
             <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-100">
               {combos.length} combinaciones generadas (para precios)
             </span>
-            {!attrsValid && <span className="ml-2 text-rose-600">• Debe haber al menos un atributo que afecte stock.</span>}
+            {!attrsValid && (
+              <span className="ml-2 text-rose-600">
+                • Debe haber al menos un atributo que afecte stock.
+              </span>
+            )}
           </div>
         </div>
       )}
 
-      {/* Paso 3 */}
       {stepIndex === 2 && (
         <div>
           <h3 className="font-bold mb-2">Precios por combinación</h3>
@@ -314,28 +459,45 @@ export default function CategoryEditor({
             <PriceTable
               steps={draft.steps}
               prices={draft.variantPrices || {}}
-              onChange={(next) => setDraft(d => ({ ...d, variantPrices: next }))}
+              onChange={(next) =>
+                setDraft((d) => ({ ...d, variantPrices: next }))
+              }
             />
           )}
-          <div className="text-xs text-gray-600 mt-3">{combos.length} combinaciones activas actualmente.</div>
+          <div className="text-xs text-gray-600 mt-3">
+            {combos.length} combinaciones activas actualmente.
+          </div>
         </div>
       )}
 
-      {/* Controles inferiores */}
       <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="text-sm text-gray-600">Paso {stepIndex + 1} de {STEPS.length}</div>
+        <div className="text-sm text-gray-600">
+          Paso {stepIndex + 1} de {STEPS.length}
+        </div>
         <div className="flex gap-2">
-          <button type="button" onClick={prev} disabled={stepIndex === 0}
-            className={`px-4 py-2 rounded-lg border ${stepIndex === 0 ? "opacity-50 cursor-not-allowed" : "bg-white hover:bg-gray-50"}`}>
+          <button
+            type="button"
+            onClick={prev}
+            disabled={stepIndex === 0}
+            className={`px-4 py-2 rounded-lg border ${
+              stepIndex === 0
+                ? "opacity-50 cursor-not-allowed"
+                : "bg-white hover:bg-gray-50"
+            }`}
+          >
             ← Anterior
           </button>
           {stepIndex < STEPS.length - 1 && (
             <button
               type="button"
               onClick={next}
-              disabled={(stepIndex === 0 && !basicValid) || (stepIndex === 1 && !attrsValid)}
+              disabled={
+                (stepIndex === 0 && !basicValid) ||
+                (stepIndex === 1 && !attrsValid)
+              }
               className={`px-4 py-2 rounded-lg text-white font-semibold ${
-                (stepIndex === 0 && !basicValid) || (stepIndex === 1 && !attrsValid)
+                (stepIndex === 0 && !basicValid) ||
+                (stepIndex === 1 && !attrsValid)
                   ? "bg-gray-300 cursor-not-allowed"
                   : "bg-gradient-to-r from-purple-600 to-pink-600"
               }`}
@@ -343,7 +505,6 @@ export default function CategoryEditor({
               Siguiente →
             </button>
           )}
-          {/* Guardar lo muestra el BaseModal via primaryAction en el último paso */}
         </div>
       </div>
     </BaseModal>

@@ -20,7 +20,7 @@ export function CategoryFormModal({
   function addStep() {
     const s: CategoryStep = {
       id: crypto.randomUUID(),
-      key: "", // autokey desde label
+      key: "",
       label: "",
       type: "select",
       required: true,
@@ -79,7 +79,6 @@ export function CategoryFormModal({
       size="5xl"
       bodyClassName="max-h-[75vh] overflow-y-auto"
     >
-      {/* Datos básicos */}
       <div className="grid sm:grid-cols-2 gap-4">
         <label className="text-sm font-semibold text-gray-700">
           Nombre *
@@ -104,7 +103,6 @@ export function CategoryFormModal({
         </label>
       </div>
 
-      {/* Atributos */}
       <div className="mt-6">
         <div className="flex items-center justify-between">
           <h3 className="font-bold">Atributos (Select)</h3>
@@ -163,7 +161,6 @@ export function CategoryFormModal({
               </div>
             </div>
 
-            {/* Opciones */}
             <div className="mt-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold">Opciones</div>
@@ -248,7 +245,6 @@ export function CategoryFormModal({
         ))}
       </div>
 
-      {/* Precios por combinación */}
       <div className="mt-8">
         <h3 className="font-bold mb-2">Precios por combinación</h3>
         <p className="text-sm text-gray-600 mb-3">

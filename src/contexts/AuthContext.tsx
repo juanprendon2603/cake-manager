@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx
 import type { User } from "firebase/auth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
@@ -22,7 +21,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   role: Role | null;
-  profile: UserProfile | null; // 👈 NUEVO
+  profile: UserProfile | null;
   logout: () => Promise<void>;
 };
 
@@ -32,14 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null); // 👈 NUEVO
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const un = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         setUser(null);
         setRole(null);
-        setProfile(null); // 👈 limpia perfil
+        setProfile(null);
         setLoading(false);
         return;
       }
@@ -49,7 +48,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = (u.email || "").toLowerCase().trim();
 
       try {
-        // 0) Lee configuración (allowlist/admins + profiles)
         const cfgSnap = await getDoc(cfgRef);
         const cfg = cfgSnap.exists()
           ? (cfgSnap.data() as any)
@@ -67,15 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           { displayName?: string; firstName?: string; lastName?: string }
         > = cfg.profiles || {};
 
-        // 👇 Perfiles: intenta leer por email
-        const profForEmail =
-          profilesMap[email] ??
-          null; /* { displayName?, firstName?, lastName? } */
-
-        // ✅ bootstrap si NO hay admins (aunque initialized sea true)
+        const profForEmail = profilesMap[email] ?? null;
         const sinAdmins = admins.length === 0;
 
-        // 1) BOOTSTRAP
         if (!initialized || sinAdmins) {
           await runTransaction(db, async (tx) => {
             const freshCfg = await tx.get(cfgRef);
@@ -121,12 +113,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setUser(u);
           setRole("admin");
-          setProfile(profForEmail); // 👈 guarda perfil si existe
+          setProfile(profForEmail);
           setLoading(false);
           return;
         }
 
-        // 2) YA INICIALIZADO: validar allowlist/admins
         const isAdminEmail = admins.includes(email);
         const isAllowedEmail = isAdminEmail || allow.includes(email);
         if (!isAllowedEmail) {
@@ -138,7 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // 3) Asegurar/actualizar users/{uid}
         let finalRole: Role = isAdminEmail ? "admin" : "user";
         await runTransaction(db, async (tx) => {
           const uSnap = await tx.get(userRef);
@@ -176,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(u);
         setRole(finalRole);
-        setProfile(profForEmail); // 👈 guarda perfil leído del config
+        setProfile(profForEmail);
         setLoading(false);
       } catch (e: any) {
         console.error("[Auth] Bootstrap/allowlist error", e);

@@ -1,4 +1,3 @@
-// src/components/ui/ActionCard.tsx
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
@@ -6,65 +5,92 @@ export type ActionItem = {
   to: string;
   title: string;
   desc: string;
-  icon: ReactNode; // antes era string
-  gradient: string; // franja superior
-  bgGradient: string; // fondo de la tarjeta
-  borderColor: string; // p.ej. 'border-emerald-200'
-  textColor: string; // p.ej. 'text-emerald-700'
+  icon: ReactNode;
+  gradient: string;
+  bgGradient: string;
+  borderColor: string;
+  textColor: string;
   features?: string[];
 };
 
 type ActionCardProps = {
   item: ActionItem;
-  fullSpanOnSmall?: boolean; // p.ej. para la 3ra tarjeta en Ventas
+  fullSpanOnSmall?: boolean;
+  className?: string;
+  "data-testid"?: string;
 };
 
-export function ActionCard({ item, fullSpanOnSmall }: ActionCardProps) {
+export function ActionCard({
+  item,
+  fullSpanOnSmall,
+  className,
+  "data-testid": dataTestId,
+}: ActionCardProps) {
   return (
     <Link
       to={item.to}
-      className={`group relative rounded-3xl overflow-hidden transform hover:scale-[1.02] transition-all duration-300 ${
-        fullSpanOnSmall ? "sm:col-span-2" : ""
-      }`}
+      aria-label={item.title}
+      data-testid={dataTestId}
+      className={[
+        "group relative overflow-hidden rounded-3xl transform transition-all duration-300 hover:scale-[1.02]",
+        fullSpanOnSmall ? "sm:col-span-2" : "",
+        className ?? "",
+      ].join(" ")}
     >
       <div
         className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${item.gradient} opacity-90`}
       />
+
       <div
-        className={`relative bg-gradient-to-br ${item.bgGradient} backdrop-blur-xl border-2 ${item.borderColor} rounded-3xl p-8 shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_50px_rgba(142,45,168,0.25)] transition-all duration-300`}
+        className={[
+          "relative rounded-3xl border-2 p-8 backdrop-blur-xl transition-all duration-300",
+          "shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_50px_rgba(142,45,168,0.25)]",
+          `bg-gradient-to-br ${item.bgGradient}`,
+          item.borderColor,
+        ].join(" ")}
       >
         <div className="flex items-start gap-6">
-          <div className="flex-shrink-0 -mt-12 rounded-2xl p-4 bg-white shadow-lg ring-2 ring-white/80">
-            <span className="text-3xl">{item.icon}</span>
+          <div className="-mt-12 flex-shrink-0 rounded-2xl bg-white p-4 shadow-lg ring-2 ring-white/80">
+            <span className="text-3xl" aria-hidden>
+              {item.icon}
+            </span>
           </div>
+
           <div className="flex-1">
-            <h3 className={`text-2xl font-extrabold ${item.textColor} mb-2`}>
+            <h3 className={`mb-2 text-2xl font-extrabold ${item.textColor}`}>
               {item.title}
             </h3>
-            <p className="text-gray-700 mb-4 leading-relaxed">{item.desc}</p>
-            {item.features?.length ? (
-              <ul className="space-y-2 mb-6">
-                {item.features.map((f, i) => (
+            <p className="mb-4 leading-relaxed text-gray-700">{item.desc}</p>
+
+            {Boolean(item.features?.length) && (
+              <ul className="mb-6 space-y-2">
+                {item.features!.map((f, i) => (
                   <li
-                    key={i}
+                    key={`${i}-${f}`}
                     className="flex items-center gap-2 text-sm text-gray-600"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" />
                     {f}
                   </li>
                 ))}
               </ul>
-            ) : null}
-            <div className="inline-flex items-center gap-2 text-sm font-semibold text-white px-4 py-2 rounded-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] shadow-lg group-hover:shadow-xl transition-all duration-300">
+            )}
+
+            <span
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all duration-300 group-hover:shadow-xl"
+              aria-hidden
+            >
               Acceder ahora
-              <span className="group-hover:translate-x-1 transition-transform duration-200">
+              <span className="transition-transform duration-200 group-hover:translate-x-1">
                 →
               </span>
-            </div>
+            </span>
           </div>
-          <div className="hidden sm:flex items-center">
+
+          <div className="hidden items-center sm:flex">
             <span
-              className={`text-2xl ${item.textColor} group-hover:translate-x-2 transition-transform duration-300`}
+              className={`text-2xl transition-transform duration-300 ${item.textColor} group-hover:translate-x-2`}
+              aria-hidden
             >
               →
             </span>

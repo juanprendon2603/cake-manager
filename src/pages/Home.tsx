@@ -1,16 +1,14 @@
-// src/components/Home.tsx
+import {
+  BarChart3,
+  Clock,
+  CreditCard,
+  Package,
+  Receipt,
+  Users,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import logoUrl from "../assets/logo.png";
 import { AppFooter } from "../components/AppFooter";
-import {
-  Package,
-  Receipt,
-  BarChart3,
-  CreditCard,
-  Clock,
-  Users,
-} from "lucide-react";
-
 
 export function Home() {
   const cards = [
@@ -50,12 +48,10 @@ export function Home() {
       gradient: "from-amber-500 to-orange-500",
     },
   ];
-  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        {/* Header */}
         <header className="mb-12 text-center relative">
           <div className="mx-auto mb-6 w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white/70 backdrop-blur border border-white/60 shadow-[0_10px_30px_rgba(142,45,168,0.15)] flex items-center justify-center overflow-hidden ring-2 ring-purple-200">
             <img
@@ -74,37 +70,37 @@ export function Home() {
             Plataforma general para la gestión de tu negocio
           </p>
 
-          {/* Quick KPIs */}
-{/* Quick KPIs */}
-<div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
-  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-    <Package className="w-6 h-6 mx-auto text-[#8E2DA8]" />
-    <div className="text-xs text-gray-600">Inventario</div>
-    <div className="text-sm font-semibold text-[#8E2DA8]">Stock</div>
-  </div>
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <Package className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+              <div className="text-xs text-gray-600">Inventario</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">Stock</div>
+            </div>
 
-  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-    <Receipt className="w-6 h-6 mx-auto text-[#8E2DA8]" />
-    <div className="text-xs text-gray-600">Ventas</div>
-    <div className="text-sm font-semibold text-[#8E2DA8]">Diarias</div>
-  </div>
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <Receipt className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+              <div className="text-xs text-gray-600">Ventas</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">
+                Diarias
+              </div>
+            </div>
 
-  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-    <BarChart3 className="w-6 h-6 mx-auto text-[#8E2DA8]" />
-    <div className="text-xs text-gray-600">Resumen</div>
-    <div className="text-sm font-semibold text-[#8E2DA8]">General</div>
-  </div>
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <BarChart3 className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+              <div className="text-xs text-gray-600">Resumen</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">
+                General
+              </div>
+            </div>
 
-  <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-    <Users className="w-6 h-6 mx-auto text-[#8E2DA8]" />
-    <div className="text-xs text-gray-600">Asistencia</div>
-    <div className="text-sm font-semibold text-[#8E2DA8]">Equipo</div>
-  </div>
-</div>
-          
+            <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+              <Users className="w-6 h-6 mx-auto text-[#8E2DA8]" />
+              <div className="text-xs text-gray-600">Asistencia</div>
+              <div className="text-sm font-semibold text-[#8E2DA8]">Equipo</div>
+            </div>
+          </div>
         </header>
 
-        {/* Action Cards */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {cards.map((item) => (
             <Link
@@ -145,7 +141,6 @@ export function Home() {
           ))}
         </section>
 
-        {/* Quick links row */}
         <section className="mt-8">
           <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow flex flex-wrap items-center gap-3 justify-center">
             <Link
@@ -171,13 +166,7 @@ export function Home() {
           </div>
         </section>
       </main>
-      <AppFooter
-        appName="InManager"
-        // Si no quieres quick links, pasa quickLinks={[]}
-        // quickLinks={[]}
-        // Cambia el acento si lo deseas:
-        // tagline="Operación simple, control total."
-      />
+      <AppFooter appName="InManager" />
     </div>
   );
 }

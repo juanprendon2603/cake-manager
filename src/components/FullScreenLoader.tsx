@@ -32,7 +32,6 @@ export function FullScreenLoader({
       </div>
 
       <div className="relative mx-4 w-full max-w-sm rounded-3xl bg-white/90 backdrop-blur-xl shadow-2xl border-2 border-white/60 p-8 text-center">
-        {/* Logo pequeño arriba */}
         <div className="mx-auto mb-6 w-16 h-16 rounded-2xl bg-white border border-purple-100 shadow flex items-center justify-center overflow-hidden">
           <img
             src={logoUrl}
@@ -43,11 +42,8 @@ export function FullScreenLoader({
           />
         </div>
 
-        {/* Cupcake Loader */}
         <div className="mx-auto mb-6 w-40 h-40 relative">
-          {/* SVG Cupcake base */}
           <svg viewBox="0 0 160 160" className="w-full h-full">
-            {/* Sombra */}
             <ellipse
               cx="80"
               cy="138"
@@ -56,7 +52,6 @@ export function FullScreenLoader({
               fill="rgba(0,0,0,0.08)"
             ></ellipse>
 
-            {/* Capacillo (base) */}
             <path
               d="M40,100 L120,100 L112,140 C112,144 108,148 104,148 L56,148 C52,148 48,144 48,140 Z"
               fill="url(#linerBase)"
@@ -80,7 +75,6 @@ export function FullScreenLoader({
                 <stop offset="100%" stopColor="#FFD166" />
               </linearGradient>
               <clipPath id="frostingClip">
-                {/* Contorno del frosting para recortar el "relleno" */}
                 <path
                   d="M40,98
                          C35,80 48,70 60,68
@@ -92,7 +86,6 @@ export function FullScreenLoader({
               </clipPath>
             </defs>
 
-            {/* Rayas del capacillo */}
             {Array.from({ length: 9 }).map((_, i) => {
               const x = 48 + i * 8;
               return (
@@ -106,7 +99,6 @@ export function FullScreenLoader({
               );
             })}
 
-            {/* Borde superior del capacillo */}
             <path
               d="M40,100 Q80,110 120,100"
               fill="none"
@@ -114,9 +106,7 @@ export function FullScreenLoader({
               strokeWidth="2"
             />
 
-            {/* Área del frosting (clip) */}
             <g clipPath="url(#frostingClip)">
-              {/* Relleno animado (sube para simular "llenado") */}
               <rect
                 x="24"
                 y="60"
@@ -125,7 +115,6 @@ export function FullScreenLoader({
                 fill="url(#frostingGrad)"
                 className="cupcake-fill"
               />
-              {/* Sutile sombra interna */}
               <rect
                 x="24"
                 y="60"
@@ -136,7 +125,6 @@ export function FullScreenLoader({
               />
             </g>
 
-            {/* Contorno del frosting para darle definición */}
             <path
               d="M40,98
                  C35,80 48,70 60,68
@@ -150,7 +138,6 @@ export function FullScreenLoader({
               opacity="0.9"
             />
 
-            {/* Sprinkles (chispitas) */}
             {[
               { x: 70, y: 78, r: 2, rot: 15 },
               { x: 90, y: 72, r: 2, rot: -10 },
@@ -172,7 +159,6 @@ export function FullScreenLoader({
               </g>
             ))}
 
-            {/* Cherry/topper */}
             <circle
               cx="112"
               cy="64"
@@ -189,13 +175,11 @@ export function FullScreenLoader({
           </svg>
         </div>
 
-        {/* Texto */}
         <h2 className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
           InManager
         </h2>
         <p className="text-sm text-gray-700 mb-4">{message}</p>
 
-        {/* Barra de progreso sutil */}
         <div className="h-2 w-full rounded-full bg-purple-100 overflow-hidden">
           <div className="h-full w-1/3 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-300 animate-[progress_1.8s_ease-in-out_infinite]" />
         </div>

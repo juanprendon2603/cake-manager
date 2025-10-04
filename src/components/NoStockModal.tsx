@@ -1,4 +1,3 @@
-// src/components/NoStockModal.tsx
 import BaseModal from "./BaseModal";
 
 interface Part {
@@ -44,7 +43,6 @@ export default function NoStockModal({
       }}
     >
       <div className="space-y-5">
-        {/* Bloque con detalles de selección */}
         {selectedParts.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
             <div className="font-semibold">Combinación seleccionada:</div>
@@ -59,7 +57,6 @@ export default function NoStockModal({
           </div>
         )}
 
-        {/* Stock vs cantidad */}
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border p-3 bg-white text-center">
             <div className="text-xs text-gray-500">Stock actual</div>

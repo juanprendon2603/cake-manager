@@ -1,4 +1,3 @@
-// src/components/RequireAuth.tsx
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { FullScreenLoaderSession } from "./FullScreenLoaderSession";
@@ -12,7 +11,6 @@ export default function RequireAuth() {
       <FullScreenLoaderSession
         appName="InManager"
         message="Preparando tu sesión…"
-        // logoUrl opcional si quieres mostrar tu logo en el centro
         logoUrl={new URL("../assets/logo.png", import.meta.url).toString()}
         tips={[
           "Consejo: puedes filtrar pedidos por estado",

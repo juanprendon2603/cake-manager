@@ -19,7 +19,6 @@ const getAmount = (s: Sale) => s.valor ?? s.partialAmount ?? 0;
 
 const easeM3 = cubicBezier(0.4, 0, 0.2, 1);
 
-/* --------------------- Columnas dinámicas por categoría -------------------- */
 type ColKey = "qty" | "flavor" | "size" | "method" | "amount" | "kind";
 type Column = {
   key: ColKey;
@@ -73,7 +72,6 @@ export function DailyDetailContent({
   sales,
   expenses,
 }: DailyDetailContentProps) {
-  /* ------------------------------- Totales KPI ------------------------------ */
   const totalSalesCash = sales
     .filter((s) => s.paymentMethod === "cash")
     .reduce((sum, s) => sum + getAmount(s), 0);
@@ -98,7 +96,6 @@ export function DailyDetailContent({
 
   const net = totalSales - totalExpenses;
 
-  /* ----------------------- Agrupar ventas por categoría --------------------- */
   const groups = useMemo(() => {
     const map = new Map<
       string,
@@ -118,12 +115,10 @@ export function DailyDetailContent({
       g.subtotal += Number(getAmount(s)) || 0;
       g.unidades += Number(getQty(s)) || 0;
     }
-    // definir columnas dinámicas por grupo
     for (const [cat, g] of map) {
       g.cols = deriveColumns(g.rows);
       map.set(cat, g);
     }
-    // ordenar alfabéticamente por categoría
     return Array.from(map.entries()).sort(([a], [b]) =>
       a.localeCompare(b, "es")
     );
@@ -134,7 +129,6 @@ export function DailyDetailContent({
     [sales]
   );
 
-  /* ------------------------------- Animaciones ------------------------------ */
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -165,10 +159,8 @@ export function DailyDetailContent({
         Detalle del día {fecha}
       </motion.h2>
 
-      {/* ------------------------------- KPI Cards ------------------------------- */}
       <motion.section variants={itemVariants} className="mb-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Ventas */}
           <motion.div
             whileHover={{ scale: 1.02, y: -4 }}
             className="relative p-6 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 overflow-hidden group shadow-lg"
@@ -209,7 +201,6 @@ export function DailyDetailContent({
             </div>
           </motion.div>
 
-          {/* Gastos */}
           <motion.div
             whileHover={{ scale: 1.02, y: -4 }}
             className="relative p-6 rounded-2xl bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 overflow-hidden group shadow-lg"
@@ -248,7 +239,6 @@ export function DailyDetailContent({
             </div>
           </motion.div>
 
-          {/* Disponibles y Neto */}
           <motion.div
             whileHover={{ scale: 1.02, y: -4 }}
             className={`relative p-6 rounded-2xl border-2 overflow-hidden group shadow-lg ${
@@ -328,7 +318,6 @@ export function DailyDetailContent({
         </div>
       </motion.section>
 
-      {/* ------------------ Ventas/Abonos: una tabla por categoría ----------------- */}
       <motion.section variants={itemVariants} className="mb-10">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm">
@@ -348,14 +337,12 @@ export function DailyDetailContent({
           </div>
         ) : (
           <>
-            {/* Desktop: una tabla por categoría, con columnas dinámicas */}
             <div className="hidden sm:flex flex-col gap-6">
               {groups.map(([cat, g], gi) => (
                 <div
                   key={cat || gi}
                   className="overflow-x-auto bg-white/80 backdrop-blur rounded-2xl border-2 border-purple-200 shadow-lg"
                 >
-                  {/* Encabezado de categoría + Subtotal */}
                   <div className="flex items-center justify-between px-4 py-3 bg-purple-50/70 border-b border-purple-200">
                     <div className="font-bold text-purple-800">
                       {cat || "Sin categoría"}{" "}
@@ -460,7 +447,6 @@ export function DailyDetailContent({
                 </div>
               ))}
 
-              {/* Total del día (desktop) */}
               <div className="bg-purple-100/70 border-2 border-purple-200 rounded-2xl px-5 py-3 flex items-center justify-end">
                 <span className="mr-4 font-bold text-purple-800">
                   TOTAL DEL DÍA
@@ -471,7 +457,6 @@ export function DailyDetailContent({
               </div>
             </div>
 
-            {/* Mobile: cards por categoría con atributos presentes */}
             <div className="sm:hidden grid grid-cols-1 gap-5">
               {groups.map(([cat, g], gi) => (
                 <div
@@ -523,7 +508,6 @@ export function DailyDetailContent({
                             </span>
                           </div>
 
-                          {/* Solo mostrar atributos presentes en esta categoría */}
                           {g.cols.some((c) => c.key === "flavor") && (
                             <div>
                               <span className="text-gray-500 block">Sabor</span>
@@ -577,13 +561,11 @@ export function DailyDetailContent({
         )}
       </motion.section>
 
-      {/* ------------------------------- GASTOS -------------------------------- */}
       <GastosSection expenses={expenses} itemVariants={itemVariants} />
     </motion.div>
   );
 }
 
-/* ------------------------------ Gastos section ----------------------------- */
 function GastosSection({
   expenses,
   itemVariants,

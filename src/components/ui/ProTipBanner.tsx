@@ -1,8 +1,7 @@
-// src/components/ui/ProTipBanner.tsx
 type ProTipBannerProps = {
   title: string;
   text: string;
-  gradientClass?: string; // permite personalizar
+  gradientClass?: string;
 };
 
 export function ProTipBanner({

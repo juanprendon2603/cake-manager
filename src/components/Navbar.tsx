@@ -1,4 +1,3 @@
-// src/components/Navbar.tsx
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -33,7 +32,7 @@ function getInitialsFromProfileOrUser(
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, role, profile } = useAuth(); // 👈 ahora tenemos profile
+  const { user, logout, role, profile } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -85,13 +84,10 @@ export function Navbar() {
   ];
 
   const displayName =
-    // 1) profile
     (profile?.firstName || profile?.lastName
       ? `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim()
       : profile?.displayName) ||
-    // 2) auth displayName
     user?.displayName ||
-    // 3) email local-part
     user?.email?.split("@")[0] ||
     "Usuario";
 
@@ -106,14 +102,12 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-[#7a1f96]/80 via-[#8E2DA8]/80 to-[#a84bd1]/80 border-b border-white/20 shadow-[0_8px_20px_rgba(142,45,168,0.25)]">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex justify-between items-center h-16 text-white">
-          {/* Brand */}
           <Link to="/" className="flex items-center gap-2">
             <span className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-[#2FE1EB] via-white to-[#F3E8FF] bg-clip-text text-transparent drop-shadow-[0_1px_8px_rgba(47,225,235,0.35)]">
               InManager
             </span>
           </Link>
 
-          {/* Desktop menu */}
           <div className="hidden md:flex items-center space-x-1">
             {items.map((item) => {
               const active = isActive(item.to);
@@ -142,7 +136,6 @@ export function Navbar() {
               );
             })}
 
-            {/* User menu */}
             <div className="relative ml-2" ref={userMenuRef}>
               <button
                 onClick={() => setUserOpen((v) => !v)}
@@ -206,7 +199,6 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* Mobile toggle */}
           <button
             className="md:hidden p-3 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/70"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -248,7 +240,6 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile panel */}
       {menuOpen && (
         <div className="md:hidden px-4 pb-4 pt-2">
           <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md shadow-[0_12px_30px_rgba(0,0,0,0.25)] overflow-hidden">

@@ -1,4 +1,3 @@
-// hooks/useRangeSummaryOptimized.ts
 import {
   collectionGroup,
   getDocs,
@@ -15,13 +14,15 @@ import { isCurrentMonth, monthsBetween } from "../utils/rangeMonths";
 
 export type SaleLike = {
   id: string;
-  type?: string | null;
-  size?: string | null;
-  flavor?: string | null;
-  cantidad?: number | null;
   paymentMethod: string;
   valor: number;
   isPayment?: boolean;
+  quantity?: number | null;
+  unitPriceCOP?: number | null;
+  selections?: Record<string, unknown> | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  variantKey?: string | null;
 };
 
 export type ExpenseLike = {
@@ -47,29 +48,21 @@ export type DailyRaw = {
   sales: SaleLike[];
   expenses: ExpenseLike[];
 };
-type Range = { start: string; end: string };
-type MonthPayload = { raw: DailyRaw[] }; // lo que cacheamos por mes
 
-// ----- Shapes locales para los docs de Firestore -----
+type Range = { start: string; end: string };
+type MonthPayload = { raw: DailyRaw[] };
+
 type EntryDoc = {
   kind: "sale" | "payment";
-  day: string; // "YYYY-MM-DD"
-
-  // Legacy
-  type?: string | null;
-  size?: string | null;
-  flavor?: string | null;
+  day: string;
   amountCOP?: number | null;
-
-  // Comunes
   quantity?: number | null;
   paymentMethod?: PaymentMethod;
-
-  // Nuevo genérico
   categoryId?: string | null;
-  variantKey?: string | null;
+  categoryName?: string | null;
   unitPriceCOP?: number | null;
   selections?: Record<string, unknown> | null;
+  variantKey?: string | null;
 };
 
 type ExpenseDoc = {
@@ -84,50 +77,17 @@ export function useRangeSummaryOptimized(range: Range) {
   const [loading, setLoading] = useState(true);
   const [rawDocs, setRawDocs] = useState<DailyRaw[]>([]);
 
-  const SIZE_KEYS = ["tamaño", "tamano", "size"];
-  const FLAVOR_KEYS = ["sabor", "flavor"];
-
-  function readFromSelections(
-    selections: Record<string, unknown> | null | undefined,
-    keys: string[]
-  ): string {
-    if (!selections) return "";
-    const entries = Object.entries(selections);
-
-    // exact match
-    for (const k of keys) {
-      const hit = entries.find(([kk]) => kk.toLowerCase() === k.toLowerCase());
-      if (hit) return String(hit[1] ?? "");
-    }
-    // includes
-    for (const k of keys) {
-      const hit = entries.find(([kk]) =>
-        kk.toLowerCase().includes(k.toLowerCase())
-      );
-      if (hit) return String(hit[1] ?? "");
-    }
-    return "";
-  }
-
-  function cleanLabel(s?: string | null) {
-    return (s ?? "").replace(/_/g, " ");
-  }
-
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       setLoading(true);
 
-      // 1) Meses del rango
       const yms = monthsBetween(range.start, range.end);
-
-      // 2) Para cada mes, resolvemos fuente: cache (si pasado y version ok) o red
       const monthResults: DailyRaw[][] = [];
 
       for (const ym of yms) {
         if (!isCurrentMonth(ym)) {
-          // Pasado: intentamos cache validado con meta.version
           const meta = await getMonthMeta(ym);
           const cached = getMonthCache<MonthPayload>(ym);
           if (meta && cached && cached.version === meta.version) {
@@ -136,13 +96,11 @@ export function useRangeSummaryOptimized(range: Range) {
           }
         }
 
-        // Red: consultamos SOLO días del rango que caen en este mes
         const monthStart = `${ym}-01`;
-        const monthEnd = `${ym}-31`; // suficiente para where <=
+        const monthEnd = `${ym}-31`;
         const s = range.start > monthStart ? range.start : monthStart;
         const e = range.end < monthEnd ? range.end : monthEnd;
 
-        // entries
         const qEntries = query(
           collectionGroup(db, "entries"),
           where("day", ">=", s),
@@ -150,7 +108,6 @@ export function useRangeSummaryOptimized(range: Range) {
           orderBy("day")
         );
 
-        // expenses (puede no existir índice; maneja try/catch)
         let expensesSnap: Awaited<ReturnType<typeof getDocs>> | null = null;
         try {
           expensesSnap = await getDocs(
@@ -165,7 +122,7 @@ export function useRangeSummaryOptimized(range: Range) {
           const msg = String((err as { message?: string })?.message ?? "");
           if (msg.includes("index is not ready yet")) {
             console.warn(
-              "[useRangeSummaryOptimized] expenses index not ready; skip expenses for",
+              "[useRangeSummaryOptimized] expenses index not ready;",
               ym
             );
           } else {
@@ -185,29 +142,11 @@ export function useRangeSummaryOptimized(range: Range) {
           if (!day) return;
           if (!byDay[day]) byDay[day] = { sales: [], expenses: [] };
 
-          // cantidad
           const cantidad =
             typeof data.quantity === "number" && Number.isFinite(data.quantity)
               ? data.quantity
               : 0;
 
-          // type: legacy(type) -> generico(categoryId)
-          const type = (data.type ??
-            data.categoryId ??
-            null) as SaleLike["type"];
-
-          // size/flavor: legacy(top-level) -> generico(selections)
-          const size =
-            cleanLabel(data.size ?? "") ||
-            cleanLabel(readFromSelections(data.selections, SIZE_KEYS)) ||
-            null;
-
-          const flavor =
-            cleanLabel(data.flavor ?? "") ||
-            cleanLabel(readFromSelections(data.selections, FLAVOR_KEYS)) ||
-            null;
-
-          // valor: amountCOP || (unitPriceCOP * cantidad)
           const valor = Number(
             data.amountCOP ??
               (Number.isFinite(data.unitPriceCOP as number) &&
@@ -219,13 +158,17 @@ export function useRangeSummaryOptimized(range: Range) {
 
           const sale: SaleLike = {
             id: d.id,
-            type,
-            size,
-            flavor,
-            cantidad,
             paymentMethod: (data.paymentMethod ?? "cash") as string,
             valor,
             isPayment: data.kind === "payment",
+            quantity: cantidad,
+            unitPriceCOP: (data.unitPriceCOP as number) ?? null,
+            selections: data.selections ?? null,
+            categoryId: data.categoryId ?? null,
+            categoryName: (data.categoryName ?? data.categoryId ?? null) as
+              | string
+              | null,
+            variantKey: data.variantKey ?? null,
           };
 
           byDay[day].sales.push(sale);
@@ -253,9 +196,8 @@ export function useRangeSummaryOptimized(range: Range) {
 
         monthResults.push(rawMonth);
 
-        // Guardar cache si es mes pasado
         if (!isCurrentMonth(ym)) {
-          const meta = await getMonthMeta(ym); // puede ser null la primera vez
+          const meta = await getMonthMeta(ym);
           const version = Number(meta?.version ?? 0);
           setMonthCache<MonthPayload>(ym, {
             version,
@@ -265,7 +207,6 @@ export function useRangeSummaryOptimized(range: Range) {
         }
       }
 
-      // 3) Unimos todos los meses
       const joined = monthResults
         .flat()
         .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
@@ -278,7 +219,6 @@ export function useRangeSummaryOptimized(range: Range) {
     };
   }, [range.start, range.end]);
 
-  // 4) Calcula `daily` y `totals` igual que tu hook original
   const { daily, totals } = useMemo(() => {
     const dailyRows: DailyData[] = rawDocs.map(({ fecha, sales, expenses }) => {
       const totalSalesCash = sales

@@ -1,8 +1,8 @@
-// src/pages/daily/DailyDetailPage.tsx
 import { collectionGroup, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
+import { CalendarDays } from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { PageHero } from "../../components/ui/PageHero";
@@ -10,15 +10,12 @@ import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { db } from "../../lib/firebase";
 import type { Expense, Sale } from "../../types/finance";
 import { DailyDetailContent } from "./DailyDetailContent";
-import { CalendarDays } from "lucide-react";
 
 type PaymentMethod = "cash" | "transfer";
 
-/** 🔑 Claves posibles para tamaño y sabor en selections (genérico) */
 const SIZE_KEYS = ["tamaño", "tamano", "size"];
 const FLAVOR_KEYS = ["sabor", "flavor"];
 
-/** Utils */
 function ucFirst(s: string) {
   const t = (s ?? "").trim();
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
@@ -45,10 +42,9 @@ function readFromSelections(
   return "";
 }
 
-/** Doc shape: soporta legacy y genérico */
 type EntryDoc = {
   kind: "sale" | "payment";
-  day: string; // "YYYY-MM-DD"
+  day: string;
   type?: string | null;
   size?: string | null;
   flavor?: string | null;
@@ -62,7 +58,7 @@ type EntryDoc = {
 };
 
 type ExpenseDoc = {
-  day: string; // "YYYY-MM-DD"
+  day: string;
   description?: string | null;
   paymentMethod?: PaymentMethod;
   valueCOP?: number | null;
@@ -174,11 +170,10 @@ export function DailyDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow px-6 py-8 sm:py-12 max-w-6xl mx-auto w-full">
-        {/* BackButton + PageHero */}
         <div className="mb-6 sm:mb-8 relative">
           <PageHero
-  icon={<CalendarDays className="w-10 h-10" />}
-  title={`Detalle del día ${fecha}`}
+            icon={<CalendarDays className="w-10 h-10" />}
+            title={`Detalle del día ${fecha}`}
             subtitle="Ventas, abonos y gastos del día seleccionado (esquema mensual)."
             gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
             iconGradientClass="from-[#8E2DA8] to-[#A855F7]"

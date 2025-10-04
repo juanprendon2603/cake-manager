@@ -1,16 +1,14 @@
-// src/pages/admin/Allowlist.tsx
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { AppFooter } from "../../components/AppFooter";
+import { BackButton } from "../../components/BackButton";
 import BaseModal from "../../components/BaseModal";
-import { useAuth } from "../../contexts/AuthContext";
-import { db } from "../../lib/firebase";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
-import { AppFooter } from "../../components/AppFooter";
-import { BackButton } from "../../components/BackButton"; // 👈 NUEVO
-import { Users } from "lucide-react";
-
+import { useAuth } from "../../contexts/AuthContext";
+import { db } from "../../lib/firebase";
 
 type RoleSel = "user" | "admin";
 
@@ -38,30 +36,24 @@ export default function AllowlistAdmin() {
   const { role, user } = useAuth();
 
   const [loading, setLoading] = useState(true);
-
-  // Estado de configuración
   const [allow, setAllow] = useState<string[]>([]);
   const [admins, setAdmins] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<ProfilesMap>({});
 
-  // Form de alta
   const [input, setInput] = useState("");
   const [firstInput, setFirstInput] = useState("");
   const [lastInput, setLastInput] = useState("");
   const [roleSel, setRoleSel] = useState<RoleSel>("user");
 
-  // Modales
   const [confirmAddOpen, setConfirmAddOpen] = useState(false);
   const [confirmDelOpen, setConfirmDelOpen] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
 
-  // Modal editar perfil (nombre/apellido)
   const [editOpen, setEditOpen] = useState(false);
   const [editEmail, setEditEmail] = useState<string | null>(null);
   const [editFirst, setEditFirst] = useState("");
   const [editLast, setEditLast] = useState("");
 
-  // Mensajes UI
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const me = user?.email ? normEmail(user.email) : null;
@@ -77,7 +69,6 @@ export default function AllowlistAdmin() {
       setAdmins((cfg.admins || []).map(normEmail));
       const rawProfiles = cfg.profiles || {};
       const normalized: ProfilesMap = {};
-      // normaliza claves de profiles por si vinieran con mayúsculas
       Object.keys(rawProfiles).forEach((k) => {
         const ek = normEmail(k);
         const p = rawProfiles[k] || {};
@@ -93,7 +84,6 @@ export default function AllowlistAdmin() {
   }, []);
 
   const entries = useMemo(() => {
-    // Unimos allowlist ∪ admins
     const set = new Set([...allow.map(normEmail), ...admins.map(normEmail)]);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [allow, admins]);
@@ -118,7 +108,6 @@ export default function AllowlistAdmin() {
     );
   }
 
-  // ----- Alta -----
   function openConfirmAdd() {
     setErrorMsg(null);
     setInfoMsg(null);
@@ -145,12 +134,11 @@ export default function AllowlistAdmin() {
 
     const nextAllow =
       roleSel === "admin"
-        ? Array.from(new Set([...allow, e])) // también va en allowlist
+        ? Array.from(new Set([...allow, e]))
         : Array.from(new Set([...allow, e]));
     const nextAdmins =
       roleSel === "admin" ? Array.from(new Set([...admins, e])) : admins;
 
-    // Perfiles (opcional)
     const f = firstInput.trim();
     const l = lastInput.trim();
     let nextProfiles: ProfilesMap | undefined = profiles;
@@ -178,7 +166,6 @@ export default function AllowlistAdmin() {
     setInfoMsg("Usuario agregado correctamente.");
   }
 
-  // ----- Baja -----
   function askDelete(email: string) {
     setErrorMsg(null);
     setInfoMsg(null);
@@ -190,7 +177,6 @@ export default function AllowlistAdmin() {
     if (!toDelete) return;
     const e = normEmail(toDelete);
 
-    // Si es admin: no permitir borrar si es el ÚLTIMO admin
     const isAdmin = admins.includes(e);
     if (isAdmin) {
       const otherAdmins = admins.filter((x) => x !== e);
@@ -205,7 +191,6 @@ export default function AllowlistAdmin() {
     const nextAllow = allow.filter((x) => x !== e);
     const nextAdmins = admins.filter((x) => x !== e);
 
-    // Quitar perfil asociado si existe
     const nextProfiles: ProfilesMap = { ...profiles };
     if (nextProfiles[e]) {
       delete nextProfiles[e];
@@ -221,7 +206,6 @@ export default function AllowlistAdmin() {
     setInfoMsg("Usuario eliminado de la lista.");
   }
 
-  // ----- Editar nombre/apellido -----
   function openEdit(email: string) {
     const e = normEmail(email);
     const p = profiles[e] || {};
@@ -243,7 +227,6 @@ export default function AllowlistAdmin() {
         displayName: mkDisplayName(f, l),
       },
     };
-    // Borra el entry si quedó vacío (sin nombres)
     const p = nextProfiles[editEmail];
     if (!p.firstName && !p.lastName) {
       delete nextProfiles[editEmail];
@@ -262,19 +245,17 @@ export default function AllowlistAdmin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-<div className="relative">
-  <PageHero
-  icon={<Users className="w-10 h-10" />}
-  title="Gestión de Usuarios"
-    subtitle="Autoriza correos, asigna roles y guarda nombre y apellido"
-  />
-  <div className="absolute top-4 left-4">
-  <BackButton fallback="/admin" />
-  </div>
-</div>
+        <div className="relative">
+          <PageHero
+            icon={<Users className="w-10 h-10" />}
+            title="Gestión de Usuarios"
+            subtitle="Autoriza correos, asigna roles y guarda nombre y apellido"
+          />
+          <div className="absolute top-4 left-4">
+            <BackButton fallback="/admin" />
+          </div>
+        </div>
 
-
-        {/* Card principal de contenido */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
           {loading ? (
             <div className="text-center py-8">
@@ -283,7 +264,6 @@ export default function AllowlistAdmin() {
             </div>
           ) : (
             <>
-              {/* Mensajes */}
               {errorMsg && (
                 <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
                   {errorMsg}
@@ -295,7 +275,6 @@ export default function AllowlistAdmin() {
                 </div>
               )}
 
-              {/* Form alta */}
               <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow mb-6">
                 <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
                   <label className="text-sm font-semibold text-gray-700 sm:col-span-1">
@@ -332,7 +311,6 @@ export default function AllowlistAdmin() {
                   </label>
                 </div>
 
-                {/* Rol + Agregar */}
                 <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                   <div>
                     <div className="text-sm font-semibold text-gray-700 mb-1">
@@ -377,7 +355,6 @@ export default function AllowlistAdmin() {
                 </div>
               </div>
 
-              {/* Lista */}
               <div className="rounded-2xl bg-white/70 backdrop-blur border border-white/60 shadow">
                 {entries.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
@@ -410,7 +387,9 @@ export default function AllowlistAdmin() {
                                 ].join(" ")}
                               >
                                 {isAdmin ? "Administrador" : "Usuario"}
-                                {isMe && <span className="opacity-70">(tú)</span>}
+                                {isMe && (
+                                  <span className="opacity-70">(tú)</span>
+                                )}
                               </span>
                             </div>
                           </div>
@@ -448,8 +427,7 @@ export default function AllowlistAdmin() {
       </main>
 
       <AppFooter appName="InManager" />
-      
-      {/* Modales */}
+
       <BaseModal
         isOpen={confirmAddOpen}
         onClose={() => setConfirmAddOpen(false)}
@@ -485,7 +463,8 @@ export default function AllowlistAdmin() {
             </div>
           </div>
           <p className="text-xs text-gray-500">
-            El usuario podrá iniciar sesión si ya existe o crear cuenta si aún no la tiene.
+            El usuario podrá iniciar sesión si ya existe o crear cuenta si aún
+            no la tiene.
           </p>
         </div>
       </BaseModal>
@@ -524,7 +503,8 @@ export default function AllowlistAdmin() {
           </label>
         </div>
         <p className="text-xs text-gray-500 mt-3">
-          Si dejas ambos campos vacíos, se eliminará el nombre guardado para este correo.
+          Si dejas ambos campos vacíos, se eliminará el nombre guardado para
+          este correo.
         </p>
       </BaseModal>
 
@@ -548,7 +528,8 @@ export default function AllowlistAdmin() {
           </div>
           {toDelete && admins.includes(normEmail(toDelete)) && (
             <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 text-sm">
-              Estás eliminando a un <b>Administrador</b>. Asegúrate de que quede al menos un admin activo.
+              Estás eliminando a un <b>Administrador</b>. Asegúrate de que quede
+              al menos un admin activo.
             </div>
           )}
         </div>

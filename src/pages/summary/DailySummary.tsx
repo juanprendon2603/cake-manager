@@ -1,4 +1,3 @@
-// src/pages/sales/DailySummary.tsx
 import { useState } from "react";
 import type {
   ExpenseLike,
@@ -15,14 +14,13 @@ import { useRangeSummaryOptimized as useRangeSummary } from "../../hooks/useRang
 import { quincenaRange } from "../../utils/dateRanges";
 import { DailyDetail } from "./DailyDetail";
 
-// ✨ UI consistente con el resto de la app
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
+import { CalendarRange } from "lucide-react";
 import type { ComponentPropsWithoutRef } from "react";
 import { BackButton } from "../../components/BackButton";
-import { CalendarDays, CalendarRange } from "lucide-react";
 
 type ThProps = ComponentPropsWithoutRef<"th">;
 type TdProps = ComponentPropsWithoutRef<"td">;
@@ -33,7 +31,6 @@ export function DailySummary() {
     today.getMonth() + 1
   ).padStart(2, "0")}`;
 
-  // Rango controlado por RangeControls (por defecto: Q1 del mes actual)
   const [range, setRange] = useState<{ start: string; end: string }>(() =>
     quincenaRange(ymDefault, "Q1")
   );
@@ -45,14 +42,12 @@ export function DailySummary() {
     items: geItems,
   } = useGeneralExpenses(range);
 
-  // Para el modal detalle
   const [selected, setSelected] = useState<RangeDailyRaw | null>(null);
 
   if (loading || loadingGE) {
     return <FullScreenLoader message="Cargando resumen..." />;
   }
 
-  // Helpers UI
   const formatCurrency = (n: number) =>
     "$" +
     (n || 0).toLocaleString("es-CO", {
@@ -66,16 +61,13 @@ export function DailySummary() {
     totalExpensesCash,
     totalExpensesTransfer,
     totalNet,
-
     totalIngresos,
     totalGastosDiarios,
   } = totals;
 
-  // ➕ Totales de gastos generales
   const { generalExpensesCash, generalExpensesTransfer, generalExpensesTotal } =
     geTotals;
 
-  // Neto global que incluye gastos generales
   const netoGlobal = totalNet - generalExpensesTotal;
 
   return (
@@ -83,8 +75,8 @@ export function DailySummary() {
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
         <div className="relative">
           <PageHero
-  icon={<CalendarRange className="w-10 h-10" />}
-  title="Resumen por Rango"
+            icon={<CalendarRange className="w-10 h-10" />}
+            title="Resumen por Rango"
             subtitle="Consulta ventas, abonos y gastos entre fechas (mensual, quincenal o personalizado)"
           />
           <div className="absolute top-4 left-4">
@@ -92,7 +84,6 @@ export function DailySummary() {
           </div>
         </div>
 
-        {/* Controles de rango */}
         <section className="rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8 mb-8">
           <div className="flex flex-col gap-3">
             <RangeControls
@@ -107,7 +98,6 @@ export function DailySummary() {
           </div>
         </section>
 
-        {/* KPIs del rango */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <KpiCard
             title="Total Ingresos"
@@ -146,7 +136,6 @@ export function DailySummary() {
           />
         </section>
 
-        {/* Bloque compacto con el desglose de generales */}
         <section className="mb-8">
           <details className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4">
             <summary className="cursor-pointer font-semibold text-purple-700">
@@ -210,7 +199,6 @@ export function DailySummary() {
           </details>
         </section>
 
-        {/* Tabla desktop (ventas/diarios) */}
         {daily.length === 0 ? (
           <p className="text-center text-gray-500">No hay datos en el rango.</p>
         ) : (
@@ -284,7 +272,6 @@ export function DailySummary() {
           </div>
         )}
 
-        {/* Móvil (ventas/diarios) */}
         <div className="grid grid-cols-1 gap-4 sm:hidden mt-6">
           {daily.map((row, idx) => {
             const positive = row.net >= 0;
@@ -340,34 +327,21 @@ export function DailySummary() {
           })}
         </div>
 
-        {/* Modal detalle (ventas/diarios) */}
         {selected && (
           <DailyDetail
             fecha={selected.fecha}
-            sales={selected.sales.map(
-              (s: SaleLike): Sale => ({
-                id: s.id,
-                type: s.type ?? "",
-                size: s.size ?? "",
-                flavor: s.flavor ?? "",
-                cantidad: s.cantidad ?? 0,
-                paymentMethod: s.paymentMethod as Sale["paymentMethod"],
-                valor: s.valor ?? 0,
-                isPayment: !!s.isPayment,
-              })
-            )}
+            sales={selected.sales.map((s: SaleLike): Sale => toSale(s))}
             expenses={selected.expenses.map(
               (e: ExpenseLike): Expense => ({
-                description: e.description ?? "",
-                paymentMethod: e.paymentMethod,
-                value: e.value,
+                description: (e as any).description ?? "",
+                paymentMethod: (e as any).paymentMethod,
+                value: (e as any).value,
               })
             )}
             onClose={() => setSelected(null)}
           />
         )}
 
-        {/* CTA */}
         <div className="mt-10 text-center">
           <Link
             to="/"
@@ -377,7 +351,6 @@ export function DailySummary() {
           </Link>
         </div>
 
-        {/* Tip */}
         <div className="mt-8">
           <ProTipBanner
             title="Tip de caja"
@@ -391,7 +364,20 @@ export function DailySummary() {
   );
 }
 
-/* ---------- UI helpers ---------- */
+function toSale(s: SaleLike): Sale {
+  const anyS = s as any;
+  return {
+    id: anyS.id,
+    type: "type" in anyS ? anyS.type ?? "" : "",
+    size: "size" in anyS ? anyS.size ?? "" : "",
+    flavor: "flavor" in anyS ? anyS.flavor ?? "" : "",
+    cantidad: "cantidad" in anyS ? Number(anyS.cantidad ?? 0) : 0,
+    paymentMethod: anyS.paymentMethod as Sale["paymentMethod"],
+    valor: anyS.valor ?? 0,
+    isPayment: !!anyS.isPayment,
+  };
+}
+
 function Th({ children, className = "", ...rest }: ThProps) {
   return (
     <th

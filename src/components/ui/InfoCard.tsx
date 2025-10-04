@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 
-// src/components/ui/InfoCard.tsx
 type InfoCardProps = {
-  icon: ReactNode; // único prop para emoji o ícono
+  icon: ReactNode;
   title: string;
   text: string;
-  gradientClass: string; // p.ej. 'from-green-500 to-emerald-500'
+  gradientClass: string;
 };
 
 export function InfoCard({ icon, title, text, gradientClass }: InfoCardProps) {
