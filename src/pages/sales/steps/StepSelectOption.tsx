@@ -1,22 +1,25 @@
+// src/pages/sales/steps/StepSelectOption.tsx
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import type { CategoryStep } from "../../../types/catalog";
-import { StepOptionIcon, Ui } from "../../../components/ui/icons";
+import { StepOptionIcon, BackIcon, CancelIcon } from "../../../components/ui/icons";
 import type { ReactNode } from "react";
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
   enter: { opacity: 1, y: 0, transition: { duration: 0.25 } },
   exit: { opacity: 0, y: -8, transition: { duration: 0.18 } },
-};
+} as const;
+
 const containerStagger = {
   hidden: { opacity: 1 },
   show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
-};
+} as const;
+
 const itemVariants = {
   hidden: { opacity: 0, y: 10, scale: 0.98 },
   show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.22 } },
-};
+} as const;
 
 function ucFirst(s: string) {
   if (!s) return "";
@@ -134,7 +137,8 @@ export default function StepSelectOption({ step, value, onSelect, onBack }: Prop
         {filtered.map((o) => {
           const selected = value === o.key;
           const label = o.label || o.key;
-          const icon = StepOptionIcon(step.key, o.key, label); // ← iniciales por atributo
+          // tu StepOptionIcon recibe (stepKey, label)
+          const icon = StepOptionIcon(step.key, label);
           const handleKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -159,7 +163,7 @@ export default function StepSelectOption({ step, value, onSelect, onBack }: Prop
           onClick={onBack}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
         >
-          <Ui.ArrowLeft className="w-5 h-5" />
+          <BackIcon className="w-5 h-5" />
           Volver
         </button>
 
@@ -168,7 +172,7 @@ export default function StepSelectOption({ step, value, onSelect, onBack }: Prop
             onClick={() => onSelect("")}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/80 border-2 border-purple-200 text-gray-700 font-semibold hover:border-purple-400 transition-all"
           >
-            <Ui.Cancel className="w-5 h-5" />
+            <CancelIcon className="w-5 h-5" />
             Limpiar
           </button>
         )}

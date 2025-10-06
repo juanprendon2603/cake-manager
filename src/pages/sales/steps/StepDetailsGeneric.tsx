@@ -1,6 +1,8 @@
+// src/pages/sales/steps/StepDetailsGeneric.tsx
 import { motion } from "framer-motion";
 import type { PaymentMethod } from "../../../types/stock";
-import { PageIcon, Ui, PaymentIcon } from "../../../components/ui/icons";
+import { PageIcon } from "../../../components/ui/icons";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 type Props = {
   selections: Record<string, string>;
@@ -34,7 +36,7 @@ export default function StepDetailsGeneric({
     >
       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-200">
         <h3 className="font-bold text-purple-700 mb-4 flex items-center gap-2">
-          {PageIcon("resumen")}{/* ← ícono lucide normal */}
+          {PageIcon("resumen")}
           <span>Resumen</span>
         </h3>
         <div className="space-y-1 text-sm">
@@ -86,21 +88,18 @@ export default function StepDetailsGeneric({
         </div>
 
         <div>
-  <label className="block mb-2 font-semibold text-gray-700">
-    Método de pago
-  </label>
-  <select
-    value={paymentMethod}
-    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-    className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 bg-white/70"
-  >
-    <option value="cash">💵 Efectivo</option>
-    <option value="transfer">🏦 Transferencia</option>
-  </select>
-</div>
-
-
-
+          <label className="block mb-2 font-semibold text-gray-700">
+            Método de pago
+          </label>
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            className="w-full border-2 border-purple-200 rounded-xl px-4 py-3 bg-white/70"
+          >
+            <option value="cash">💵 Efectivo</option>
+            <option value="transfer">🏦 Transferencia</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex justify-between items-center pt-4">
@@ -109,7 +108,7 @@ export default function StepDetailsGeneric({
           onClick={onBack}
           className="px-6 py-3 rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold shadow-lg inline-flex items-center gap-2"
         >
-          <Ui.ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" />
           Volver
         </button>
 
@@ -118,7 +117,7 @@ export default function StepDetailsGeneric({
           onClick={onConfirm}
           className="px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold shadow-lg inline-flex items-center gap-2"
         >
-          <Ui.Confirm className="w-5 h-5" />
+          <CheckCircle2 className="w-5 h-5" />
           Confirmar venta
         </button>
       </div>

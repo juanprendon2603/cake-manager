@@ -1,3 +1,4 @@
+// src/pages/summary/DailySummary.tsx
 import { useState } from "react";
 import type {
   ExpenseLike,
@@ -24,6 +25,52 @@ import { BackButton } from "../../components/BackButton";
 
 type ThProps = ComponentPropsWithoutRef<"th">;
 type TdProps = ComponentPropsWithoutRef<"td">;
+
+/* ----------------------------- Helpers de parsing ----------------------------- */
+type Rec = Record<string, unknown>;
+const isRec = (v: unknown): v is Rec => typeof v === "object" && v !== null;
+const asNumber = (v: unknown, fb = 0): number => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fb;
+  }
+  return fb;
+};
+const asString = (v: unknown, fb = ""): string =>
+  typeof v === "string" ? v : fb;
+const asBool = (v: unknown): boolean => v === true || v === "true";
+
+/** Normaliza método de pago a 'cash' | 'transfer' (default 'cash') */
+const asPaymentMethod = (v: unknown): Sale["paymentMethod"] =>
+  v === "transfer" ? "transfer" : "cash";
+
+/** Convierte un SaleLike laxo a Sale tipado */
+function toSale(s: SaleLike): Sale {
+  const r = isRec(s) ? s : ({} as Rec);
+  return {
+    id: asString(r.id),
+    type: asString("type" in r ? r.type : "", ""),
+    size: asString("size" in r ? r.size : "", ""),
+    flavor: asString("flavor" in r ? r.flavor : "", ""),
+    cantidad: asNumber("cantidad" in r ? r.cantidad : 0),
+    paymentMethod: asPaymentMethod(r.paymentMethod),
+    valor: asNumber("valor" in r ? r.valor : ("partialAmount" in r ? r.partialAmount : 0)),
+    isPayment: asBool("isPayment" in r ? r.isPayment : false),
+  };
+}
+
+/** Convierte un ExpenseLike laxo a Expense tipado */
+function toExpense(e: ExpenseLike): Expense {
+  const r = isRec(e) ? e : ({} as Rec);
+  return {
+    description: asString("description" in r ? r.description : "", ""),
+    paymentMethod: asPaymentMethod(r.paymentMethod),
+    value: asNumber("value" in r ? r.value : 0),
+  };
+}
+
+/* ----------------------------------------------------------------------------- */
 
 export function DailySummary() {
   const today = new Date();
@@ -332,11 +379,7 @@ export function DailySummary() {
             fecha={selected.fecha}
             sales={selected.sales.map((s: SaleLike): Sale => toSale(s))}
             expenses={selected.expenses.map(
-              (e: ExpenseLike): Expense => ({
-                description: (e as any).description ?? "",
-                paymentMethod: (e as any).paymentMethod,
-                value: (e as any).value,
-              })
+              (e: ExpenseLike): Expense => toExpense(e)
             )}
             onClose={() => setSelected(null)}
           />
@@ -364,20 +407,7 @@ export function DailySummary() {
   );
 }
 
-function toSale(s: SaleLike): Sale {
-  const anyS = s as any;
-  return {
-    id: anyS.id,
-    type: "type" in anyS ? anyS.type ?? "" : "",
-    size: "size" in anyS ? anyS.size ?? "" : "",
-    flavor: "flavor" in anyS ? anyS.flavor ?? "" : "",
-    cantidad: "cantidad" in anyS ? Number(anyS.cantidad ?? 0) : 0,
-    paymentMethod: anyS.paymentMethod as Sale["paymentMethod"],
-    valor: anyS.valor ?? 0,
-    isPayment: !!anyS.isPayment,
-  };
-}
-
+/* ---------------------------- UI helpers (igual) ---------------------------- */
 function Th({ children, className = "", ...rest }: ThProps) {
   return (
     <th

@@ -34,6 +34,7 @@ const SALES_COL = collection(
 function clean<T extends object>(obj: T): T {
   return JSON.parse(JSON.stringify(obj)) as T;
 }
+
 function slugify(s: string) {
   return s
     .normalize("NFKD")
@@ -44,6 +45,8 @@ function slugify(s: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+/* ------------------------- Normalización de pasos ------------------------- */
+
 export function normalizeSteps(
   steps: CategoryStep[] | undefined
 ): CategoryStep[] {
@@ -52,7 +55,7 @@ export function normalizeSteps(
       key: slugify(o.label || o.key || ""),
       label: o.label || o.key || "",
       active: o.active !== false,
-    })) as CategoryOption[];
+    }));
 
     return {
       id: s.id || crypto.randomUUID(),
@@ -63,9 +66,11 @@ export function normalizeSteps(
       affectsStock: s.affectsStock !== false,
       multi: false,
       options: normOptions,
-    } as CategoryStep;
+    };
   });
 }
+
+/* --------------------- Normalización de precios por combo --------------------- */
 
 export function normalizeVariantPrices(
   variantPrices: Record<string, number> | undefined,
@@ -127,6 +132,8 @@ export function normalizeVariantPrices(
   return out;
 }
 
+/* ------------------------------ CRUD categorías ------------------------------ */
+
 export async function listCategories(opts?: {
   includeInactive?: boolean;
 }): Promise<ProductCategory[]> {
@@ -147,23 +154,24 @@ export async function upsertCategory(cat: ProductCategory): Promise<void> {
   const stepsNormalized = normalizeSteps(cat.steps);
 
   const variantPricesNormalized = normalizeVariantPrices(
-    (cat as any).variantPrices || {},
-    cat.steps || [],
+    cat.variantPrices ?? {},
+    cat.steps ?? [],
     stepsNormalized
   );
 
   const ref = doc(CATEGORIES_COL, id);
 
-  const payload: any = clean({
+  // Suponemos que ProductCategory ya contempla createdAt/updatedAt/variantPrices.
+  const payload: ProductCategory = clean({
     id,
     name: cat.name,
     active: cat.active !== false,
-    pricingMode: "fixed_per_combo" as const,
+    pricingMode: "fixed_per_combo",
     steps: stepsNormalized,
     variantPrices: variantPricesNormalized,
     createdAt: cat.createdAt ?? Date.now(),
     updatedAt: Date.now(),
-  });
+  } as ProductCategory);
 
   await setDoc(ref, payload, { merge: true });
 }
@@ -171,6 +179,9 @@ export async function upsertCategory(cat: ProductCategory): Promise<void> {
 export async function deleteCategory(id: string): Promise<void> {
   await deleteDoc(doc(CATEGORIES_COL, id));
 }
+
+/* ------------------------- Keys de precio y de stock ------------------------ */
+
 function buildKeyFrom(
   steps: { key: string }[],
   selections: Record<string, string | string[] | undefined>
@@ -195,7 +206,7 @@ export function buildVariantKey(
     mode === "stock"
       ? stepsAll.filter((s) => s.affectsStock !== false)
       : stepsAll;
-  return buildKeyFrom(steps, selections as Record<string, string>);
+  return buildKeyFrom(steps, selections as Record<string, string | string[] | undefined>);
 }
 
 export const buildPriceKey = (
@@ -208,26 +219,37 @@ export const buildStockKey = (
   sel: SelectedValues
 ): string => buildVariantKey(cat, sel, { mode: "stock" });
 
+/* ------------------------------ Cálculo precio ------------------------------ */
+
+type OptionMaybeDelta = CategoryOption & { priceDelta?: number };
+type CategoryMaybeBase = ProductCategory & {
+  basePrice?: number;
+  variantPrices?: Record<string, number>;
+};
+
 export function computePrice(
   category: ProductCategory,
   selections: SelectedValues
 ): number {
-  const vp = (category as any).variantPrices as
-    | Record<string, number>
-    | undefined;
-  if (vp && Object.keys(vp).length > 0) {
+  const catWithExtras = category as CategoryMaybeBase;
+
+  // 1) Precios por combinación
+  if (catWithExtras.variantPrices && Object.keys(catWithExtras.variantPrices).length > 0) {
     const key = buildPriceKey(category, selections);
-    return Number(vp[key] ?? 0);
+    return Number(catWithExtras.variantPrices[key] ?? 0);
   }
 
-  if ((category as any).pricingMode === "base_plus_deltas") {
-    let price = (category as any).basePrice || 0;
+  // 2) Modo base + deltas (si existe en el tipo real)
+  if (category.pricingMode === "base_plus_deltas") {
+    let price = catWithExtras.basePrice || 0;
     for (const step of category.steps || []) {
       if (step.type === "select" && step.options?.length) {
         const val = selections[step.key];
         const optKey = Array.isArray(val) ? val[0] : String(val ?? "");
-        const opt = step.options.find((o) => o.key === optKey);
-        if ((opt as any)?.priceDelta) price += Number((opt as any).priceDelta);
+        const opt = step.options.find((o) => o.key === optKey) as
+          | OptionMaybeDelta
+          | undefined;
+        if (typeof opt?.priceDelta === "number") price += opt.priceDelta;
       }
     }
     return price;
@@ -235,6 +257,8 @@ export function computePrice(
 
   return 0;
 }
+
+/* ------------------------------- Stock genérico ------------------------------ */
 
 const variantsCol = (categoryId: string) =>
   collection(
@@ -288,7 +312,10 @@ export async function tryDecrementStockGeneric(
   });
 }
 
+/* --------------------------- Movimientos de stock --------------------------- */
+
 type StockMovement = { variantKey: string; delta: number };
+
 export async function persistGenericStockUpdate(args: {
   categoryId: string;
   movements: StockMovement[];
@@ -315,6 +342,8 @@ export async function persistGenericStockUpdate(args: {
   }
 }
 
+/* ------------------------------- Utilidades ------------------------------- */
+
 export function buildKeys() {
   const d = new Date();
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
@@ -324,6 +353,8 @@ export function buildKeys() {
   const monthKey = dayKey.slice(0, 7);
   return { dayKey, monthKey };
 }
+
+/* --------------------------------- Ventas --------------------------------- */
 
 export async function registerGenericSale(sale: GenericSale) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

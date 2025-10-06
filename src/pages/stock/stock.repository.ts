@@ -1,3 +1,4 @@
+// src/pages/stock/stock.repository.ts
 import {
   collection,
   doc,
@@ -18,16 +19,35 @@ export type VariantStockDoc = {
 const variantsCol = (categoryId: string) =>
   collection(db, "catalog_stock", categoryId, "variants");
 
+/* ----------------------------- helpers de parsing ----------------------------- */
+type Rec = Record<string, unknown>;
+
+function isRec(v: unknown): v is Rec {
+  return typeof v === "object" && v !== null;
+}
+function asNumber(v: unknown, fallback = 0): number {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  return fallback;
+}
+function asString(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
+}
+
 export async function fetchCategoryStockOnce(
   categoryId: string
 ): Promise<VariantStockDoc[]> {
   const snap = await getDocs(variantsCol(categoryId));
   return snap.docs.map((d) => {
-    const data = d.data() as any;
+    const data: DocumentData = d.data(); // DocumentData, no `any`
+    const rec = isRec(data) ? data : ({} as Rec);
     return {
-      variantKey: (data.variantKey as string) ?? d.id,
-      stock: Number(data.stock ?? 0),
-      updatedAt: Number(data.updatedAt ?? 0),
+      variantKey: asString(rec.variantKey, d.id),
+      stock: asNumber(rec.stock, 0),
+      updatedAt: asNumber(rec.updatedAt, 0),
     };
   });
 }
@@ -41,11 +61,12 @@ export function watchCategoryStock(
     { includeMetadataChanges: false },
     (snap: QuerySnapshot<DocumentData>) => {
       const items = snap.docs.map((d) => {
-        const data = d.data() as any;
+        const data: DocumentData = d.data(); // DocumentData, no `any`
+        const rec = isRec(data) ? data : ({} as Rec);
         return {
-          variantKey: (data.variantKey as string) ?? d.id,
-          stock: Number(data.stock ?? 0),
-          updatedAt: Number(data.updatedAt ?? 0),
+          variantKey: asString(rec.variantKey, d.id),
+          stock: asNumber(rec.stock, 0),
+          updatedAt: asNumber(rec.updatedAt, 0),
         };
       });
       cb(items);

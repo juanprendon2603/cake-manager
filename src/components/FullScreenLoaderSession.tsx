@@ -8,6 +8,14 @@ type FullScreenLoaderProps = {
   progress?: number;
 };
 
+/** Permite CSS custom properties sin usar `any` */
+type CSSVars = {
+  "--brand-1": string;
+  "--brand-2": string;
+  "--bg-from": string;
+  "--bg-to": string;
+};
+
 export function FullScreenLoaderSession({
   message = "Cargando…",
   appName = "Tu App",
@@ -16,12 +24,10 @@ export function FullScreenLoaderSession({
   progress,
 }: FullScreenLoaderProps) {
   const [tipIndex, setTipIndex] = React.useState(0);
+
   React.useEffect(() => {
     if (!tips?.length) return;
-    const id = setInterval(
-      () => setTipIndex((i) => (i + 1) % tips.length),
-      3200
-    );
+    const id = setInterval(() => setTipIndex(i => (i + 1) % tips.length), 3200);
     return () => clearInterval(id);
   }, [tips]);
 
@@ -30,18 +36,21 @@ export function FullScreenLoaderSession({
       ? Math.max(0, Math.min(1, progress))
       : undefined;
 
+  // ✅ Estilos tipados (sin `any`)
+  const rootStyle: React.CSSProperties & CSSVars = {
+    "--brand-1": "#0EA5E9",
+    "--brand-2": "#6366F1",
+    "--bg-from": "#F8FAFC",
+    "--bg-to": "#EEF2FF",
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-label="Pantalla de carga"
-      style={{
-        ["--brand-1" as any]: "#0EA5E9",
-        ["--brand-2" as any]: "#6366F1",
-        ["--bg-from" as any]: "#F8FAFC",
-        ["--bg-to" as any]: "#EEF2FF",
-      }}
+      style={rootStyle}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-from)] to-[var(--bg-to)]" />
 
@@ -77,13 +86,7 @@ export function FullScreenLoaderSession({
 
         <div className="mx-auto mb-6 w-40 h-40 relative">
           <svg viewBox="0 0 160 160" className="w-full h-full">
-            <ellipse
-              cx="80"
-              cy="138"
-              rx="44"
-              ry="10"
-              fill="rgba(0,0,0,0.06)"
-            ></ellipse>
+            <ellipse cx="80" cy="138" rx="44" ry="10" fill="rgba(0,0,0,0.06)"></ellipse>
 
             <defs>
               <linearGradient id="strokeGrad" x1="0" y1="0" x2="1" y2="1">
@@ -132,7 +135,7 @@ export function FullScreenLoaderSession({
               />
             </g>
 
-            {[0, 1, 2, 3, 4].map((i) => {
+            {[0, 1, 2, 3, 4].map(i => {
               const angle = (i / 5) * Math.PI * 2;
               const x = 80 + Math.cos(angle) * 52;
               const y = 80 + Math.sin(angle) * 52;
@@ -182,17 +185,10 @@ export function FullScreenLoaderSession({
           aria-hidden={clamped === undefined}
         >
           <div
-            className={
-              "h-full " +
-              (clamped === undefined ? "w-1/3 animate-progress" : "")
-            }
+            className={"h-full " + (clamped === undefined ? "w-1/3 animate-progress" : "")}
             style={{
-              width:
-                clamped === undefined
-                  ? undefined
-                  : `${Math.round(clamped * 100)}%`,
-              background:
-                "linear-gradient(90deg, var(--brand-1), var(--brand-2))",
+              width: clamped === undefined ? undefined : `${Math.round(clamped * 100)}%`,
+              background: "linear-gradient(90deg, var(--brand-1), var(--brand-2))",
             }}
           />
         </div>
@@ -204,8 +200,7 @@ export function FullScreenLoaderSession({
         ) : null}
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {message}{" "}
-          {typeof clamped === "number" ? `${Math.round(clamped * 100)}%` : ""}
+          {message} {typeof clamped === "number" ? `${Math.round(clamped * 100)}%` : ""}
         </div>
       </div>
 
@@ -277,7 +272,7 @@ export function FullScreenLoaderSession({
   );
 }
 
-function hexagonPoints(cx: number, cy: number, r: number) {
+function hexagonPoints(cx: number, cy: number, r: number): string {
   const pts = Array.from({ length: 6 }).map((_, i) => {
     const a = (Math.PI / 3) * i - Math.PI / 6;
     const x = cx + r * Math.cos(a);

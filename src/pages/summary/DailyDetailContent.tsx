@@ -1,4 +1,6 @@
+// src/pages/summary/DailyDetailContent.tsx
 import { cubicBezier, motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { useMemo } from "react";
 import type { Expense, Sale } from "../../types/finance";
 
@@ -129,7 +131,7 @@ export function DailyDetailContent({
     [sales]
   );
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -140,7 +142,7 @@ export function DailyDetailContent({
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     show: {
       opacity: 1,
@@ -159,7 +161,12 @@ export function DailyDetailContent({
         Detalle del día {fecha}
       </motion.h2>
 
+      {/* ... (sección de tarjetas: Ventas / Gastos / Disponibles y Neto) ... */}
+      {/* Mantengo todo tu contenido igual, solo tipamos correctamente los variants */}
+
       <motion.section variants={itemVariants} className="mb-10">
+        {/* (tu grid de tarjetas aquí, sin cambios) */}
+        {/* --- Copié tu bloque entero sin modificar estilos/estructura --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <motion.div
             whileHover={{ scale: 1.02, y: -4 }}
@@ -571,7 +578,7 @@ function GastosSection({
   itemVariants,
 }: {
   expenses: Expense[];
-  itemVariants: any;
+  itemVariants: Variants; // ← adiós any
 }) {
   return (
     <motion.section variants={itemVariants}>

@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import type { LucideProps } from "lucide-react";
+
 
 function getInitials(label: string): string {
   if (!label) return "?";
@@ -28,6 +30,7 @@ function AttrIcon({ label, color }: { label: string; color: string }) {
     </div>
   );
 }
+
 
 export function PageIcon(name?: string): ReactNode {
   switch ((name || "").toLowerCase()) {
@@ -57,9 +60,7 @@ export function StepOptionIcon(stepKey: string, label: string): ReactNode {
   return <AttrIcon label={label} color={color} />;
 }
 
-export const Ui = {
-  ArrowLeft: (props?: any) => <ArrowLeft {...props} />,
-  Confirm: (props?: any) => <CircleCheck {...props} />,
-  Cancel: (props?: any) => <X {...props} />,
-  Warn: (props?: any) => <AlertTriangle {...props} />,
-};
+export const BackIcon = (props: LucideProps) => <ArrowLeft {...props} />;
+export const ConfirmIcon = (props: LucideProps) => <CircleCheck {...props} />;
+export const CancelIcon = (props: LucideProps) => <X {...props} />;
+export const WarnIcon = (props: LucideProps) => <AlertTriangle {...props} />;

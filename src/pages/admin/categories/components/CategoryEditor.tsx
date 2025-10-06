@@ -4,7 +4,9 @@ import {
   useState,
   type Dispatch,
   type SetStateAction,
+  type ReactNode, 
 } from "react";
+
 import BaseModal from "../../../../components/BaseModal";
 import type { CategoryOption, CategoryStep } from "../../../../utils/catalog";
 import { generateCombos, slugify, type DraftCat } from "../utils";
@@ -72,7 +74,7 @@ function Stepper({ current }: { current: number }) {
   );
 }
 
-function Explainer({ title, children }: { title: string; children: any }) {
+function Explainer({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border bg-blue-50/60 border-blue-100 p-3 text-sm text-blue-900 mb-4">
       <div className="font-semibold mb-1">{title}</div>
@@ -80,6 +82,7 @@ function Explainer({ title, children }: { title: string; children: any }) {
     </div>
   );
 }
+
 
 export default function CategoryEditor({
   open,

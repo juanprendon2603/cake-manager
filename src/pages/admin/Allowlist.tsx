@@ -19,6 +19,14 @@ type Profile = {
 };
 type ProfilesMap = Record<string, Profile>;
 
+type AppAuthConfig = {
+  initialized?: boolean;
+  allowlist?: unknown[];
+  admins?: unknown[];
+  profiles?: Record<string, { firstName?: unknown; lastName?: unknown; displayName?: unknown }>;
+};
+
+
 function normEmail(v: string) {
   return v.toLowerCase().trim();
 }
@@ -61,27 +69,34 @@ export default function AllowlistAdmin() {
   useEffect(() => {
     (async () => {
       const snap = await getDoc(doc(db, "app_config", "auth"));
-      const cfg = snap.exists()
-        ? (snap.data() as any)
-        : { initialized: false, allowlist: [], admins: [], profiles: {} };
-
-      setAllow((cfg.allowlist || []).map(normEmail));
-      setAdmins((cfg.admins || []).map(normEmail));
-      const rawProfiles = cfg.profiles || {};
+      const cfg: AppAuthConfig = snap.exists() ? (snap.data() as AppAuthConfig) : {};
+  
+      const allowlist = Array.isArray(cfg.allowlist) ? cfg.allowlist : [];
+      const adminsList = Array.isArray(cfg.admins) ? cfg.admins : [];
+      const rawProfiles = cfg.profiles ?? {};
+  
+      setAllow(allowlist.map(x => normEmail(String(x))));
+      setAdmins(adminsList.map(x => normEmail(String(x))));
+  
       const normalized: ProfilesMap = {};
-      Object.keys(rawProfiles).forEach((k) => {
-        const ek = normEmail(k);
-        const p = rawProfiles[k] || {};
-        normalized[ek] = {
-          firstName: p.firstName || undefined,
-          lastName: p.lastName || undefined,
-          displayName: p.displayName || mkDisplayName(p.firstName, p.lastName),
-        };
-      });
+      for (const [key, val] of Object.entries(rawProfiles)) {
+        const ek = normEmail(key);
+        const p = (val ?? {}) as { firstName?: unknown; lastName?: unknown; displayName?: unknown };
+        const firstName = typeof p.firstName === "string" ? p.firstName : undefined;
+        const lastName  = typeof p.lastName  === "string" ? p.lastName  : undefined;
+        const displayName =
+          typeof p.displayName === "string" && p.displayName.trim()
+            ? p.displayName
+            : mkDisplayName(firstName, lastName);
+  
+        normalized[ek] = { firstName, lastName, displayName };
+      }
+  
       setProfiles(normalized);
       setLoading(false);
     })();
   }, []);
+  
 
   const entries = useMemo(() => {
     const set = new Set([...allow.map(normEmail), ...admins.map(normEmail)]);

@@ -34,14 +34,21 @@ function diffHours(from?: string, to?: string) {
 type PerHourDraft = { from?: string; to?: string; hours?: string };
 type DraftByPerson = Record<string, PerHourDraft>;
 
+// Tipos locales para los type guards
+type HoursDay = { kind: "hours"; hours: number; from?: string; to?: string };
+type StringDay = "completo" | "medio";
+
 // Type guards para pintar correctamente el badge
-function isHoursDay(
-  day: any
-): day is { kind: "hours"; hours: number; from?: string; to?: string } {
-  return day && typeof day === "object" && day.kind === "hours";
+function isHoursDay(day: unknown): day is HoursDay {
+  return (
+    !!day &&
+    typeof day === "object" &&
+    (day as { kind?: unknown }).kind === "hours" &&
+    typeof (day as { hours?: unknown }).hours === "number"
+  );
 }
-function isStringDay(day: any): day is "completo" | "medio" {
-  return typeof day === "string";
+function isStringDay(day: unknown): day is StringDay {
+  return day === "completo" || day === "medio";
 }
 
 const PayrollSimple: React.FC = () => {
@@ -155,8 +162,8 @@ const PayrollSimple: React.FC = () => {
       {/* ⬇️ PageHero (reemplaza el header manual) */}
       <div className="w-full max-w-6xl px-4">
         <PageHero
-  icon={<Users className="w-10 h-10" />}
-  title="Registro de Asistencia"
+          icon={<Users className="w-10 h-10" />}
+          title="Registro de Asistencia"
           subtitle="Marca la asistencia diaria del equipo de trabajo"
           gradientClass="from-[#7a1f96] via-[#8E2DA8] to-[#a84bd1]"
           iconGradientClass="from-[#8E2DA8] to-[#A855F7]"

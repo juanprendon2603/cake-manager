@@ -1,6 +1,7 @@
 // src/pages/stock/AddStockForm.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import type { Control } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
@@ -184,10 +185,9 @@ export function AddStockForm({ defaultCategoryId }: Props) {
             title="Inventario de Productos"
             subtitle="Agrega o incrementa el stock por combinación"
           />
-          <div className="absolute top-4 left-4 z-20">
+           <div className="absolute top-4 left-4 z-20">
             <BackButton fallback="/admin" />
-          </div>
-        </div>
+          </div>        </div>
 
         {/* ======= Selector de categoría ======= */}
         <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
@@ -317,12 +317,16 @@ function GroupCards({
   restSteps,
   options,
 }: {
-  control: any;
+  control: Control<PrettyForm>;
   primaryStep: CategoryStep;
   restSteps: CategoryStep[];
   options: CategoryOption[];
 }) {
-  const { fields } = useFieldArray({ control, name: "groups", keyName: "_k" });
+  const { fields } = useFieldArray<PrettyForm, "groups", "_k">({
+    control,
+    name: "groups",
+    keyName: "_k",
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -347,16 +351,26 @@ function PrimaryGroupCard({
   restSteps,
   options,
 }: {
-  control: any;
+  control: Control<PrettyForm>;
   groupIndex: number;
   primaryStep: CategoryStep;
   restSteps: CategoryStep[];
   options: CategoryOption[];
 }) {
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove } = useFieldArray<
+    PrettyForm,
+    `groups.${number}.rows`,
+    "_k"
+  >({
     control,
-    name: `groups.${groupIndex}.rows`,
+    name: `groups.${groupIndex}.rows` as const,
     keyName: "_k",
+  });
+
+  // Lee el valor actual de primaryOpt de manera tipada
+  const primaryOpt = useWatch({
+    control,
+    name: `groups.${groupIndex}.primaryOpt` as const,
   });
 
   return (
@@ -374,7 +388,7 @@ function PrimaryGroupCard({
               </label>
               <Controller
                 control={control}
-                name={`groups.${groupIndex}.primaryOpt`}
+                name={`groups.${groupIndex}.primaryOpt` as const}
                 render={({ field }) => {
                   const opt = options.find((o) => o.key === field.value);
                   return (
@@ -392,9 +406,7 @@ function PrimaryGroupCard({
             onClick={() =>
               append({
                 selections: {
-                  [primaryStep.key]:
-                    (control._formValues?.groups?.[groupIndex]
-                      ?.primaryOpt as string) || "",
+                  [primaryStep.key]: primaryOpt || "",
                   ...Object.fromEntries(restSteps.map((s) => [s.key, ""])),
                 },
                 qty: "",
@@ -421,7 +433,9 @@ function PrimaryGroupCard({
                     </label>
                     <Controller
                       control={control}
-                      name={`groups.${groupIndex}.rows.${rIdx}.selections.${s.key}`}
+                      name={
+                        `groups.${groupIndex}.rows.${rIdx}.selections.${s.key}` as const
+                      }
                       render={({ field }) => (
                         <select
                           className="w-full rounded-xl border-2 border-purple-200 bg-white/90 p-2"
@@ -450,7 +464,9 @@ function PrimaryGroupCard({
                   </label>
                   <Controller
                     control={control}
-                    name={`groups.${groupIndex}.rows.${rIdx}.qty`}
+                    name={
+                      `groups.${groupIndex}.rows.${rIdx}.qty` as const
+                    }
                     render={({ field }) => (
                       <input
                         type="number"

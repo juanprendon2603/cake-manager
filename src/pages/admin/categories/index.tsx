@@ -92,11 +92,15 @@ export default function CategoriesAdmin() {
         title: "Guardado",
         message: "Categoría guardada.",
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message =
+        typeof e === "object" && e && "message" in e
+          ? String((e as { message?: unknown }).message)
+          : "No se pudo guardar.";
       addToast({
         type: "error",
         title: "Error",
-        message: e?.message ?? "No se pudo guardar.",
+        message,
       });
     }
   }
@@ -151,11 +155,7 @@ export default function CategoriesAdmin() {
               Aún no hay categorías. ¡Agrega la primera!
             </div>
           ) : (
-            <CategoryList
-              items={items}
-              onEdit={onEdit}
-              onDelete={setToDelete}
-            />
+            <CategoryList items={items} onEdit={onEdit} onDelete={setToDelete} />
           )}
         </section>
 
@@ -184,10 +184,7 @@ export default function CategoriesAdmin() {
         title="Eliminar categoría"
         description="Esta acción no borra ventas ni stock, pero no podrás usarla en nuevas ventas."
         primaryAction={{ label: "Eliminar", onClick: doDelete }}
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => setToDelete(null),
-        }}
+        secondaryAction={{ label: "Cancelar", onClick: () => setToDelete(null) }}
       >
         {toDelete && (
           <div className="rounded-xl border bg-white px-4 py-3 text-sm">

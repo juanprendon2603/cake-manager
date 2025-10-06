@@ -1,23 +1,75 @@
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { useMemo } from "react";
 import type { DailyRaw } from "./useRangeSummary";
+
+/* ---------------------- Helpers de tipo/seguridad ---------------------- */
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
 
 function safeNumber(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
-function getAmountFromAny(s: any): number {
-  const byField = safeNumber(s?.amountCOP ?? s?.amount ?? s?.valor);
+
+function safeString(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
+}
+
+/** Lee el monto desde distintas variantes de objeto venta/gasto */
+function getAmountFromAny(s: unknown): number {
+  if (!isRecord(s)) return 0;
+
+  // Variantes comunes de campo de monto
+  const byField = safeNumber(s.amountCOP ?? s.amount ?? s.valor);
   if (byField > 0) return byField;
-  const q = safeNumber(s?.quantity);
-  const up = safeNumber(s?.unitPriceCOP ?? s?.unitPrice);
+
+  // Alternativa por (quantity * unitPrice)
+  const q = safeNumber(s.quantity);
+  const up = safeNumber(s.unitPriceCOP ?? s.unitPrice);
   if (q > 0 && up > 0) return q * up;
+
   return 0;
 }
-function getQtyFromAny(s: any): number {
-  const q = safeNumber(s?.quantity);
+
+/** Lee cantidad con fallback a 1 */
+function getQtyFromAny(s: unknown): number {
+  if (!isRecord(s)) return 1;
+  const q = safeNumber(s.quantity);
   return q > 0 ? q : 1;
 }
+
+/** paymentMethod “cash” | “transfer” (u otro), con default "cash" */
+function getPaymentMethodFromAny(s: unknown): string {
+  if (!isRecord(s)) return "cash";
+  return safeString(s.paymentMethod, "cash");
+}
+
+/** Categoria por nombre o id, con “—” como fallback */
+function getCategoryFromAny(s: unknown): string {
+  if (!isRecord(s)) return "—";
+  return (
+    safeString(s.categoryName).trim() ||
+    safeString(s.categoryId).trim() ||
+    "—"
+  );
+}
+
+/** Selecciones como Record<string, unknown> (o vacío) */
+function getSelectionsFromAny(s: unknown): Record<string, unknown> {
+  if (!isRecord(s)) return {};
+  const sel = (s as Record<string, unknown>).selections;
+  return isRecord(sel) ? (sel as Record<string, unknown>) : {};
+}
+
+/** Valor de gasto (value|amount) */
+function getExpenseValue(e: unknown): number {
+  if (!isRecord(e)) return 0;
+  return safeNumber(e.value ?? e.amount ?? 0);
+}
+
+/* --------------------------- Tipos de salida --------------------------- */
 
 export type CategoryAttributeCards = Array<{
   category: string;
@@ -26,6 +78,8 @@ export type CategoryAttributeCards = Array<{
     data: Array<{ option: string; revenue: number; qty: number }>;
   }>;
 }>;
+
+/* ------------------------------- Hook --------------------------------- */
 
 export function useInformeData(
   rawDocs: DailyRaw[],
@@ -45,19 +99,15 @@ export function useInformeData(
     type AttrMap = Map<string, Map<string, OptAgg>>;
     const catMap = new Map<string, AttrMap>();
 
+    // --- Agregación de ventas ---
     for (const s of allSales) {
       const amount = getAmountFromAny(s);
       if (amount <= 0) continue;
 
       const qty = getQtyFromAny(s);
-      const pm = String((s as any)?.paymentMethod ?? "cash");
-      const category = String(
-        (s as any)?.categoryName ?? (s as any)?.categoryId ?? "—"
-      );
-      const selections =
-        (s as any)?.selections && typeof (s as any).selections === "object"
-          ? ((s as any).selections as Record<string, unknown>)
-          : {};
+      const pm = getPaymentMethodFromAny(s);
+      const category = getCategoryFromAny(s);
+      const selections = getSelectionsFromAny(s);
 
       if (pm === "cash") totalCash += amount;
       else totalTransfer += amount;
@@ -73,10 +123,13 @@ export function useInformeData(
         attrMap = new Map<string, Map<string, OptAgg>>();
         catMap.set(category, attrMap);
       }
+
       for (const [attrRaw, optRaw] of Object.entries(selections)) {
-        const attr = String(attrRaw || "").trim();
-        const opt = String(optRaw || "—").trim();
+        const attr = safeString(attrRaw).trim();
+        const opt =
+          (typeof optRaw === "string" ? optRaw : String(optRaw ?? "—")).trim();
         if (!attr) continue;
+
         let optMap = attrMap.get(attr);
         if (!optMap) {
           optMap = new Map<string, OptAgg>();
@@ -89,6 +142,7 @@ export function useInformeData(
       }
     }
 
+    // --- Ingresos/Gastos por día ---
     const byDayRevenue = new Map<string, number>();
     const byDayExpenses = new Map<string, number>();
 
@@ -98,8 +152,7 @@ export function useInformeData(
         0
       );
       const dayExpenses = (d.expenses || []).reduce(
-        (acc, e) =>
-          acc + safeNumber((e as any)?.value ?? (e as any)?.amount ?? 0),
+        (acc, e) => acc + getExpenseValue(e),
         0
       );
       byDayRevenue.set(d.fecha, (byDayRevenue.get(d.fecha) ?? 0) + dayRevenue);
@@ -112,10 +165,11 @@ export function useInformeData(
     const dailyStats = Array.from(byDayRevenue.entries())
       .map(([date, revenue]) => {
         const dayExpenses = byDayExpenses.get(date) ?? 0;
-        let formattedDate = date;
-        try {
-          formattedDate = format(parseISO(date), "dd/MM");
-        } catch {}
+        const parsed = parseISO(date);
+        const formattedDate =
+          typeof date === "string" && isValid(parsed)
+            ? format(parsed, "dd/MM")
+            : date;
         return {
           date,
           revenue,
@@ -128,15 +182,17 @@ export function useInformeData(
 
     const totalDaysWithSales = dailyStats.filter((d) => d.revenue > 0).length;
 
-    let totalExpensesCash = 0,
-      totalExpensesTransfer = 0;
+    // --- Gastos por método de pago ---
+    let totalExpensesCash = 0;
+    let totalExpensesTransfer = 0;
     for (const e of allExpenses) {
-      const val = safeNumber((e as any)?.value ?? (e as any)?.amount ?? 0);
-      const pm = String((e as any)?.paymentMethod ?? "cash");
+      const val = getExpenseValue(e);
+      const pm = getPaymentMethodFromAny(e);
       if (pm === "cash") totalExpensesCash += val;
       else totalExpensesTransfer += val;
     }
 
+    // --- Totales ---
     const generalExpensesTotal = geTotals.generalExpensesTotal || 0;
     const totalIncome = totalCash + totalTransfer;
     const dailyExpenses = totalExpensesCash + totalExpensesTransfer;
@@ -149,6 +205,7 @@ export function useInformeData(
       { name: "Transferencia", value: totalTransfer },
     ];
 
+    // --- Cartas por categoría/atributo ---
     const categoryAttributeCards: CategoryAttributeCards = Array.from(
       catMap.entries()
     )

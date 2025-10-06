@@ -11,17 +11,17 @@ const pageVariants = {
   initial: { opacity: 0, y: 8 },
   enter: { opacity: 1, y: 0, transition: { duration: 0.25 } },
   exit: { opacity: 0, y: -8, transition: { duration: 0.18 } },
-};
+} as const;
 
 const containerStagger = {
   hidden: { opacity: 1 },
   show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
-};
+} as const;
 
 const itemVariants = {
   hidden: { opacity: 0, y: 10, scale: 0.98 },
   show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.22 } },
-};
+} as const;
 
 type Props = {
   categories: ProductCategory[];
@@ -32,10 +32,25 @@ type Props = {
  * Helpers de icono seguros (evitan errores si tu versión no trae algún ícono)
  */
 type IconCmp = ComponentType<SVGProps<SVGSVGElement>>;
-function pickIcon(name: keyof typeof L | string): IconCmp {
-  // @ts-expect-error index dinámico tolerante
-  return (L as any)[name] || (L as any).Package2;
+
+// Type guard simple para validar que lo que obtenemos del diccionario es un componente
+function isIconComponent(x: unknown): x is IconCmp {
+  return typeof x === "function";
 }
+
+function pickIcon(name: string): IconCmp {
+  // Usamos el diccionario como Record tipado, sin `any`
+  const lib: Record<string, unknown> = L as unknown as Record<string, unknown>;
+  const candidate = lib[name];
+
+  if (isIconComponent(candidate)) {
+    return candidate;
+  }
+
+  // Fallback seguro
+  return L.Package2 as IconCmp;
+}
+
 function IconBadge({
   name,
   className = "w-6 h-6",
@@ -47,7 +62,9 @@ function IconBadge({
 }) {
   const Cmp = pickIcon(name);
   return (
-    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-white bg-gradient-to-br ${color}`}>
+    <div
+      className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-white bg-gradient-to-br ${color}`}
+    >
       <Cmp className={className} />
     </div>
   );
@@ -149,7 +166,9 @@ export default function Step1Category({ categories, onSelect }: Props) {
                 <p className="text-sm text-gray-600">Opciones: {(c.steps || []).length}</p>
               </div>
 
-              <div className={`absolute inset-0 bg-gradient-to-r ${t.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+              <div
+                className={`absolute inset-0 bg-gradient-to-r ${t.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}
+              />
             </motion.button>
           );
         })}

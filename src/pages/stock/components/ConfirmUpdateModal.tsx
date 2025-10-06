@@ -1,3 +1,4 @@
+// src/pages/stock/components/ConfirmUpdateModal.tsx
 import React, { useMemo } from "react";
 import type { ProductCategory, VariantRow } from "../stock.model";
 
@@ -28,14 +29,14 @@ export function ConfirmUpdateModal({
   onCancel,
   onConfirm,
 }: Props) {
-  if (!open) return null;
-
-  // Filtra solo filas con cantidad válida
+  // Filtra solo filas con cantidad válida (hook siempre se ejecuta)
   const lines = useMemo(
     () => (rows || []).filter((r) => Number(r.qty) > 0),
     [rows]
   );
   const hasLines = lines.length > 0;
+
+  if (!open) return null;
 
   // Helper para mostrar “chips” bonitos de la variante usando las labels de la categoría
   const renderVariantChips = (parts: Record<string, string>) => {

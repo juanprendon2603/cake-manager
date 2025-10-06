@@ -54,8 +54,9 @@ export async function persistStockUpdate(formData: GenericStockForm) {
  * --------------------------------------------------------------------------- */
 
 // “clearSizeFlavors” en el esquema nuevo no aplica. Lo dejamos no-op.
-export async function clearSizeFlavors(_id: string): Promise<void> {
-  // No-op en el modelo genérico.
+export async function clearSizeFlavors(_id?: string): Promise<void> {
+  // Marcar como usado para evitar no-unused-vars
+  void _id;
   return;
 }
 
@@ -72,10 +73,9 @@ export type LocalStockDoc =
 
 // “watchStock” del esquema viejo apuntaba a /stock. Si aún lo llamas, devolvemos
 // un unsub inmediato para no romper la app. Migra a lecturas en /catalog_stock/{cat}/variants.
-export function watchStock(_cb: (items: LocalStockDoc[]) => void): () => void {
-  // Si quieres observar una categoría concreta, usa:
-  // const col = collection(db, "catalog_stock", categoryId, "variants");
-  // onSnapshot(col, snap => {...})
+export function watchStock(_cb?: (items: LocalStockDoc[]) => void): () => void {
+  // Marcar como usado para evitar no-unused-vars
+  void _cb;
   return () => {};
 }
 

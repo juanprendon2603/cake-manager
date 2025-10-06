@@ -1,4 +1,4 @@
-// src/components/PayrollSummaryModal.tsx
+// src/pages/payroll/components/PayrollSummaryModal.tsx
 import React, { useMemo, useState } from "react";
 import BaseModal from "../../../components/BaseModal";
 import type { Fortnight, Person } from "../../../types/payroll";
@@ -6,6 +6,7 @@ import {
   calculateFortnightTotal,
   calculateGeneralTotal,
 } from "../payroll.service";
+
 type Props = {
   isOpen: boolean;
   onClose: () => void;
@@ -29,14 +30,16 @@ function inFortnight(dateYYYYMMDD: string, f: Fortnight) {
     : !isFirstFortnight(dateYYYYMMDD);
 }
 
-// Detectores para valores de asistencia
-function isHoursDay(
-  day: any
-): day is { kind: "hours"; hours: number; from?: string; to?: string } {
-  return day && typeof day === "object" && day.kind === "hours";
+// Tipos y detectores para valores de asistencia
+type DayHours = { kind: "hours"; hours: number; from?: string; to?: string };
+
+function isHoursDay(day: unknown): day is DayHours {
+  if (typeof day !== "object" || day === null) return false;
+  const d = day as Partial<DayHours>;
+  return d.kind === "hours" && typeof d.hours === "number";
 }
-function isStringDay(day: any): day is "completo" | "medio" {
-  return typeof day === "string";
+function isStringDay(day: unknown): day is "completo" | "medio" {
+  return day === "completo" || day === "medio";
 }
 
 // Botón tab simple
@@ -218,11 +221,16 @@ const PayrollSummaryModal: React.FC<Props> = ({
     [people]
   );
 
-  // Rango actual
-  const range =
-    viewMode === "fortnight"
-      ? { kind: "fortnight" as const, value: fortnight }
-      : { kind: "month" as const };
+  // Rango actual (memo para no romper exhaust-deps por identidad)
+  const range = useMemo<
+    { kind: "fortnight"; value: Fortnight } | { kind: "month" }
+  >(
+    () =>
+      viewMode === "fortnight"
+        ? { kind: "fortnight", value: fortnight }
+        : { kind: "month" },
+    [viewMode, fortnight]
+  );
 
   // Agrupar por modo + totales por grupo
   const groups = useMemo(() => {

@@ -16,6 +16,31 @@ import type {
 } from "../../types/payroll";
 
 /* -------------------------------------------------------------------------- */
+/*                                 TIPADOS                                     */
+/* -------------------------------------------------------------------------- */
+/**
+ * Valor que se guarda por día en la asistencia:
+ * - Trabajadores por día → string ('completo' | 'medio')
+ * - Trabajadores por hora → objeto { kind: 'hours', hours, from?, to? }
+ *
+ * OJO: AttendanceByMonth (importado) debe ser compatible con este valor.
+ * Si tu typing global ya lo define, puedes eliminar este local y usar ese.
+ */
+type HoursEntry = { kind: "hours"; hours: number; from?: string; to?: string };
+type AttendanceValue = "completo" | "medio" | HoursEntry;
+
+/** Helpers de type guards sin usar `any` */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+function isHoursEntry(att: unknown): att is HoursEntry {
+  if (!isPlainObject(att)) return false;
+  if (!("kind" in att) || att.kind !== "hours") return false;
+  if (!("hours" in att) || typeof att.hours !== "number") return false;
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                  CACHE                                     */
 /* -------------------------------------------------------------------------- */
 const PAYROLL_CACHE_TTL = 60_000; // 60s (ajústalo si quieres)
@@ -23,7 +48,7 @@ let payrollCache: Person[] | null = null;
 let payrollCacheTime = 0;
 let payrollInflight: Promise<Person[]> | null = null;
 
-export function invalidatePayrollCache() {
+export function invalidatePayrollCache(): void {
   payrollCache = null;
   payrollCacheTime = 0;
   payrollInflight = null;
@@ -100,7 +125,7 @@ export function watchPeopleWithNancy(
 /* -------------------------------------------------------------------------- */
 /**
  * Marca asistencia para un día. Optimizado:
- * - Actualiza con dot-path: attendance.<month>.<date> = (AttendanceDay)
+ * - Actualiza con dot-path: attendance.<month>.<date> = (AttendanceValue)
  * - No manda el objeto attendance completo (menos payload / menos riesgo de pisar datos)
  * - No hace lecturas; Firestore crea mapas intermedios si no existen
  * - Devuelve el objeto AttendanceByMonth actualizado para tu estado local
@@ -132,7 +157,7 @@ export async function markAttendanceForPerson(args: {
   // 1) Decide el valor a guardar según el modo del trabajador
   //    - per_day  -> string ("completo" | "medio")
   //    - per_hour -> objeto { kind:"hours", ... }
-  let value: any;
+  let value: AttendanceValue;
 
   if (person.paymentMode === "per_day") {
     // Mantener formato antiguo (string plano)
@@ -157,7 +182,7 @@ export async function markAttendanceForPerson(args: {
     ...(person.attendance || {}),
     [month]: {
       ...(person.attendance?.[month] || {}),
-      [date]: value,
+      [date]: value as unknown as AttendanceByMonth[string][string],
     },
   };
 
@@ -190,11 +215,11 @@ const HALF_SHIFT_RATE = 0.5;
 function daysInMonthStr(monthYYYYMM: string): number {
   // monthYYYYMM: "YYYY-MM"
   const [y, m] = monthYYYYMM.split("-").map(Number);
-  // new Date(year, monthIndex+1, 0) → último día del mes anterior
+  // new Date(y, m, 0) da el último día del mes (porque m es 1–12; Date usa 0–11)
   return new Date(y, m, 0).getDate();
 }
 
-function isDateInFortnight(dateYYYYMMDD: string, fortnight: Fortnight) {
+function isDateInFortnight(dateYYYYMMDD: string, fortnight: Fortnight): boolean {
   // "YYYY-MM-DD" → día
   const day = parseInt(dateYYYYMMDD.slice(8, 10), 10);
   return fortnight === 1 ? day <= 15 : day >= 16;
@@ -240,7 +265,7 @@ export function calculateFortnightTotal(
     let totalHours = 0;
     for (const [date, att] of Object.entries(monthData)) {
       if (!isDateInFortnight(date, fortnight)) continue;
-      if (att?.kind === "hours" && att.hours > 0) {
+      if (isHoursEntry(att) && att.hours > 0) {
         totalHours += att.hours;
       }
     }
@@ -255,12 +280,16 @@ export function calculateFortnightTotal(
 
   for (const [date, att] of Object.entries(monthData)) {
     if (!isDateInFortnight(date, fortnight)) continue;
-    if (!att) continue;
+    if (att == null) continue;
 
-    if (att.kind === "completo") total += valuePerDay;
-    else if (att.kind === "medio")
-      total += Math.round(valuePerDay * HALF_SHIFT_RATE);
-    // Si hubiera un registro "hours" por error en un trabajador por día, lo ignoramos
+    if (typeof att === "string") {
+      if (att === "completo") total += valuePerDay;
+      else if (att === "medio")
+        total += Math.round(valuePerDay * HALF_SHIFT_RATE);
+    } else if (isHoursEntry(att)) {
+      // si por error hay un registro por horas en un trabajador por día, lo ignoramos
+      continue;
+    }
   }
 
   return total;

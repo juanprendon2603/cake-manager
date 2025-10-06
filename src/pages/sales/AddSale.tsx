@@ -11,7 +11,7 @@ import {
   computePrice,
   listCategories,
   tryDecrementStockGeneric,
-  buildVariantKey,      // si prefieres explícito, puedes usar buildStockKey
+  buildVariantKey, // si prefieres explícito, puedes usar buildStockKey
 } from "../catalog/catalog.service";
 import { buildKeys, registerGenericSale } from "./sales.service";
 
@@ -63,10 +63,6 @@ export default function AddSale() {
 
   // 🚩 antes: steps = solo affectsStock; AHORA: saleSteps = TODOS los pasos
   const saleSteps = useMemo(() => cat?.steps || [], [cat]);
-  const stockSteps = useMemo(
-    () => (cat?.steps || []).filter((s) => s.affectsStock !== false),
-    [cat]
-  );
 
   const [stepIdx, setStepIdx] = useState(-1); // -1: categoría; 0..N-1: steps; N: detalles
 
@@ -187,7 +183,7 @@ export default function AddSale() {
 
       await registerGenericSale({
         categoryId: cat.id,
-        variantKey,      // ← llave de stock
+        variantKey, // ← llave de stock
         selections: sel, // ← guarda todas las selecciones para auditoría/precio
         quantity: q,
         unitPriceCOP: unitPrice,
@@ -266,7 +262,8 @@ export default function AddSale() {
 
   const onConfirmClick = () => setShowConfirm(true);
 
-  const currStep = stepIdx >= 0 && stepIdx < saleSteps.length ? saleSteps[stepIdx] : null;
+  const currStep =
+    stepIdx >= 0 && stepIdx < saleSteps.length ? saleSteps[stepIdx] : null;
   const title =
     stepIdx < 0
       ? "¿Qué vas a vender?"

@@ -15,6 +15,23 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { auth, db } from "../../lib/firebase";
 
+/* ------------------------ Tipos y utilidades seguras ------------------------ */
+
+type AppAuthConfig = {
+  initialized?: boolean;
+  allowlist?: unknown[];
+  admins?: unknown[];
+};
+
+const toLowerTrim = (v: unknown) => String(v).toLowerCase().trim();
+const normalizeList = (arr: unknown[]): string[] => arr.map(toLowerTrim);
+
+function getErrorCode(e: unknown): string | undefined {
+  return typeof e === "object" && e && "code" in e
+    ? String((e as { code?: unknown }).code)
+    : undefined;
+}
+
 function fbErrorToMessage(code?: string) {
   switch (code) {
     case "auth/invalid-email":
@@ -42,14 +59,12 @@ async function canRegisterOrSignIn(email: string) {
     const snap = await getDoc(doc(db, "app_config", "auth"));
     if (!snap.exists()) return { allow: true, reason: "first-user:no-config" };
 
-    const cfg = snap.data() as any;
-    const initialized = !!cfg.initialized;
-    const allow: string[] = (cfg.allowlist || []).map((x: any) =>
-      String(x).toLowerCase().trim()
-    );
-    const admins: string[] = (cfg.admins || []).map((x: any) =>
-      String(x).toLowerCase().trim()
-    );
+    const cfg = (snap.data() as AppAuthConfig) ?? {};
+    const initialized = Boolean(cfg.initialized);
+    const allow = Array.isArray(cfg.allowlist)
+      ? normalizeList(cfg.allowlist)
+      : [];
+    const admins = Array.isArray(cfg.admins) ? normalizeList(cfg.admins) : [];
 
     if (!initialized || admins.length === 0) {
       return { allow: true, reason: "bootstrap:no-admins" };
@@ -62,12 +77,17 @@ async function canRegisterOrSignIn(email: string) {
   }
 }
 
+/* --------------------------------- Vista --------------------------------- */
+
 export default function Login() {
   const nav = useNavigate();
-  const location = useLocation() as any;
+  const location = useLocation();
   const { user } = useAuth();
   const { addToast } = useToast();
-  const from = location.state?.from?.pathname || "/";
+
+  const from =
+    (location.state as { from?: { pathname?: string } } | null)?.from
+      ?.pathname || "/";
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -127,7 +147,6 @@ export default function Login() {
           return;
         }
         await signInWithEmailAndPassword(auth, eLower, password);
-        // Esperamos a que useAuth() propague `user`
         showSuccessToast("Bienvenido de vuelta 👋", "Sesión iniciada");
       } else {
         if (password !== confirm) {
@@ -149,8 +168,8 @@ export default function Login() {
         await createUserWithEmailAndPassword(auth, eLower, password);
         showSuccessToast("Tu cuenta fue creada 🎉", "Registro completado");
       }
-    } catch (err: any) {
-      showErrorToast(fbErrorToMessage(err?.code));
+    } catch (err: unknown) {
+      showErrorToast(fbErrorToMessage(getErrorCode(err)));
       setSubmitting(false);
     }
   }
@@ -421,8 +440,8 @@ function ForgotPasswordModal({
         title: "Enlace enviado",
         message: "Revisa tu bandeja de entrada o spam.",
       });
-    } catch (error: any) {
-      const msg = fbErrorToMessage(error?.code);
+    } catch (error: unknown) {
+      const msg = fbErrorToMessage(getErrorCode(error));
       setErr(msg);
       addToast({ type: "error", title: "No se pudo enviar", message: msg });
     } finally {

@@ -12,14 +12,27 @@ interface Props {
 type Fortnight = 1 | 2;
 type ModeKey = "fixed" | "per_day" | "per_hour";
 
-function isStringDay(day: any): day is "completo" | "medio" {
-  return typeof day === "string";
+type DayString = "completo" | "medio";
+type DayHours = { kind: "hours"; hours: number; from?: string; to?: string };
+type AttendanceValue = DayString | DayHours;
+
+
+function isStringDay(day: unknown): day is DayString {
+  return day === "completo" || day === "medio";
 }
-function isHoursDay(
-  day: any
-): day is { kind: "hours"; hours: number; from?: string; to?: string } {
-  return day && typeof day === "object" && day.kind === "hours";
+
+function isHoursDay(day: unknown): day is DayHours {
+  return (
+    typeof day === "object" &&
+    day !== null &&
+    "kind" in day &&
+    (day as { kind?: unknown }).kind === "hours" &&
+    "hours" in day &&
+    typeof (day as { hours?: unknown }).hours === "number"
+  );
 }
+
+
 function personMode(p: Person): ModeKey {
   if (p.paymentMode === "fixed_fortnight" || p.paymentMode === "fixed_monthly")
     return "fixed";
@@ -37,7 +50,7 @@ function buildPerDayData(
   month: string,
   fortnight: Fortnight
 ): { qDays: number; mDays: number; qList: number[]; mList: number[] } {
-  const m = p.attendance?.[month] || {};
+  const m = (p.attendance?.[month] ?? {}) as Record<string, AttendanceValue>;
   const qList: number[] = [];
   const mList: number[] = [];
 
@@ -59,7 +72,7 @@ function buildPerHourData(
   month: string,
   fortnight: Fortnight
 ): { qHours: number; mHours: number; qList: number[]; mList: number[] } {
-  const m = p.attendance?.[month] || {};
+  const m = (p.attendance?.[month] ?? {}) as Record<string, AttendanceValue>;
   let qHours = 0;
   let mHours = 0;
   const qList: number[] = [];
@@ -93,14 +106,14 @@ const GroupCard: React.FC<{
     accent === "emerald"
       ? "from-emerald-50 to-green-50"
       : accent === "sky"
-      ? "from-sky-50 to-blue-50"
-      : "from-indigo-50 to-purple-50";
+        ? "from-sky-50 to-blue-50"
+        : "from-indigo-50 to-purple-50";
   const border =
     accent === "emerald"
       ? "border-emerald-100"
       : accent === "sky"
-      ? "border-sky-100"
-      : "border-indigo-100";
+        ? "border-sky-100"
+        : "border-indigo-100";
 
   return (
     <div
@@ -136,8 +149,8 @@ const Pill: React.FC<{
     color === "green"
       ? "bg-emerald-100 text-emerald-700"
       : color === "blue"
-      ? "bg-sky-100 text-sky-700"
-      : "bg-indigo-100 text-indigo-700";
+        ? "bg-sky-100 text-sky-700"
+        : "bg-indigo-100 text-indigo-700";
   return (
     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${cls}`}>
       {children}
@@ -257,21 +270,19 @@ export default function PayrollSummaryModal({
             <span className="text-sm text-gray-600">Quincena:</span>
             <button
               onClick={() => setFortnight(1)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${
-                fortnight === 1
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${fortnight === 1
                   ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent"
                   : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
-              }`}
+                }`}
             >
               1ª (1–15)
             </button>
             <button
               onClick={() => setFortnight(2)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${
-                fortnight === 2
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${fortnight === 2
                   ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent"
                   : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
-              }`}
+                }`}
             >
               2ª (16–fin)
             </button>

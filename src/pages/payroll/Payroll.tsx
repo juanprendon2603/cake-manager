@@ -21,13 +21,18 @@ function isInFortnight(dateYYYYMMDD: string, fortnight: Fortnight) {
   const day = parseInt(dateYYYYMMDD.slice(8, 10), 10);
   return fortnight === 1 ? day <= 15 : day >= 16;
 }
-function isStringDay(v: any): v is "completo" | "medio" {
-  return typeof v === "string";
+function isStringDay(v: unknown): v is "completo" | "medio" {
+  return v === "completo" || v === "medio";
 }
 function isHoursDay(
-  v: any
+  v: unknown
 ): v is { kind: "hours"; hours: number; from?: string; to?: string } {
-  return v && typeof v === "object" && v.kind === "hours";
+  return (
+    !!v &&
+    typeof v === "object" &&
+    (v as { kind?: unknown }).kind === "hours" &&
+    typeof (v as { hours?: unknown }).hours === "number"
+  );
 }
 
 /* ===== Cálculos de pago por persona (quincena y mes, todos los modos) ===== */
@@ -73,7 +78,7 @@ function calcFortnightForPerson(
 
   // Por hora: suma horas * valor/hora
   if (mode === "per_hour") {
-    const valuePerHour = Math.max(0, (p as any).valuePerHour ?? 0);
+    const valuePerHour = Math.max(0, p.valuePerHour ?? 0);
     if (!valuePerHour) return 0;
     const monthData = p.attendance?.[month] || {};
     let hours = 0;
@@ -112,7 +117,7 @@ function calcMonthForPerson(p: Person, month: string): number {
     return total;
   }
   if (mode === "per_hour") {
-    const valuePerHour = Math.max(0, (p as any).valuePerHour ?? 0);
+    const valuePerHour = Math.max(0, p.valuePerHour ?? 0);
     if (!valuePerHour) return 0;
     const monthData = p.attendance?.[month] || {};
     let hours = 0;
@@ -166,21 +171,16 @@ const Payroll: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-    
-
-               <div className="relative">
-                
-               <PageHero
-  icon={<BriefcaseBusiness className="w-10 h-10" />}
-  title="Nómina"
-  subtitle="Pagos por quincena y por mes"
-/>
-        
-                          <div className="absolute top-4 left-4">
-                          <BackButton fallback="/admin" />
-                          </div>
-                          </div>
-        
+        <div className="relative">
+          <PageHero
+            icon={<BriefcaseBusiness className="w-10 h-10" />}
+            title="Nómina"
+            subtitle="Pagos por quincena y por mes"
+          />
+          <div className="absolute top-4 left-4">
+            <BackButton fallback="/admin" />
+          </div>
+        </div>
 
         {/* Card principal */}
         <section className="bg-white/80 backdrop-blur-xl border-2 border-white/60 shadow-2xl rounded-3xl p-6 sm:p-8">
@@ -231,9 +231,7 @@ const Payroll: React.FC = () => {
                       }
                     : p.paymentMode === "per_hour"
                     ? {
-                        text: `Por hora · ${formatMoney(
-                          (p as any).valuePerHour || 0
-                        )}`,
+                        text: `Por hora · ${formatMoney(p.valuePerHour || 0)}`,
                         cls: "bg-sky-100 text-sky-700",
                       }
                     : p.paymentMode === "fixed_fortnight"

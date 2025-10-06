@@ -2,7 +2,6 @@
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "../../components/BackButton";
-// import BaseModal from "../../components/BaseModal"; // ⬅️ ya no se usa aquí
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -35,11 +34,26 @@ const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 const localToday = () => format(new Date(), "yyyy-MM-dd");
 
 /* ------------------------- Pretty selections helper ------------------------ */
+type PrettyKV = Array<{ label: string; value: string }>;
+
+function parseVariantKeyPairs(variantKey?: string): PrettyKV {
+  if (!variantKey) return [];
+  try {
+    const parts = variantKey.split("|").map((p) => p.split(":"));
+    return parts
+      .filter((kv) => kv.length === 2)
+      .map(([k, v]) => ({ label: k, value: v }));
+  } catch {
+    // Fallback seguro
+    return [];
+  }
+}
+
 function buildPrettySelections(
   cat: ProductCategory | null,
   selectionsInput: Record<string, string> | undefined | null,
   variantKey?: string
-): Array<{ label: string; value: string }> {
+): PrettyKV {
   const selections: Record<string, string> = selectionsInput ?? {};
 
   if (cat && Array.isArray(cat.steps)) {
@@ -54,12 +68,8 @@ function buildPrettySelections(
     });
     const hasAny = pretty.some((p) => p.value);
     if (!hasAny && variantKey) {
-      try {
-        const parts = variantKey.split("|").map((p) => p.split(":"));
-        return parts
-          .filter((kv) => kv.length === 2)
-          .map(([k, v]) => ({ label: k, value: v }));
-      } catch {}
+      const parsed = parseVariantKeyPairs(variantKey);
+      if (parsed.length) return parsed;
     }
     return pretty;
   }
@@ -69,12 +79,8 @@ function buildPrettySelections(
     return entries.map(([k, v]) => ({ label: k, value: v }));
 
   if (variantKey) {
-    try {
-      const parts = variantKey.split("|").map((p) => p.split(":"));
-      return parts
-        .filter((kv) => kv.length === 2)
-        .map(([k, v]) => ({ label: k, value: v }));
-    } catch {}
+    const parsed = parseVariantKeyPairs(variantKey);
+    if (parsed.length) return parsed;
   }
   return [];
 }
@@ -169,6 +175,8 @@ export function FinalizePayment() {
         const all = await listCategories();
         setCats(all);
       } catch {
+        // Fallback para cumplir no-empty y mantener UI utilizable
+        setCats([]);
       } finally {
         setCatsLoading(false);
       }
@@ -372,8 +380,8 @@ export function FinalizePayment() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-  icon={<Wallet className="w-10 h-10" />}
-  title="Gestión de Abonos"
+            icon={<Wallet className="w-10 h-10" />}
+            title="Gestión de Abonos"
             subtitle="Finaliza pedidos desde el calendario"
           />
           <div className="absolute top-4 left-4 z-20">

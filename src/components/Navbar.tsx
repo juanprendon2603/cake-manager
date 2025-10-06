@@ -23,7 +23,7 @@ function getInitialsFromProfileOrUser(
   }
 
   const base = (email || "U").split("@")[0] || "U";
-  const parts = base.replace(/[_\.]/g, " ").split(/\s+/).filter(Boolean);
+  const parts = base.replace(/[_.]/g, " ").split(/\s+/).filter(Boolean);
   const a = parts[0]?.[0]?.toUpperCase() ?? "U";
   const b = parts[1]?.[0]?.toUpperCase() ?? "";
   return (a + b).slice(0, 2);

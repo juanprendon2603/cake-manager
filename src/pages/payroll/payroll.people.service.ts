@@ -9,26 +9,61 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  type CollectionReference,
+  type FieldValue,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import type { PaymentMode, Person } from "../../types/payroll";
 
 const PAYROLL_COL = "payroll";
 
+// La data en Firestore no incluye `id` en el documento.
+// Permitimos timestamps del servidor.
+type FireDate = FieldValue | Timestamp | number;
+type PersonDoc = Omit<Person, "id"> & {
+  createdAt?: FireDate;
+  updatedAt?: FireDate;
+};
+
+// Col. tipada para evitar `any`
+const peopleCol = collection(db, PAYROLL_COL) as CollectionReference<PersonDoc>;
+
 /* --------------------------------- utils --------------------------------- */
 
+// Detecta objetos "planos" (evita recursión en sentinels como serverTimestamp)
+const isPlainObject = (val: unknown): val is Record<string, unknown> =>
+  Object.prototype.toString.call(val) === "[object Object]";
+
 // Quita keys con undefined (Firestore no lo permite)
-function pruneUndefined<T extends Record<string, any>>(obj: T): T {
-  const out: any = Array.isArray(obj) ? [] : {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === undefined) continue;
-    if (v && typeof v === "object" && !(v instanceof Date)) {
-      out[k] = pruneUndefined(v as any);
-    } else {
-      out[k] = v;
-    }
+function pruneUndefined<T>(obj: T): T {
+  if (Array.isArray(obj)) {
+    const arr = (obj as unknown[]).reduce<unknown[]>((acc, v) => {
+      if (v === undefined) return acc;
+      if (Array.isArray(v) || isPlainObject(v)) {
+        acc.push(pruneUndefined(v));
+      } else {
+        acc.push(v);
+      }
+      return acc;
+    }, []);
+    return arr as unknown as T;
   }
-  return out as T;
+
+  if (isPlainObject(obj)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === undefined) continue;
+      if (Array.isArray(v) || isPlainObject(v)) {
+        out[k] = pruneUndefined(v);
+      } else {
+        out[k] = v;
+      }
+    }
+    return out as unknown as T;
+  }
+
+  return obj;
 }
 
 export function buildPersonId(firstName: string, lastName: string) {
@@ -49,17 +84,17 @@ function validatePayment(
   fixedMonthlyPay?: number
 ) {
   if (mode === "per_day") {
-    if (valuePerDay == null || isNaN(valuePerDay)) {
+    if (valuePerDay == null || Number.isNaN(valuePerDay)) {
       throw new Error("Debes indicar 'Valor por día'.");
     }
   }
   if (mode === "fixed_fortnight") {
-    if (fixedFortnightPay == null || isNaN(fixedFortnightPay)) {
+    if (fixedFortnightPay == null || Number.isNaN(fixedFortnightPay)) {
       throw new Error("Debes indicar 'Pago fijo quincenal'.");
     }
   }
   if (mode === "fixed_monthly") {
-    if (fixedMonthlyPay == null || isNaN(fixedMonthlyPay)) {
+    if (fixedMonthlyPay == null || Number.isNaN(fixedMonthlyPay)) {
       throw new Error("Debes indicar 'Pago fijo mensual'.");
     }
   }
@@ -68,9 +103,9 @@ function validatePayment(
 /* --------------------------------- CRUD ---------------------------------- */
 
 export async function listPeople(): Promise<Person[]> {
-  const q = query(collection(db, PAYROLL_COL), orderBy("lastName"));
+  const q = query(peopleCol, orderBy("lastName"));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Person[];
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /** Crea una persona nueva. Recibe campos “de formulario”, genera id si falta y valida por modo */
@@ -94,14 +129,13 @@ export async function createPerson(input: {
   );
 
   // evita duplicados
-  const ref = doc(db, PAYROLL_COL, id);
+  const ref = doc(peopleCol, id);
   const exists = await getDoc(ref);
   if (exists.exists()) {
     throw new Error("Ya existe un trabajador con ese ID.");
   }
 
-  const body = pruneUndefined({
-    id,
+  const body = pruneUndefined<PersonDoc>({
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     paymentMode: input.paymentMode,
@@ -139,22 +173,26 @@ export async function upsertPerson(p: Person) {
     p.fixedMonthlyPay
   );
 
-  const ref = doc(db, PAYROLL_COL, p.id);
-  const body = pruneUndefined({
-    ...p,
+  const ref = doc(peopleCol, p.id);
+
+  // Quita `id` sin generar warning de variable sin uso
+  const { id, ...rest } = p;
+  void id;
+
+  const body = pruneUndefined<PersonDoc>({
+    ...rest,
     firstName: p.firstName.trim(),
     lastName: p.lastName.trim(),
     active: p.active ?? true,
     disabled: p.disabled ?? false,
     // timestamps
     updatedAt: serverTimestamp(),
-    createdAt: undefined, // no lo sobreescribas si ya existe
   });
 
   await setDoc(ref, body, { merge: true });
 }
 
 export async function deletePerson(id: string) {
-  const ref = doc(db, PAYROLL_COL, id);
+  const ref = doc(peopleCol, id);
   await deleteDoc(ref);
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { User } from "firebase/auth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
@@ -25,6 +26,34 @@ type AuthContextValue = {
   logout: () => Promise<void>;
 };
 
+type AppAuthConfig = {
+  initialized: boolean;
+  allowlist: string[];
+  admins: string[];
+  profiles: Record<string, UserProfile>;
+};
+
+type UserDoc = {
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  role: Role;
+  active: boolean;
+  disabled: boolean;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+const DEFAULT_CONFIG: AppAuthConfig = {
+  initialized: false,
+  allowlist: [],
+  admins: [],
+  profiles: {},
+};
+
+const toLowerTrim = (arr: unknown): string[] =>
+  Array.isArray(arr) ? arr.map((x) => String(x).toLowerCase().trim()) : [];
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -48,41 +77,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = (u.email || "").toLowerCase().trim();
 
       try {
+        // --- Leer configuración de la app ---
         const cfgSnap = await getDoc(cfgRef);
         const cfg = cfgSnap.exists()
-          ? (cfgSnap.data() as any)
-          : { initialized: false, allowlist: [], admins: [], profiles: {} };
+          ? ((cfgSnap.data() as Partial<AppAuthConfig>) ?? {})
+          : ({} as Partial<AppAuthConfig>);
 
-        const initialized = !!cfg.initialized;
-        const allow: string[] = (cfg.allowlist || []).map((x: any) =>
-          String(x).toLowerCase().trim()
-        );
-        const admins: string[] = (cfg.admins || []).map((x: any) =>
-          String(x).toLowerCase().trim()
-        );
-        const profilesMap: Record<
-          string,
-          { displayName?: string; firstName?: string; lastName?: string }
-        > = cfg.profiles || {};
+        const initialized = Boolean(cfg.initialized);
+        const allow: string[] = toLowerTrim(cfg.allowlist);
+        const admins: string[] = toLowerTrim(cfg.admins);
+        const profilesMap: AppAuthConfig["profiles"] =
+          cfg.profiles ?? DEFAULT_CONFIG.profiles;
 
         const profForEmail = profilesMap[email] ?? null;
         const sinAdmins = admins.length === 0;
 
+        // --- Bootstrap inicial si no hay admins o no inicializado ---
         if (!initialized || sinAdmins) {
           await runTransaction(db, async (tx) => {
             const freshCfg = await tx.get(cfgRef);
-            const currCfg = freshCfg.exists()
-              ? (freshCfg.data() as any)
-              : { initialized: false, allowlist: [], admins: [], profiles: {} };
+            const curr = freshCfg.exists()
+              ? ((freshCfg.data() as Partial<AppAuthConfig>) ?? {})
+              : ({} as Partial<AppAuthConfig>);
 
-            const cAllow: string[] = (currCfg.allowlist || []).map((x: any) =>
-              String(x).toLowerCase().trim()
-            );
-            const cAdmins: string[] = (currCfg.admins || []).map((x: any) =>
-              String(x).toLowerCase().trim()
-            );
+            const cAllow: string[] = toLowerTrim(curr.allowlist);
+            const cAdmins: string[] = toLowerTrim(curr.admins);
 
-            if (!currCfg.initialized || cAdmins.length === 0) {
+            if (!curr.initialized || cAdmins.length === 0) {
               tx.set(
                 cfgRef,
                 {
@@ -94,20 +115,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 { merge: true }
               );
 
-              tx.set(
-                userRef,
-                {
-                  email: u.email ?? null,
-                  displayName: u.displayName ?? null,
-                  photoURL: u.photoURL ?? null,
-                  role: "admin",
-                  active: true,
-                  disabled: false,
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                },
-                { merge: true }
-              );
+              const bootstrapUser: UserDoc = {
+                email: u.email ?? null,
+                displayName: u.displayName ?? null,
+                photoURL: u.photoURL ?? null,
+                role: "admin",
+                active: true,
+                disabled: false,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              };
+
+              tx.set(userRef, bootstrapUser, { merge: true });
             }
           });
 
@@ -118,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        // --- Validación allowlist/admins ---
         const isAdminEmail = admins.includes(email);
         const isAllowedEmail = isAdminEmail || allow.includes(email);
         if (!isAllowedEmail) {
@@ -129,11 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        let finalRole: Role = isAdminEmail ? "admin" : "user";
+        const finalRole: Role = isAdminEmail ? "admin" : "user";
+
+        // --- Upsert de documento de usuario y validaciones ---
         await runTransaction(db, async (tx) => {
           const uSnap = await tx.get(userRef);
           if (!uSnap.exists()) {
-            tx.set(userRef, {
+            const newDoc: UserDoc = {
               email: u.email ?? null,
               displayName: u.displayName ?? null,
               photoURL: u.photoURL ?? null,
@@ -142,17 +164,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               disabled: false,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-            });
+            };
+            tx.set(userRef, newDoc);
             return;
           }
 
-          const data = uSnap.data() as any;
+          const data = (uSnap.data() as Partial<UserDoc>) ?? {};
           if (data.disabled === true || data.active === false) {
             throw new Error("USER_DISABLED");
           }
 
           const currentRole: Role | undefined = data.role;
-          const patch: any = {
+          const patch: Partial<UserDoc> = {
             email: u.email ?? null,
             displayName: u.displayName ?? null,
             photoURL: u.photoURL ?? null,
@@ -168,9 +191,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole(finalRole);
         setProfile(profForEmail);
         setLoading(false);
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("[Auth] Bootstrap/allowlist error", e);
-        if (String(e?.message) === "USER_DISABLED") {
+        const msg =
+          typeof e === "object" && e && "message" in e
+            ? String((e as { message?: unknown }).message)
+            : "";
+        if (msg === "USER_DISABLED") {
           await signOut(auth);
         }
         setUser(null);
