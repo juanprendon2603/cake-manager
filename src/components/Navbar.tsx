@@ -156,9 +156,8 @@ export function Navbar() {
                   {displayName}
                 </span>
                 <svg
-                  className={`h-4 w-4 transition-transform ${
-                    userOpen ? "rotate-180" : ""
-                  }`}
+                  className={`h-4 w-4 transition-transform ${userOpen ? "rotate-180" : ""
+                    }`}
                   viewBox="0 0 20 20"
                   fill="currentColor"
                   aria-hidden
@@ -303,12 +302,27 @@ export function Navbar() {
             )}
 
             {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-200 hover:text-rose-600 hover:bg-rose-50/10"
-            >
-              Cerrar sesión
-            </button>
+            {/* Logout (mobile) */}
+            <div className="px-4 py-3 border-t border-white/10 bg-white/90">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-xl border bg-white text-rose-600 border-rose-200 hover:bg-rose-50 active:bg-rose-100 transition"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 12H9m9 0l-3-3m3 3l-3 3" />
+                </svg>
+                Cerrar sesión
+              </button>
+            </div>
+
           </div>
         </div>
       )}
