@@ -1,17 +1,15 @@
+// landing/tailwind.config.js
 /** @type {import('tailwindcss').Config} */
-export default {
-    content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-    theme: {
-      extend: {
-        colors: {
-          pastel: {
-            pink: "#F9E5E1",
-            brown: "#7C4A33",
-            gold: "#D4AF37",
-          },
-        },
+module.exports = {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        // opcional: para las clases que usaste tipo bg-pastel-pink, text-pastel-brown
+        "pastel-pink": "#FDECF3",
+        "pastel-brown": "#6B4E3D",
       },
     },
-    plugins: [],
-  };
-  
+  },
+  plugins: [],
+};
