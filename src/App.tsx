@@ -10,7 +10,9 @@ import { ToastProvider } from "./components/Alert";
 import { Navbar } from "./components/Navbar";
 import RequireAuth from "./components/RequireAuth";
 
-import { AdminRoute } from "./components/AdminRoute";
+// Solo usamos AdminGate (no hay otros roles)
+import AdminGate from "./components/AdminRoute";
+
 import { Home } from "./pages/Home";
 import AdminPanel from "./pages/admin/AdminPanel";
 import AllowlistAdmin from "./pages/admin/Allowlist";
@@ -52,46 +54,13 @@ export default function App() {
       <BrowserRouter>
         <LayoutWithNavbar>
           <Routes>
-            {/* PÚBLICA */}
+            {/* --- PÚBLICA --- */}
             <Route path="/login" element={<Login />} />
 
-            {/* PRIVADAS (requieren sesión) */}
+            {/* --- PRIVADAS (requieren sesión) --- */}
             <Route element={<RequireAuth />}>
+              {/* Acceso para cualquier usuario autenticado */}
               <Route path="/" element={<Home />} />
-
-              {/* --- RUTAS ADMIN --- */}
-              <Route
-                path="/admin"
-                element={
-                  <AdminRoute>
-                    <AdminPanel />
-                  </AdminRoute>
-                }
-              />
-
-              <Route
-                path="/admin/allowlist"
-                element={
-                  <AdminRoute>
-                    <AllowlistAdmin />
-                  </AdminRoute>
-                }
-              />
-
-              {/* Ejemplos de futuras pantallas admin */}
-              <Route
-                path="/admin/fridges"
-                element={
-                  <AdminRoute>
-                    <FridgesAdmin />
-                  </AdminRoute>
-                }
-              />
-              <Route path="/admin/workers" element={<WorkersAdmin />} />
-
-              <Route path="/admin/catalog" element={<CategoriesAdmin />} />
-
-              {/* --- RUTAS YA EXISTENTES --- */}
               <Route path="/stock" element={<StockHome />} />
               <Route path="/stock/agregar" element={<AddStockForm />} />
               <Route path="/stock/listado" element={<ProductList />} />
@@ -103,11 +72,14 @@ export default function App() {
                 path="/sales/add-general-expense"
                 element={<AddGeneralExpense />}
               />
-
-              <Route path="/summary" element={<DailySummary />} />
               <Route path="/daily" element={<DailyTodayRedirect />} />
+
               <Route path="/daily/:fecha" element={<DailyDetailPage />} />
 
+              {/* Payroll SIMPLE: abierta para todos los autenticados */}
+              <Route path="/payroll-simple" element={<PayrollSimple />} />
+
+              {/* Otras privadas abiertas (no admin) */}
               <Route
                 path="/payment-management"
                 element={<PaymentManagement />}
@@ -117,17 +89,34 @@ export default function App() {
                 path="/payment-management/finalize"
                 element={<FinalizePayment />}
               />
-
-              <Route path="/payroll" element={<Payroll />} />
-              <Route path="/payroll-simple" element={<PayrollSimple />} />
-              <Route path="/inform" element={<Inform />} />
               <Route
                 path="/fridgeTemperature"
                 element={<FridgeTemperature />}
               />
+
+              {/* --- SOLO ADMIN: /admin/* completo --- */}
+              <Route path="/admin" element={<AdminGate />}>
+                <Route index element={<AdminPanel />} />
+                <Route path="allowlist" element={<AllowlistAdmin />} />
+                <Route path="fridges" element={<FridgesAdmin />} />
+                <Route path="workers" element={<WorkersAdmin />} />
+                <Route path="catalog" element={<CategoriesAdmin />} />
+              </Route>
+
+              {/* --- SOLO ADMIN: rutas específicas fuera de /admin --- */}
+              <Route element={<AdminGate />}>
+                {/* Inform solo para admin */}
+                <Route path="/inform" element={<Inform />} />
+
+                {/* Payroll (NO la simple) solo para admin */}
+                <Route path="/payroll" element={<Payroll />} />
+
+                {/* Summary y vistas relacionadas solo para admin */}
+                <Route path="/summary" element={<DailySummary />} />
+              </Route>
             </Route>
 
-            {/* CATCH-ALL */}
+            {/* --- CATCH-ALL --- */}
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </LayoutWithNavbar>

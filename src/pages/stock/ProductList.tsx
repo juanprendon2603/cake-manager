@@ -1,4 +1,5 @@
 // src/pages/stock/ProductList.tsx
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
@@ -7,10 +8,10 @@ import { listCategories } from "../catalog/catalog.service";
 import type { ProductCategory } from "./stock.model";
 
 // ✨ UI consistente
+import { Boxes, Layers, PackageOpen, RotateCcw, Shapes } from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
-import { Boxes } from "lucide-react";
 
 /* ------------------------------ Helpers UI ------------------------------ */
 function parseVariantParts(
@@ -27,7 +28,10 @@ function parseVariantParts(
   });
 }
 
-function chipsFromVariant(variantKey: string, category: ProductCategory | null) {
+function chipsFromVariant(
+  variantKey: string,
+  category: ProductCategory | null
+) {
   const pairs = parseVariantParts(variantKey);
   const steps = category?.steps || [];
   return pairs.map(({ stepKey, optKey }) => {
@@ -49,8 +53,8 @@ function chipsFromVariant(variantKey: string, category: ProductCategory | null) 
 function EmptyState() {
   return (
     <div className="text-center py-16">
-      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center text-2xl shadow-lg">
-        0
+      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg">
+        <PackageOpen className="w-9 h-9" />
       </div>
       <p className="mt-4 text-gray-600">No hay variantes registradas.</p>
     </div>
@@ -58,6 +62,26 @@ function EmptyState() {
 }
 
 /* --------------------------------- StatsBar -------------------------------- */
+function StatCard({
+  icon,
+  title,
+  value,
+}: {
+  icon: ReactNode;
+  title: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
+      <div className="flex items-center justify-center text-purple-700">
+        {icon}
+      </div>
+      <div className="text-xs text-gray-600 mt-1">{title}</div>
+      <div className="text-sm font-semibold text-purple-600">{value}</div>
+    </div>
+  );
+}
+
 function StatsBar({
   totalVariants,
   totalUnits,
@@ -67,24 +91,23 @@ function StatsBar({
 }) {
   const cards = useMemo(
     () => [
-      { icon: "🧩", title: "Variantes", value: totalVariants },
-      { icon: "📦", title: "Unidades totales", value: totalUnits },
+      {
+        icon: <Layers className="w-6 h-6" />,
+        title: "Variantes",
+        value: totalVariants,
+      },
+      {
+        icon: <Boxes className="w-6 h-6" />,
+        title: "Unidades totales",
+        value: totalUnits,
+      },
     ],
     [totalVariants, totalUnits]
   );
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
       {cards.map((c, i) => (
-        <div
-          key={i}
-          className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow"
-        >
-          <div className="text-2xl">{c.icon}</div>
-          <div className="text-xs text-gray-600">{c.title}</div>
-          <div className="text-sm font-semibold text-purple-600">
-            {c.value}
-          </div>
-        </div>
+        <StatCard key={i} icon={c.icon} title={c.title} value={c.value} />
       ))}
     </div>
   );
@@ -115,8 +138,8 @@ function StockCard({
       <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10 pointer-events-none" />
       <div className="relative z-10 flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow">
-            🧩
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow">
+            <Shapes className="w-6 h-6" />
           </div>
           <div>
             <h3 className="text-xl font-extrabold text-[#8E2DA8]">Variante</h3>
@@ -128,6 +151,7 @@ function StockCard({
           className="inline-flex items-center gap-1 bg-gradient-to-r from-red-500 to-rose-500 hover:opacity-95 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm transition-colors"
           title="Reiniciar a 0"
         >
+          <RotateCcw className="w-4 h-4" />
           Reset
         </button>
       </div>

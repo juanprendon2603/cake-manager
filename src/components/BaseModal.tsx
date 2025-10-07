@@ -1,5 +1,6 @@
+// BaseModal.tsx
 import { AnimatePresence, motion } from "framer-motion";
-import React from "react";
+import React, { useState } from "react";
 import { easeM3 } from "../pages/sales/animations";
 
 type Accent = "purple" | "amber" | "indigo" | "pink" | "blue" | "green";
@@ -27,7 +28,7 @@ const sizeMap: Record<Size, string> = {
 
 interface Action {
   label: string;
-  onClick: () => void;
+  onClick: () => Promise<void> | void; // 👈 permite async
 }
 
 interface BaseModalProps {
@@ -61,6 +62,19 @@ export default function BaseModal({
   const width = sizeMap[size];
   const headerIcon = icon ?? "📌";
 
+  const [busy, setBusy] = useState(false);
+
+  const handlePrimaryClick = async () => {
+    if (busy || !primaryAction) return;
+    setBusy(true);
+    try {
+      await primaryAction.onClick?.();
+    } finally {
+      // si cierras el modal en la acción, igual se limpia al desmontar
+      setBusy(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -71,7 +85,7 @@ export default function BaseModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={onClose}
+          onClick={busy ? undefined : onClose} // no cerrar con overlay si está procesando
         >
           <motion.div
             initial={{ scale: 0.96, opacity: 0 }}
@@ -122,17 +136,47 @@ export default function BaseModal({
                 {secondaryAction && (
                   <button
                     onClick={secondaryAction.onClick}
-                    className="px-5 py-3 text-gray-700 border-2 border-gray-300 rounded-xl hover:bg-gray-100 transition font-semibold"
+                    disabled={busy}
+                    className={`px-5 py-3 text-gray-700 border-2 border-gray-300 rounded-xl transition font-semibold ${
+                      busy
+                        ? "opacity-60 cursor-not-allowed"
+                        : "hover:bg-gray-100"
+                    }`}
                   >
                     {secondaryAction.label}
                   </button>
                 )}
                 {primaryAction && (
                   <button
-                    onClick={primaryAction.onClick}
-                    className={`px-5 py-3 bg-gradient-to-r ${accent} text-white rounded-xl hover:shadow-lg transition font-bold`}
+                    onClick={handlePrimaryClick}
+                    disabled={busy}
+                    className={`px-5 py-3 bg-gradient-to-r ${accent} text-white rounded-xl transition font-bold flex items-center justify-center gap-2 ${
+                      busy ? "opacity-60 cursor-not-allowed" : "hover:shadow-lg"
+                    }`}
                   >
-                    {primaryAction.label}
+                    {busy && (
+                      <svg
+                        className="h-5 w-5 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
+                      </svg>
+                    )}
+                    {busy ? "Procesando..." : primaryAction.label}
                   </button>
                 )}
               </div>

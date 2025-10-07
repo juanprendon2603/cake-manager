@@ -32,8 +32,8 @@ import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
 // Modal reutilizable de “sin stock”
-import NoStockModal from "../../components/NoStockModal";
 import { CreditCard } from "lucide-react";
+import NoStockModal from "../../components/NoStockModal";
 
 export function AddPayment() {
   const navigate = useNavigate();
@@ -109,15 +109,14 @@ export function AddPayment() {
   }, []);
 
   // ⚠️ AHORA: usamos TODOS los steps (para capturar atributos de precio y auditoría)
-  const allSteps = useMemo<CategoryStep[]>(
-    () => (cat?.steps || []),
-    [cat]
-  );
+  const allSteps = useMemo<CategoryStep[]>(() => cat?.steps || [], [cat]);
 
   // Inicializar selections cuando hay categoría (TODOS los steps)
   useEffect(() => {
     if (!cat) return;
-    const baseSel = Object.fromEntries((cat.steps || []).map((s) => [s.key, ""]));
+    const baseSel = Object.fromEntries(
+      (cat.steps || []).map((s) => [s.key, ""])
+    );
     setState((s) => ({ ...s, categoryId: cat.id, selections: baseSel }));
   }, [cat]);
 
@@ -198,7 +197,7 @@ export function AddPayment() {
         categoryId: cat.id,
         categoryName: cat.name,
         selections: state.selections, // guardamos TODO (incluye 'tipo')
-        variantKey,                   // para stock/reconciliación
+        variantKey, // para stock/reconciliación
         quantity: qty,
         totalAmount: total,
         paidAmountToday: paid,
@@ -305,9 +304,9 @@ export function AddPayment() {
             title="Registrar Abono/Pago"
             subtitle="Registra abonos o pagos totales y actualiza el inventario si lo deseas"
           />
-        </div>
-        <div className="absolute top-4 left-4 z-20">
-          <BackButton fallback="/payment-management" />
+          <div className="absolute top-4 left-4 z-20">
+            <BackButton fallback="/payment-management" />
+          </div>
         </div>
 
         {/* Formulario */}

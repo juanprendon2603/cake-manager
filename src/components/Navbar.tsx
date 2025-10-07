@@ -102,12 +102,17 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-[#7a1f96]/80 via-[#8E2DA8]/80 to-[#a84bd1]/80 border-b border-white/20 shadow-[0_8px_20px_rgba(142,45,168,0.25)]">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex justify-between items-center h-16 text-white">
-          <Link to="/" className="flex items-center gap-2">
+          <Link
+            to="/"
+            className="flex items-center gap-2"
+            aria-label="Ir al inicio"
+          >
             <span className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-[#2FE1EB] via-white to-[#F3E8FF] bg-clip-text text-transparent drop-shadow-[0_1px_8px_rgba(47,225,235,0.35)]">
               InManager
             </span>
           </Link>
 
+          {/* --------- Desktop Nav --------- */}
           <div className="hidden md:flex items-center space-x-1">
             {items.map((item) => {
               const active = isActive(item.to);
@@ -136,6 +141,7 @@ export function Navbar() {
               );
             })}
 
+            {/* User dropdown (desktop) */}
             <div className="relative ml-2" ref={userMenuRef}>
               <button
                 onClick={() => setUserOpen((v) => !v)}
@@ -146,13 +152,16 @@ export function Navbar() {
                 <div className="h-8 w-8 rounded-xl bg-white/90 text-[#8E2DA8] font-extrabold grid place-items-center shadow">
                   {initials}
                 </div>
-                <span className="text-sm font-semibold">{displayName}</span>
+                <span className="text-sm font-semibold max-w-[180px] truncate">
+                  {displayName}
+                </span>
                 <svg
                   className={`h-4 w-4 transition-transform ${
                     userOpen ? "rotate-180" : ""
                   }`}
                   viewBox="0 0 20 20"
                   fill="currentColor"
+                  aria-hidden
                 >
                   <path
                     fillRule="evenodd"
@@ -199,10 +208,11 @@ export function Navbar() {
             </div>
           </div>
 
+          {/* --------- Mobile Burger --------- */}
           <button
             className="md:hidden p-3 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/70"
             onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Abrir menú"
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
           >
             {menuOpen ? (
@@ -240,9 +250,26 @@ export function Navbar() {
         </div>
       </div>
 
+      {/* --------- Mobile Menu Drawer --------- */}
       {menuOpen && (
         <div className="md:hidden px-4 pb-4 pt-2">
           <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md shadow-[0_12px_30px_rgba(0,0,0,0.25)] overflow-hidden">
+            {/* Bloque de usuario (mobile) */}
+            <div className="flex items-center gap-3 px-4 py-4 bg-white/10 border-b border-white/15">
+              <div className="h-10 w-10 rounded-xl bg-white text-[#8E2DA8] font-extrabold grid place-items-center shadow">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <div className="text-white font-semibold truncate">
+                  {displayName}
+                </div>
+                <div className="text-[#E9D9F7] text-xs">
+                  {role === "admin" ? "Administrador" : "Sesión activa"}
+                </div>
+              </div>
+            </div>
+
+            {/* Links principales */}
             {items.map((item, idx) => {
               const active = isActive(item.to);
               return (
@@ -252,10 +279,11 @@ export function Navbar() {
                   onClick={() => setMenuOpen(false)}
                   className={[
                     "block px-4 py-3 text-sm font-semibold transition-all",
-                    idx !== items.length - 1 ? "border-b border-white/10" : "",
+                    "focus:outline-none focus:ring-2 focus:ring-white/40",
                     active
                       ? "bg-white text-[#8E2DA8]"
                       : "text-[#E9D9F7] hover:text-white hover:bg-white/10",
+                    idx !== items.length - 1 ? "border-b border-white/10" : "",
                   ].join(" ")}
                 >
                   {item.label}
@@ -263,6 +291,7 @@ export function Navbar() {
               );
             })}
 
+            {/* Admin link */}
             {role === "admin" && (
               <Link
                 to="/admin"
@@ -273,6 +302,7 @@ export function Navbar() {
               </Link>
             )}
 
+            {/* Logout */}
             <button
               onClick={handleLogout}
               className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-200 hover:text-rose-600 hover:bg-rose-50/10"

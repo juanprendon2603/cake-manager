@@ -1,17 +1,18 @@
 // src/pages/stock/AddStockForm.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { Control } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
 
-// ✅ UI consistente
+// UI
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
+import { Package, Plus, Save, Trash2 } from "lucide-react";
 import {
   buildVariantKey,
   listCategories,
@@ -24,7 +25,6 @@ import {
   type CategoryStep,
   type ProductCategory,
 } from "./stock.model";
-import { Package } from "lucide-react";
 
 /* ------------------------------- Tipos Form ------------------------------- */
 type LineRow = { selections: Record<string, string>; qty: number | "" };
@@ -80,7 +80,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
     [primaryStep]
   );
 
-  // Valores por defecto bonitos
+  // Valores por defecto
   const defaultGroups: PrimaryGroup[] = useMemo(() => {
     if (!cat || !primaryStep) return [];
     const firstPrimary = (primaryStep.options || [])
@@ -132,7 +132,6 @@ export function AddStockForm({ defaultCategoryId }: Props) {
       .flatMap((g) => g.rows || [])
       .filter((r) => Number(r.qty) > 0)
       .map((r) => ({
-        // ⬇️ LLAVE DE STOCK: solo steps con affectsStock = true
         variantKey: buildVariantKey(cat, r.selections, { mode: "stock" }),
         delta: Number(r.qty),
       }));
@@ -154,7 +153,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
       reset({ categoryId: cat.id, date: todayKey(), groups: defaultGroups });
       addToast({
         type: "success",
-        title: "¡Stock actualizado! 🎉",
+        title: "Stock actualizado",
         message: "Inventario actualizado exitosamente.",
         duration: 5000,
       });
@@ -163,7 +162,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
       console.error(e);
       addToast({
         type: "error",
-        title: "Ups, algo salió mal 😞",
+        title: "Error al actualizar",
         message: (e as Error).message ?? "Error al actualizar el stock.",
         duration: 5000,
       });
@@ -185,9 +184,10 @@ export function AddStockForm({ defaultCategoryId }: Props) {
             title="Inventario de Productos"
             subtitle="Agrega o incrementa el stock por combinación"
           />
-           <div className="absolute top-4 left-4 z-20">
+          <div className="absolute top-4 left-4 z-20">
             <BackButton fallback="/admin" />
-          </div>        </div>
+          </div>
+        </div>
 
         {/* ======= Selector de categoría ======= */}
         <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
@@ -261,7 +261,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
                     className="group relative px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 font-bold text-lg"
                   >
                     <span className="relative z-10 flex items-center gap-3">
-                      <span className="text-xl">💾</span>
+                      <Save className="w-5 h-5" />
                       Guardar Productos
                     </span>
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-pink-700 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -282,7 +282,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
         <div className="mt-8">
           <ProTipBanner
             title="Tip de inventario"
-            text="Usa varios ‘Agregar’ por opción primaria para cargar combinaciones rápidas (tamaño + sabor + etc.)."
+            text="Usa varios ‘Agregar’ por opción primaria para cargar combinaciones rápidas."
           />
         </div>
       </main>
@@ -297,8 +297,9 @@ export function AddStockForm({ defaultCategoryId }: Props) {
         date={watchAll.date}
         rows={(watchAll.groups || []).flatMap((g) =>
           (g.rows || []).map((r) => ({
-            // ⬇️ LLAVE DE STOCK para la previsualización
-            variantKey: cat ? buildVariantKey(cat, r.selections, { mode: "stock" }) : "",
+            variantKey: cat
+              ? buildVariantKey(cat, r.selections, { mode: "stock" })
+              : "",
             parts: r.selections,
             qty: Number(r.qty || 0),
           }))
@@ -367,7 +368,6 @@ function PrimaryGroupCard({
     keyName: "_k",
   });
 
-  // Lee el valor actual de primaryOpt de manera tipada
   const primaryOpt = useWatch({
     control,
     name: `groups.${groupIndex}.primaryOpt` as const,
@@ -379,8 +379,8 @@ function PrimaryGroupCard({
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl shadow-lg">
-              🎂
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg">
+              <Package className="w-6 h-6" />
             </div>
             <div>
               <label className="block font-bold text-xl text-gray-800">
@@ -412,10 +412,11 @@ function PrimaryGroupCard({
                 qty: "",
               })
             }
-            className="px-3 py-2 rounded-lg border-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+            className="px-3 py-2 rounded-lg border-2 border-purple-300 text-purple-700 hover:bg-purple-50 inline-flex items-center gap-2"
             title="Agregar fila"
           >
-            + Agregar
+            <Plus className="w-4 h-4" />
+            Agregar
           </button>
         </div>
 
@@ -464,9 +465,7 @@ function PrimaryGroupCard({
                   </label>
                   <Controller
                     control={control}
-                    name={
-                      `groups.${groupIndex}.rows.${rIdx}.qty` as const
-                    }
+                    name={`groups.${groupIndex}.rows.${rIdx}.qty` as const}
                     render={({ field }) => (
                       <input
                         type="number"
@@ -488,9 +487,10 @@ function PrimaryGroupCard({
                 <button
                   type="button"
                   onClick={() => remove(rIdx)}
-                  className="h-[38px] px-3 rounded-lg border-2 border-rose-300 text-rose-700 hover:bg-rose-50"
+                  className="h-[38px] px-3 rounded-lg border-2 border-rose-300 text-rose-700 hover:bg-rose-50 inline-flex items-center gap-2"
                   title="Eliminar fila"
                 >
+                  <Trash2 className="w-4 h-4" />
                   Eliminar
                 </button>
               </div>

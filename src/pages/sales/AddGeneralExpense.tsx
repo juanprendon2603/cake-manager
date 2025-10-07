@@ -1,4 +1,4 @@
-// src/pages/expenses/AddGeneralExpense.tsx (ajusta la ruta del archivo si es distinta)
+// src/pages/expenses/AddGeneralExpense.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -10,10 +10,16 @@ import { paymentLabel } from "../../utils/formatters";
 import { registerGeneralExpense } from "../sales/sales.service"; // ajusta la ruta si tu service está en otra carpeta
 
 // ✨ UI consistente
+import {
+  BriefcaseBusiness,
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  Save,
+} from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
-import { BriefcaseBusiness } from "lucide-react";
 
 export function AddGeneralExpense() {
   const [description, setDescription] = useState("");
@@ -47,14 +53,14 @@ export function AddGeneralExpense() {
     setLoading(true);
     try {
       await registerGeneralExpense({
-        description,
+        description: description.trim(),
         valueCOP: Number(amount),
         paymentMethod,
       });
 
       addToast({
         type: "success",
-        title: "¡Gasto general registrado!",
+        title: "Gasto general registrado",
         message: "Gasto registrado correctamente.",
         duration: 5000,
       });
@@ -87,8 +93,8 @@ export function AddGeneralExpense() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-  icon={<BriefcaseBusiness className="w-10 h-10" />}
-  title="Registrar Gasto General"
+            icon={<BriefcaseBusiness className="w-10 h-10" />}
+            title="Registrar Gasto General"
             subtitle="Añade un gasto general del mes"
           />
           <div className="absolute top-4 left-4 z-20">
@@ -100,7 +106,8 @@ export function AddGeneralExpense() {
         <section className="max-w-xl mx-auto bg-white border border-[#E8D4F2] shadow-md rounded-2xl p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-purple-600" />
                 Método de pago
               </label>
               <select
@@ -116,7 +123,8 @@ export function AddGeneralExpense() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
                 Descripción
               </label>
               <input
@@ -129,7 +137,8 @@ export function AddGeneralExpense() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+                <CircleDollarSign className="w-5 h-5 text-purple-600" />
                 Valor
               </label>
               <div className="relative">
@@ -156,13 +165,14 @@ export function AddGeneralExpense() {
 
             <button
               type="button"
-              className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-md hover:opacity-95 transition disabled:opacity-60"
+              className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-md hover:opacity-95 transition disabled:opacity-60 inline-flex items-center justify-center gap-2"
               onClick={() => {
                 if (!validate()) return;
                 setShowConfirmModal(true);
               }}
               disabled={loading}
             >
+              <Save className="w-5 h-5" />
               Guardar gasto
             </button>
           </form>
@@ -199,18 +209,19 @@ export function AddGeneralExpense() {
         headerAccent="purple"
         title="Confirmar gasto general"
         description="Revisa los detalles antes de registrar:"
+        icon={<BriefcaseBusiness className="w-5 h-5" />} // icono en el header del modal
         secondaryAction={{
           label: "Cancelar",
           onClick: () => setShowConfirmModal(false),
         }}
         primaryAction={{
           label: "Registrar gasto",
-          onClick: () => {
+          onClick: async () => {
             setShowConfirmModal(false);
             const fakeEvent = {
               preventDefault: () => {},
             } as unknown as React.FormEvent;
-            handleSubmit(fakeEvent);
+            await handleSubmit(fakeEvent);
           },
         }}
       >

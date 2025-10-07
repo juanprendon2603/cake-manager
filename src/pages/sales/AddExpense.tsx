@@ -11,10 +11,16 @@ import { paymentLabel } from "../../utils/formatters";
 import { registerExpense } from "./sales.service";
 
 // ✨ UI consistente
+import {
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  Receipt,
+  Save,
+} from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
-import { Receipt } from "lucide-react";
 
 const easeM3 = cubicBezier(0.4, 0, 0.2, 1);
 
@@ -59,7 +65,7 @@ export function AddExpense() {
 
       addToast({
         type: "success",
-        title: "¡Gasto registrado! 💸",
+        title: "Gasto registrado",
         message: "Se guardó correctamente.",
         duration: 5000,
       });
@@ -83,7 +89,7 @@ export function AddExpense() {
     "w-full border-2 border-purple-200/70 rounded-xl px-4 py-3 bg-white/70 backdrop-blur focus:outline-none focus:border-purple-500 transition-all duration-200 placeholder:text-gray-400";
 
   if (loading) {
-    return <FullScreenLoader message="💾 Guardando gasto..." />;
+    return <FullScreenLoader message="Guardando gasto..." />;
   }
 
   return (
@@ -92,8 +98,8 @@ export function AddExpense() {
         {/* ====== PageHero + Back ====== */}
         <div className="relative mb-6">
           <PageHero
-  icon={<Receipt className="w-10 h-10" />}
-  title="Registrar Gasto"
+            icon={<Receipt className="w-10 h-10" />}
+            title="Registrar Gasto"
             subtitle="Añade un gasto del día con su método de pago"
           />
           <div className="absolute top-4 left-4 z-20">
@@ -110,7 +116,7 @@ export function AddExpense() {
               transition={{ duration: 0.25, ease: easeM3 }}
             >
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <span className="text-lg">💳</span>
+                <CreditCard className="w-5 h-5 text-purple-600" />
                 Método de pago
               </label>
               <motion.select
@@ -124,9 +130,40 @@ export function AddExpense() {
                   setPaymentMethod(e.target.value as PaymentMethod)
                 }
               >
-                <option value="cash">💵 Efectivo</option>
-                <option value="transfer">🏦 Transferencia</option>
+                <option value="cash">Efectivo</option>
+                <option value="transfer">Transferencia</option>
               </motion.select>
+
+              {/* Si prefieres botones toggle con iconos, reemplaza el select por este bloque:
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cash")}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 ${
+                    paymentMethod === "cash"
+                      ? "border-green-500 bg-green-50 text-green-700"
+                      : "border-gray-200 bg-white/70 text-gray-700 hover:bg-gray-50"
+                  }`}
+                  aria-pressed={paymentMethod === "cash"}
+                >
+                  <Banknote className="w-5 h-5" />
+                  Efectivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("transfer")}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 ${
+                    paymentMethod === "transfer"
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 bg-white/70 text-gray-700 hover:bg-gray-50"
+                  }`}
+                  aria-pressed={paymentMethod === "transfer"}
+                >
+                  <Landmark className="w-5 h-5" />
+                  Transferencia
+                </button>
+              </div>
+              */}
             </motion.div>
 
             <motion.div
@@ -135,7 +172,7 @@ export function AddExpense() {
               transition={{ duration: 0.25, ease: easeM3, delay: 0.05 }}
             >
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <span className="text-lg">📝</span>
+                <FileText className="w-5 h-5 text-purple-600" />
                 Descripción
               </label>
               <motion.input
@@ -157,7 +194,7 @@ export function AddExpense() {
               transition={{ duration: 0.25, ease: easeM3, delay: 0.1 }}
             >
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <span className="text-lg">💰</span>
+                <CircleDollarSign className="w-5 h-5 text-purple-600" />
                 Valor
               </label>
               <div className="relative">
@@ -190,13 +227,14 @@ export function AddExpense() {
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-60"
+                className="w-full bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-60 inline-flex items-center justify-center gap-2"
                 onClick={() => {
                   if (!validate()) return;
                   setShowConfirmModal(true);
                 }}
                 disabled={loading}
               >
+                <Save className="w-5 h-5" />
                 Guardar gasto
               </motion.button>
             </div>
@@ -222,18 +260,19 @@ export function AddExpense() {
         headerAccent="purple"
         title="Confirmar gasto"
         description="Revisa los detalles antes de registrar:"
+        icon={<Receipt className="w-5 h-5" />} // ícono en el header del modal
         secondaryAction={{
           label: "Cancelar",
           onClick: () => setShowConfirmModal(false),
         }}
         primaryAction={{
           label: "Registrar gasto",
-          onClick: () => {
+          onClick: async () => {
             setShowConfirmModal(false);
             const fakeEvent = {
               preventDefault: () => {},
             } as unknown as React.FormEvent;
-            handleSubmit(fakeEvent);
+            await handleSubmit(fakeEvent);
           },
         }}
       >

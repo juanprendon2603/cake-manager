@@ -1,194 +1,21 @@
-import {
-  browserLocalPersistence,
-  browserSessionPersistence,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  setPersistence,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+// FILE: src/features/auth/pages/Login.tsx
+import { useState } from "react";
 import logoUrl from "../../assets/logo.png";
 import { FullScreenLoaderSession } from "../../components/FullScreenLoaderSession";
-import { useAuth } from "../../contexts/AuthContext";
-import { useToast } from "../../hooks/useToast";
-import { auth, db } from "../../lib/firebase";
-
-/* ------------------------ Tipos y utilidades seguras ------------------------ */
-
-type AppAuthConfig = {
-  initialized?: boolean;
-  allowlist?: unknown[];
-  admins?: unknown[];
-};
-
-const toLowerTrim = (v: unknown) => String(v).toLowerCase().trim();
-const normalizeList = (arr: unknown[]): string[] => arr.map(toLowerTrim);
-
-function getErrorCode(e: unknown): string | undefined {
-  return typeof e === "object" && e && "code" in e
-    ? String((e as { code?: unknown }).code)
-    : undefined;
-}
-
-function fbErrorToMessage(code?: string) {
-  switch (code) {
-    case "auth/invalid-email":
-      return "Correo inválido.";
-    case "auth/user-disabled":
-      return "Usuario deshabilitado.";
-    case "auth/user-not-found":
-      return "No existe una cuenta con ese correo.";
-    case "auth/wrong-password":
-      return "Contraseña incorrecta.";
-    case "auth/too-many-requests":
-      return "Demasiados intentos. Intenta más tarde.";
-    case "auth/email-already-in-use":
-      return "Ese correo ya está registrado.";
-    case "auth/weak-password":
-      return "La contraseña es muy débil.";
-    default:
-      return "Algo salió mal. Intenta de nuevo.";
-  }
-}
-
-async function canRegisterOrSignIn(email: string) {
-  const e = email.toLowerCase().trim();
-  try {
-    const snap = await getDoc(doc(db, "app_config", "auth"));
-    if (!snap.exists()) return { allow: true, reason: "first-user:no-config" };
-
-    const cfg = (snap.data() as AppAuthConfig) ?? {};
-    const initialized = Boolean(cfg.initialized);
-    const allow = Array.isArray(cfg.allowlist)
-      ? normalizeList(cfg.allowlist)
-      : [];
-    const admins = Array.isArray(cfg.admins) ? normalizeList(cfg.admins) : [];
-
-    if (!initialized || admins.length === 0) {
-      return { allow: true, reason: "bootstrap:no-admins" };
-    }
-
-    const ok = allow.includes(e) || admins.includes(e);
-    return { allow: ok, reason: ok ? "in-allowlist" : "not-allowed" };
-  } catch {
-    return { allow: true, reason: "assume-first-user" };
-  }
-}
-
-/* --------------------------------- Vista --------------------------------- */
+import { useAuthViewModel } from "../../hooks/useAuthViewModel";
+import { ForgotPasswordModal, Spinner } from "./components/ForgotPasswordModal";
+import { PasswordInput } from "./components/PasswordInput";
 
 export default function Login() {
-  const nav = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
-  const { addToast } = useToast();
+  const vm = useAuthViewModel();
+  const [forgotOpen, setForgotOpen] = useState(false);
 
-  const from =
-    (location.state as { from?: { pathname?: string } } | null)?.from
-      ?.pathname || "/";
-
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
-  const [showPwd2, setShowPwd2] = useState(false);
-  const [remember, setRemember] = useState(true);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function showErrorToast(message: string, title = "Error") {
-    setError(message);
-    addToast({ type: "error", title, message });
-  }
-  function showSuccessToast(message: string, title = "Listo") {
-    addToast({ type: "success", title, message });
-  }
-
-  useEffect(() => {
-    if (user) {
-      nav(from, { replace: true });
-    }
-  }, [user, from, nav]);
-
-  useEffect(() => {
-    if (error) setError(null);
-  }, [email, password, confirm, mode, error]);
-
-  async function applyPersistence() {
-    await setPersistence(
-      auth,
-      remember ? browserLocalPersistence : browserSessionPersistence
-    );
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      await applyPersistence();
-      const eLower = email.trim().toLowerCase();
-
-      if (mode === "login") {
-        const gate = await canRegisterOrSignIn(eLower);
-        if (!gate.allow) {
-          showErrorToast(
-            gate.reason === "config-error"
-              ? "No se pudo validar el acceso. Inténtalo de nuevo."
-              : "Tu correo no está autorizado por el administrador.",
-            "Acceso restringido"
-          );
-          setSubmitting(false);
-          return;
-        }
-        await signInWithEmailAndPassword(auth, eLower, password);
-        showSuccessToast("Bienvenido de vuelta 👋", "Sesión iniciada");
-      } else {
-        if (password !== confirm) {
-          showErrorToast("Las contraseñas no coinciden.", "Validación");
-          setSubmitting(false);
-          return;
-        }
-        const gate = await canRegisterOrSignIn(eLower);
-        if (!gate.allow) {
-          showErrorToast(
-            gate.reason === "config-error"
-              ? "No se pudo validar el acceso. Inténtalo de nuevo."
-              : "Tu correo no está autorizado para crear cuenta.",
-            "Registro restringido"
-          );
-          setSubmitting(false);
-          return;
-        }
-        await createUserWithEmailAndPassword(auth, eLower, password);
-        showSuccessToast("Tu cuenta fue creada 🎉", "Registro completado");
-      }
-    } catch (err: unknown) {
-      showErrorToast(fbErrorToMessage(getErrorCode(err)));
-      setSubmitting(false);
-    }
-  }
-
-  const canSubmit = useMemo(() => {
-    const base = email.trim().length > 3 && password.length >= 6;
-    if (mode === "register") return base && confirm.length >= 6;
-    return base;
-  }, [email, password, confirm, mode]);
-
-  const passwordsMismatch =
-    mode === "register" && confirm.length > 0 && password !== confirm;
-
-  if (submitting) {
+  if (vm.submitting) {
     return (
       <FullScreenLoaderSession
         appName="InManager"
         message={
-          mode === "login" ? "Ingresando a InManager…" : "Creando tu cuenta…"
+          vm.mode === "login" ? "Ingresando a InManager…" : "Creando tu cuenta…"
         }
         logoUrl={logoUrl}
         tips={[
@@ -218,149 +45,122 @@ export default function Login() {
 
           <div className="text-center mb-6">
             <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(142,45,168,0.18)]">
-              {mode === "login" ? "Bienvenido" : "Crear cuenta"}
+              {vm.mode === "login" ? "Bienvenido" : "Crear cuenta"}
             </h1>
             <p className="text-gray-600 text-sm">
-              {mode === "login"
+              {vm.mode === "login"
                 ? "Ingresa para gestionar tu negocio"
                 : "Crea tu cuenta para empezar"}
             </p>
           </div>
 
-          {error && (
+          {vm.error && (
             <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
-              {error}
+              {vm.error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="grid gap-3">
+          <form onSubmit={vm.handleSubmit} className="grid gap-3">
             <label className="text-sm font-semibold text-gray-700">
               Correo electrónico
               <input
                 type="email"
                 className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
                 placeholder="tucorreo@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={vm.email}
+                onChange={(e) => vm.setEmail(e.target.value)}
                 autoComplete="email"
                 required
               />
             </label>
 
-            <label className="text-sm font-semibold text-gray-700">
-              Contraseña
-              <div className="mt-1 relative">
-                <input
-                  type={showPwd ? "text" : "password"}
-                  className="w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 pr-11 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  placeholder={
-                    mode === "login" ? "Tu contraseña" : "Mínimo 6 caracteres"
-                  }
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd((v) => !v)}
-                  aria-label={
-                    showPwd ? "Ocultar contraseña" : "Mostrar contraseña"
-                  }
-                  className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
-                >
-                  {showPwd ? "🙈" : "👁️"}
-                </button>
-              </div>
-            </label>
+            <PasswordInput
+              label="Contraseña"
+              value={vm.password}
+              onChange={vm.setPassword}
+              show={vm.showPwd}
+              setShow={vm.setShowPwd}
+              placeholder={
+                vm.mode === "login" ? "Tu contraseña" : "Mínimo 6 caracteres"
+              }
+              autoComplete={
+                vm.mode === "login" ? "current-password" : "new-password"
+              }
+            />
 
-            {mode === "register" && (
-              <label className="text-sm font-semibold text-gray-700">
-                Confirmar contraseña
-                <div className="mt-1 relative">
-                  <input
-                    type={showPwd2 ? "text" : "password"}
-                    className={`w-full rounded-xl border px-4 py-3 pr-11 shadow-inner focus:outline-none focus:ring-2 ${
-                      passwordsMismatch
-                        ? "border-rose-300 bg-rose-50 focus:ring-rose-300"
-                        : "border-white/70 bg-white/70 focus:ring-purple-300"
-                    }`}
-                    placeholder="Repite la contraseña"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    autoComplete="new-password"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPwd2((v) => !v)}
-                    aria-label={
-                      showPwd2 ? "Ocultar contraseña" : "Mostrar contraseña"
-                    }
-                    className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
-                  >
-                    {showPwd2 ? "🙈" : "👁️"}
-                  </button>
-                </div>
-                {passwordsMismatch && (
+            {vm.mode === "register" && (
+              <>
+                <PasswordInput
+                  label="Confirmar contraseña"
+                  value={vm.confirm}
+                  onChange={vm.setConfirm}
+                  show={vm.showPwd2}
+                  setShow={vm.setShowPwd2}
+                  placeholder="Repite la contraseña"
+                  autoComplete="new-password"
+                  invalid={vm.passwordsMismatch}
+                />
+                {vm.passwordsMismatch && (
                   <span className="mt-1 block text-xs text-rose-600">
                     Las contraseñas no coinciden.
                   </span>
                 )}
-              </label>
+              </>
             )}
 
             <div className="flex items-center justify-between text-sm">
               <label className="inline-flex items-center gap-2 select-none">
                 <input
                   type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
+                  checked={vm.remember}
+                  onChange={(e) => vm.setRemember(e.target.checked)}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-400"
                 />
                 Recordarme
               </label>
 
-              <ForgotPasswordTrigger email={email} />
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="font-semibold text-[#8E2DA8] hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
             </div>
 
             <button
               type="submit"
               disabled={
-                submitting ||
-                !canSubmit ||
-                (mode === "register" && passwordsMismatch)
+                vm.submitting ||
+                !vm.canSubmit ||
+                (vm.mode === "register" && vm.passwordsMismatch)
               }
               className={`mt-2 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white shadow-lg transition-all
                 ${
-                  submitting ||
-                  !canSubmit ||
-                  (mode === "register" && passwordsMismatch)
+                  vm.submitting ||
+                  !vm.canSubmit ||
+                  (vm.mode === "register" && vm.passwordsMismatch)
                     ? "bg-gradient-to-r from-purple-300 to-pink-300 cursor-not-allowed"
                     : "bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)] hover:-translate-y-0.5"
                 }`}
             >
-              {submitting ? (
+              {vm.submitting ? (
                 <>
                   <Spinner />
-                  {mode === "login" ? "Ingresando…" : "Creando…"}
+                  {vm.mode === "login" ? "Ingresando…" : "Creando…"}
                 </>
               ) : (
-                <>{mode === "login" ? "Entrar" : "Crear cuenta"}</>
+                <>{vm.mode === "login" ? "Entrar" : "Crear cuenta"}</>
               )}
             </button>
 
             <div className="text-center text-sm text-gray-600 mt-1">
-              {mode === "login" ? (
+              {vm.mode === "login" ? (
                 <>
                   ¿No tienes cuenta?{" "}
                   <button
                     type="button"
-                    onClick={() => setMode("register")}
+                    onClick={() => vm.setMode("register")}
                     className="font-semibold text-[#8E2DA8] hover:underline"
                   >
                     Crear una
@@ -371,7 +171,7 @@ export default function Login() {
                   ¿Ya tienes cuenta?{" "}
                   <button
                     type="button"
-                    onClick={() => setMode("login")}
+                    onClick={() => vm.setMode("login")}
                     className="font-semibold text-[#8E2DA8] hover:underline"
                   >
                     Inicia sesión
@@ -387,128 +187,13 @@ export default function Login() {
           </p>
         </div>
       </div>
-    </div>
-  );
-}
 
-function Spinner() {
-  return (
-    <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
-  );
-}
-
-function ForgotPasswordTrigger({ email }: { email: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="font-semibold text-[#8E2DA8] hover:underline"
-      >
-        ¿Olvidaste tu contraseña?
-      </button>
-      {open && (
-        <ForgotPasswordModal email={email} onClose={() => setOpen(false)} />
+      {forgotOpen && (
+        <ForgotPasswordModal
+          email={vm.email}
+          onClose={() => setForgotOpen(false)}
+        />
       )}
-    </>
-  );
-}
-
-function ForgotPasswordModal({
-  email,
-  onClose,
-}: {
-  email: string;
-  onClose: () => void;
-}) {
-  const [value, setValue] = useState(email || "");
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const { addToast } = useToast();
-
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setErr(null);
-    try {
-      await sendPasswordResetEmail(auth, value.trim());
-      setSent(true);
-      addToast({
-        type: "success",
-        title: "Enlace enviado",
-        message: "Revisa tu bandeja de entrada o spam.",
-      });
-    } catch (error: unknown) {
-      const msg = fbErrorToMessage(getErrorCode(error));
-      setErr(msg);
-      addToast({ type: "error", title: "No se pudo enviar", message: msg });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/90 backdrop-blur-xl shadow-xl p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-2">
-          Recuperar contraseña
-        </h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Te enviaremos un enlace a tu correo para restablecerla.
-        </p>
-
-        {err && (
-          <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm">
-            {err}
-          </div>
-        )}
-
-        {sent ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-sm mb-4">
-            Enlace enviado. Revisa tu correo.
-          </div>
-        ) : null}
-
-        {!sent && (
-          <form onSubmit={handleSend} className="grid gap-3">
-            <label className="text-sm font-semibold text-gray-700">
-              Correo
-              <input
-                type="email"
-                className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                required
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={busy || value.trim().length < 4}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white shadow-lg transition-all
-                ${
-                  busy || value.trim().length < 4
-                    ? "bg-gradient-to-r from-purple-300 to-pink-300 cursor-not-allowed"
-                    : "bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]"
-                }`}
-            >
-              {busy ? <Spinner /> : "Enviar enlace"}
-            </button>
-          </form>
-        )}
-
-        <div className="mt-4 text-right">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm font-semibold text-[#8E2DA8] hover:underline"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
