@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "build:test": "tsc -b && vite build --mode test",
+    "deploy:test": "npm run build:test && firebase deploy --only hosting --project test",
+      "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {

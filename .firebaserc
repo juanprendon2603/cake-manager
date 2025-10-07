@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "cakemanager-6f280"
-  }
+    "default": "cakemanager-6f280",
+    "test": "inmanager-b5f4c"
+  },
+  "targets": {},
+  "etags": {}
 }
