@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "cakemanager-6f280"
+  },
+  "targets": {
+    "cakemanager-6f280": {
+      "hosting": {
+        "landing": [
+          "inmanager-landing"
+        ]
+      }
+    }
+  }
+}

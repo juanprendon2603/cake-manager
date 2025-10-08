@@ -1,5 +1,6 @@
 // src/App.tsx
 import { Navigate, Route, Routes } from "react-router-dom";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 import InManagerLanding from "./pages/InManagerLanding";
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
 
       {/* Redirigir cualquier cosa rara al home */}
       <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/privacidad" element={<PrivacyPolicy />} />
     </Routes>
   );
 }
