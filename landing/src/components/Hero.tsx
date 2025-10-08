@@ -1,4 +1,3 @@
-import { Layers } from "lucide-react";
 import { RouterAwareLink } from "./RouterAwareLink";
 
 export function Hero() {
@@ -38,18 +37,23 @@ export function Hero() {
         </div>
 
         {/* mock UI */}
-        <div className="relative mt-12">
-          <div className="mx-auto max-w-5xl rounded-2xl border border-white/70 bg-white/90 backdrop-blur shadow-[0_20px_50px_rgba(142,45,168,0.15)] p-4">
-            <div className="h-72 sm:h-96 rounded-xl border border-white/70 bg-gradient-to-br from-white to-purple-50 grid place-items-center">
-              <div className="flex items-center gap-4 text-[#8E2DA8]">
-                <Layers className="w-6 h-6" />
-                <span className="font-semibold">
-                  Vista previa del panel — métricas, inventario y ventas
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* mock UI */}
+<div className="relative mt-10">
+  <div className="mx-auto max-w-3xl rounded-2xl border border-white/70 bg-white/90 backdrop-blur shadow-[0_20px_50px_rgba(142,45,168,0.15)] p-3">
+    <div className="h-56 sm:h-72 rounded-xl overflow-hidden border border-white/70 bg-black/10 shadow-inner">
+      <video
+        className="w-full h-full object-cover "
+        src="/videos/preview.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="metadata"
+      />
+    </div>
+  </div>
+</div>
+
       </div>
     </header>
   );

@@ -1,11 +1,12 @@
+import AboutSection from "../components/AboutSection";
 import { CTA } from "../components/CTA";
 import { FAQ } from "../components/FAQ";
 import { Features } from "../components/Features";
 import { Footer } from "../components/Footer";
-import { Gallery } from "../components/Gallery";
 import { Hero } from "../components/Hero";
 import { Navbar } from "../components/Navbar";
 import { Pricing } from "../components/Pricing";
+import { WhatsAppWidget } from "../components/WhatsAppWidget";
 
 export default function InManagerLanding() {
   return (
@@ -48,11 +49,15 @@ export default function InManagerLanding() {
       </section>
 
       <Features />
-      <Gallery />
       <Pricing />
       <CTA />
       <FAQ />
+      <AboutSection />
       <Footer />
+      <WhatsAppWidget
+        phone="573168878200"
+        logoSrc="/whatsapp.png"   // sube tu logo a public/whatsapp.png
+      />
     </div>
   );
 }
