@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Control } from "react-hook-form";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { FullScreenLoader } from "../../components/FullScreenLoader";
 import { useToast } from "../../hooks/useToast";
@@ -25,6 +25,8 @@ import {
   type CategoryStep,
   type ProductCategory,
 } from "./stock.model";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
+import { useAuth } from "../../contexts/AuthContext";
 
 /* ------------------------------- Tipos Form ------------------------------- */
 type LineRow = { selections: Record<string, string>; qty: number | "" };
@@ -36,11 +38,18 @@ type Props = { defaultCategoryId?: string };
 export function AddStockForm({ defaultCategoryId }: Props) {
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
 
   const [loading, setLoading] = useState(true);
   const [cats, setCats] = useState<ProductCategory[]>([]);
   const [cat, setCat] = useState<ProductCategory | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Preferencia inicial de categoría: query param -> prop -> primera disponible
+  const preferredCategoryId =
+    searchParams.get("categoryId") || defaultCategoryId || null;
 
   // Cargar categorías
   useEffect(() => {
@@ -49,7 +58,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
         const all = await listCategories();
         setCats(all);
         const initial =
-          all.find((c) => c.id === defaultCategoryId) || all[0] || null;
+          all.find((c) => c.id === preferredCategoryId) || all[0] || null;
         setCat(initial || null);
       } catch (e) {
         console.error(e);
@@ -57,7 +66,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
         setLoading(false);
       }
     })();
-  }, [defaultCategoryId]);
+  }, [preferredCategoryId]);
 
   // SOLO los steps que afectan stock
   const affectingSteps = useMemo(
@@ -172,12 +181,15 @@ export function AddStockForm({ defaultCategoryId }: Props) {
     }
   };
 
-  if (loading) return <FullScreenLoader message="Cargando categorías..." />;
+  // 🧩 Derivados para estados vacíos / inválidos
+  const hasCategories = cats.length > 0;
+  const noAffectingSteps = !!cat && !primaryStep;
+  const noPrimaryOptions = !!cat && !!primaryStep && primaryOptions.length === 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
-        {/* ======= Hero + Back ======= */}
+        {/* ======= Hero + Back (siempre visibles) ======= */}
         <div className="relative">
           <PageHero
             icon={<Package className="w-10 h-10" />}
@@ -189,93 +201,152 @@ export function AddStockForm({ defaultCategoryId }: Props) {
           </div>
         </div>
 
-        {/* ======= Selector de categoría ======= */}
-        <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
-          <div className="max-w-xl mx-auto">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Categoría
-            </label>
-            <select
-              value={cat?.id || ""}
-              onChange={(e) => {
-                const next = cats.find((c) => c.id === e.target.value) || null;
-                setCat(next);
-              }}
-              className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
-            >
-              {cats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+        {/* ======= Contenido ======= */}
+        {loading ? (
+          <div className="mt-6">
+            <FullScreenLoader message="Cargando categorías..." />
           </div>
-        </section>
-
-        {/* ======= Form ======= */}
-        {cat && primaryStep ? (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 mt-8">
-            <section className="relative">
-              {/* capa decorativa sin bloquear clics */}
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5 pointer-events-none" />
-              <div className="relative z-10 p-6 sm:p-8 rounded-3xl bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                  <div>
-                    <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                      {cat.name}
-                    </h3>
-                    <p className="text-gray-600">
-                      Selecciona opciones y cantidades por{" "}
-                      {primaryStep.label.toLowerCase()}
-                    </p>
-                  </div>
-                  {/* Fecha */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Fecha (acumulado diario)
-                    </label>
-                    <Controller
-                      control={control}
-                      name="date"
-                      render={({ field }) => (
-                        <input
-                          type="date"
-                          className="rounded-xl border-2 border-purple-200 bg-white/80 p-2"
-                          {...field}
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <GroupCards
-                  control={control}
-                  primaryStep={primaryStep}
-                  restSteps={restSteps}
-                  options={primaryOptions}
-                />
-
-                <div className="mt-6 flex items-center justify-center">
-                  <button
-                    type="submit"
-                    className="group relative px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 font-bold text-lg"
-                  >
-                    <span className="relative z-10 flex items-center gap-3">
-                      <Save className="w-5 h-5" />
-                      Guardar Productos
-                    </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-pink-700 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  </button>
-                </div>
-              </div>
-            </section>
-          </form>
         ) : (
-          <div className="rounded-2xl p-6 bg-white/70 border-2 border-white/60 text-center mt-8">
-            <p className="text-gray-600">
-              Esta categoría no tiene pasos que afecten stock.
-            </p>
-          </div>
+          <>
+            {/* Selector solo si hay categorías */}
+            {hasCategories && (
+              <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+                <div className="max-w-xl mx-auto">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Categoría
+                  </label>
+                  <select
+                    value={cat?.id || ""}
+                    onChange={(e) => {
+                      const next = cats.find((c) => c.id === e.target.value) || null;
+                      setCat(next);
+                    }}
+                    className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
+                  >
+                    {cats.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </section>
+            )}
+
+            {/* Sin categorías */}
+            {!hasCategories && (
+              <div className="mt-8">
+                <EmptyStateCTA
+                  title="No hay categorías"
+                  description={
+                    isAdmin
+                      ? "Crea una categoría de productos para poder agregar stock."
+                      : "Aún no hay categorías disponibles. Pide a un administrador que las cree."
+                  }
+                  to="/admin/catalog"
+                  buttonLabel="➕ Crear categorías"
+                  showButton={isAdmin}
+                  icon={<Package className="w-8 h-8" />}
+                />
+              </div>
+            )}
+
+            {/* Categoría sin configuración válida */}
+            {hasCategories && noAffectingSteps && (
+              <div className="mt-8">
+                <EmptyStateCTA
+                  title="La categoría no afecta stock"
+                  description={
+                    isAdmin
+                      ? "Edita la categoría y marca al menos un paso que afecte stock para poder registrar cantidades."
+                      : "La categoría seleccionada no permite cargar stock. Contacta a un administrador."
+                  }
+                  to="/admin/catalog"
+                  buttonLabel="⚙️ Editar categoría"
+                  showButton={isAdmin}
+                  icon={<Package className="w-8 h-8" />}
+                />
+              </div>
+            )}
+
+            {/* Categoría sin opciones activas en el paso principal */}
+            {hasCategories && !noAffectingSteps && noPrimaryOptions && (
+              <div className="mt-8">
+                <EmptyStateCTA
+                  title="No hay opciones activas"
+                  description={
+                    isAdmin
+                      ? "Activa opciones en el paso principal para poder crear combinaciones y agregar stock."
+                      : "La categoría seleccionada no tiene opciones disponibles."
+                  }
+                  to="/admin/catalog"
+                  buttonLabel="⚙️ Configurar opciones"
+                  showButton={isAdmin}
+                  icon={<Package className="w-8 h-8" />}
+                />
+              </div>
+            )}
+
+            {/* Formulario */}
+            {hasCategories && !!primaryStep && primaryOptions.length > 0 && (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 mt-8">
+                <section className="relative">
+                  {/* capa decorativa sin bloquear clics */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5 pointer-events-none" />
+                  <div className="relative z-10 p-6 sm:p-8 rounded-3xl bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                      <div>
+                        <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                          {cat?.name}
+                        </h3>
+                        <p className="text-gray-600">
+                          Selecciona opciones y cantidades por{" "}
+                          {primaryStep.label.toLowerCase()}
+                        </p>
+                      </div>
+                      {/* Fecha */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          Fecha (acumulado diario)
+                        </label>
+                        <Controller
+                          control={control}
+                          name="date"
+                          render={({ field }) => (
+                            <input
+                              type="date"
+                              className="rounded-xl border-2 border-purple-200 bg-white/80 p-2"
+                              {...field}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <GroupCards
+                      control={control}
+                      primaryStep={primaryStep}
+                      restSteps={restSteps}
+                      options={primaryOptions}
+                    />
+
+                    <div className="mt-6 flex items-center justify-center">
+                      <button
+                        type="submit"
+                        className="group relative px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 font-bold text-lg"
+                      >
+                        <span className="relative z-10 flex items-center gap-3">
+                          <Save className="w-5 h-5" />
+                          Guardar Productos
+                        </span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-pink-700 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </form>
+            )}
+          </>
         )}
 
         {/* ======= Tip ======= */}

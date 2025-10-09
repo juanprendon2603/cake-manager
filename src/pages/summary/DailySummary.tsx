@@ -18,6 +18,7 @@ import { DailyDetail } from "./DailyDetail";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
 
 import { CalendarRange } from "lucide-react";
 import type { ComponentPropsWithoutRef } from "react";
@@ -82,7 +83,8 @@ export function DailySummary() {
     quincenaRange(ymDefault, "Q1")
   );
 
-  const { loading, daily, rawDocs, totals } = useRangeSummary(range);
+  // ⬇️ ahora leemos también `error` para mostrar aviso (el hook ya no se queda colgado)
+  const { loading, daily, rawDocs, totals, error } = useRangeSummary(range);
   const {
     loading: loadingGE,
     totals: geTotals,
@@ -131,6 +133,14 @@ export function DailySummary() {
           </div>
         </div>
 
+        {/* Aviso si hubo error parcial (p.ej. índices de Firestore pendientes) */}
+        {error && (
+          <div className="mt-4 mb-6 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-3 text-sm">
+            No pudimos cargar todos los datos (índices pendientes). Se muestra lo disponible.
+          </div>
+        )}
+
+        {/* Controles de rango */}
         <section className="rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8 mb-8">
           <div className="flex flex-col gap-3">
             <RangeControls
@@ -145,234 +155,250 @@ export function DailySummary() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <KpiCard
-            title="Total Ingresos"
-            value={formatCurrency(totalIngresos)}
-            tone="green"
-            sub={`Efec: ${formatCurrency(
-              totalSalesCash
-            )} · Transf: ${formatCurrency(totalSalesTransfer)}`}
+        {/* Estado vacío (sin botón, solo informativo) */}
+        {daily.length === 0 ? (
+          <EmptyStateCTA
+            title="Sin datos en el rango"
+            description="Cuando registres ventas, abonos o gastos, aquí verás el resumen por días."
+            to="/"
+            showButton={false}
+            icon={<CalendarRange className="w-8 h-8" />}
           />
-          <KpiCard
-            title="Gastos Diarios"
-            value={formatCurrency(totalGastosDiarios)}
-            tone="red"
-            sub={`Efec: ${formatCurrency(
-              totalExpensesCash
-            )} · Transf: ${formatCurrency(totalExpensesTransfer)}`}
-          />
-          <KpiCard
-            title="Gastos Generales"
-            value={formatCurrency(generalExpensesTotal)}
-            tone="red"
-            sub={`Efec: ${formatCurrency(
-              generalExpensesCash
-            )} · Transf: ${formatCurrency(generalExpensesTransfer)}`}
-          />
-          <KpiCard
-            title="Neto Global"
-            value={
-              (netoGlobal >= 0 ? "+" : "-") +
-              formatCurrency(Math.abs(netoGlobal))
-            }
-            tone={netoGlobal >= 0 ? "purple" : "yellow"}
-            sub={`Neto (solo diarios): ${
-              (totalNet >= 0 ? "+" : "-") + formatCurrency(Math.abs(totalNet))
-            }`}
-          />
-        </section>
+        ) : (
+          <>
+            {/* KPIs */}
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <KpiCard
+                title="Total Ingresos"
+                value={formatCurrency(totalIngresos)}
+                tone="green"
+                sub={`Efec: ${formatCurrency(
+                  totalSalesCash
+                )} · Transf: ${formatCurrency(totalSalesTransfer)}`}
+              />
+              <KpiCard
+                title="Gastos Diarios"
+                value={formatCurrency(totalGastosDiarios)}
+                tone="red"
+                sub={`Efec: ${formatCurrency(
+                  totalExpensesCash
+                )} · Transf: ${formatCurrency(totalExpensesTransfer)}`}
+              />
+              <KpiCard
+                title="Gastos Generales"
+                value={formatCurrency(generalExpensesTotal)}
+                tone="red"
+                sub={`Efec: ${formatCurrency(
+                  generalExpensesCash
+                )} · Transf: ${formatCurrency(generalExpensesTransfer)}`}
+              />
+              <KpiCard
+                title="Neto Global"
+                value={
+                  (netoGlobal >= 0 ? "+" : "-") +
+                  formatCurrency(Math.abs(netoGlobal))
+                }
+                tone={netoGlobal >= 0 ? "purple" : "yellow"}
+                sub={`Neto (solo diarios): ${
+                  (totalNet >= 0 ? "+" : "-") +
+                  formatCurrency(Math.abs(totalNet))
+                }`}
+              />
+            </section>
 
-        <section className="mb-8">
-          <details className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4">
-            <summary className="cursor-pointer font-semibold text-purple-700">
-              Ver gastos generales del rango ({geItems.length})
-            </summary>
-            {geItems.length === 0 ? (
-              <p className="text-sm text-gray-500 mt-2">
-                No hay gastos generales en el rango.
-              </p>
-            ) : (
-              <div className="mt-3 rounded-xl overflow-hidden border border-purple-100">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-purple-50 text-purple-800">
+            {/* Gastos generales */}
+            <section className="mb-8">
+              <details className="bg-white/80 backdrop-blur rounded-xl border border-white/60 shadow p-4">
+                <summary className="cursor-pointer font-semibold text-purple-700">
+                  Ver gastos generales del rango ({geItems.length})
+                </summary>
+                {geItems.length === 0 ? (
+                  <p className="text-sm text-gray-500 mt-2">
+                    No hay gastos generales en el rango.
+                  </p>
+                ) : (
+                  <div className="mt-3 rounded-xl overflow-hidden border border-purple-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-purple-50 text-purple-800">
+                          <Th>Fecha</Th>
+                          <Th>Descripción</Th>
+                          <Th className="text-center">Método</Th>
+                          <Th className="text-right">Valor</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {geItems.map((g, idx) => (
+                          <tr
+                            key={idx}
+                            className="even:bg-white odd:bg-purple-50/30"
+                          >
+                            <Td>{g.date}</Td>
+                            <Td className="text-gray-800">
+                              {g.description || "-"}
+                            </Td>
+                            <Td className="text-center">
+                              <Badge
+                                tone={
+                                  g.paymentMethod === "cash"
+                                    ? "green"
+                                    : "purple"
+                                }
+                              >
+                                {g.paymentMethod === "cash"
+                                  ? "Efectivo"
+                                  : "Transferencia"}
+                              </Badge>
+                            </Td>
+                            <Td className="text-right font-medium">
+                              {formatCurrency(g.value)}
+                            </Td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-white font-bold text-purple-900">
+                          <Td className="text-right" colSpan={3}>
+                            Totales
+                          </Td>
+                          <Td className="text-right">
+                            {formatCurrency(generalExpensesTotal)}
+                          </Td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </details>
+            </section>
+
+            {/* Tabla desktop */}
+            <div className="hidden sm:block rounded-2xl overflow-hidden border border-white/60 bg-white/80 backdrop-blur shadow">
+              <div className="overflow-auto max-h-[60vh]">
+                <table className="w-full table-fixed border-collapse text-sm">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800">
                       <Th>Fecha</Th>
-                      <Th>Descripción</Th>
-                      <Th className="text-center">Método</Th>
-                      <Th className="text-right">Valor</Th>
+                      <Th className="text-right">Vendido (Efec)</Th>
+                      <Th className="text-right">Vendido (Transf)</Th>
+                      <Th className="text-right">Gasto (Efec)</Th>
+                      <Th className="text-right">Gasto (Transf)</Th>
+                      <Th className="text-right">Disp Efec</Th>
+                      <Th className="text-right">Disp Transf</Th>
+                      <Th className="text-right">Resultado</Th>
+                      <Th className="text-center">Detalle</Th>
                     </tr>
                   </thead>
                   <tbody>
-                    {geItems.map((g, idx) => (
-                      <tr
-                        key={idx}
-                        className="even:bg-white odd:bg-purple-50/30"
-                      >
-                        <Td>{g.date}</Td>
-                        <Td className="text-gray-800">
-                          {g.description || "-"}
-                        </Td>
-                        <Td className="text-center">
-                          <Badge
-                            tone={
-                              g.paymentMethod === "cash" ? "green" : "purple"
-                            }
+                    {daily.map((row, idx) => {
+                      const positive = row.net >= 0;
+                      return (
+                        <tr
+                          key={row.fecha}
+                          className="even:bg-white/60 odd:bg-white/90 hover:bg-purple-50/70 transition-colors"
+                        >
+                          <Td className="font-semibold text-gray-800">
+                            {row.fecha}
+                          </Td>
+                          <Td className="text-right">
+                            {formatCurrency(row.totalSalesCash)}
+                          </Td>
+                          <Td className="text-right">
+                            {formatCurrency(row.totalSalesTransfer)}
+                          </Td>
+                          <Td className="text-right text-red-700">
+                            {formatCurrency(row.totalExpensesCash)}
+                          </Td>
+                          <Td className="text-right text-red-700">
+                            {formatCurrency(row.totalExpensesTransfer)}
+                          </Td>
+                          <Td className="text-right font-semibold text-emerald-700">
+                            {formatCurrency(row.disponibleEfectivo)}
+                          </Td>
+                          <Td className="text-right font-semibold text-emerald-700">
+                            {formatCurrency(row.disponibleTransfer)}
+                          </Td>
+                          <Td
+                            className={`text-right font-bold ${
+                              positive ? "text-green-700" : "text-red-700"
+                            }`}
                           >
-                            {g.paymentMethod === "cash"
-                              ? "Efectivo"
-                              : "Transferencia"}
-                          </Badge>
-                        </Td>
-                        <Td className="text-right font-medium">
-                          {formatCurrency(g.value)}
-                        </Td>
-                      </tr>
-                    ))}
+                            {positive ? "+" : ""}
+                            {formatCurrency(row.net)}
+                          </Td>
+                          <Td className="text-center">
+                            <button
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 shadow hover:shadow-md transition"
+                              onClick={() => setSelected(rawDocs[idx])}
+                            >
+                              Ver
+                            </button>
+                          </Td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
-                  <tfoot>
-                    <tr className="bg-white font-bold text-purple-900">
-                      <Td className="text-right" colSpan={3}>
-                        Totales
-                      </Td>
-                      <Td className="text-right">
-                        {formatCurrency(generalExpensesTotal)}
-                      </Td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
-            )}
-          </details>
-        </section>
-
-        {daily.length === 0 ? (
-          <p className="text-center text-gray-500">No hay datos en el rango.</p>
-        ) : (
-          <div className="hidden sm:block rounded-2xl overflow-hidden border border-white/60 bg-white/80 backdrop-blur shadow">
-            <div className="overflow-auto max-h-[60vh]">
-              <table className="w-full table-fixed border-collapse text-sm">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800">
-                    <Th>Fecha</Th>
-                    <Th className="text-right">Vendido (Efec)</Th>
-                    <Th className="text-right">Vendido (Transf)</Th>
-                    <Th className="text-right">Gasto (Efec)</Th>
-                    <Th className="text-right">Gasto (Transf)</Th>
-                    <Th className="text-right">Disp Efec</Th>
-                    <Th className="text-right">Disp Transf</Th>
-                    <Th className="text-right">Resultado</Th>
-                    <Th className="text-center">Detalle</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {daily.map((row, idx) => {
-                    const positive = row.net >= 0;
-                    return (
-                      <tr
-                        key={row.fecha}
-                        className="even:bg-white/60 odd:bg-white/90 hover:bg-purple-50/70 transition-colors"
-                      >
-                        <Td className="font-semibold text-gray-800">
-                          {row.fecha}
-                        </Td>
-                        <Td className="text-right">
-                          {formatCurrency(row.totalSalesCash)}
-                        </Td>
-                        <Td className="text-right">
-                          {formatCurrency(row.totalSalesTransfer)}
-                        </Td>
-                        <Td className="text-right text-red-700">
-                          {formatCurrency(row.totalExpensesCash)}
-                        </Td>
-                        <Td className="text-right text-red-700">
-                          {formatCurrency(row.totalExpensesTransfer)}
-                        </Td>
-                        <Td className="text-right font-semibold text-emerald-700">
-                          {formatCurrency(row.disponibleEfectivo)}
-                        </Td>
-                        <Td className="text-right font-semibold text-emerald-700">
-                          {formatCurrency(row.disponibleTransfer)}
-                        </Td>
-                        <Td
-                          className={`text-right font-bold ${
-                            positive ? "text-green-700" : "text-red-700"
-                          }`}
-                        >
-                          {positive ? "+" : ""}
-                          {formatCurrency(row.net)}
-                        </Td>
-                        <Td className="text-center">
-                          <button
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 shadow hover:shadow-md transition"
-                            onClick={() => setSelected(rawDocs[idx])}
-                          >
-                            Ver
-                          </button>
-                        </Td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 gap-4 sm:hidden mt-6">
-          {daily.map((row, idx) => {
-            const positive = row.net >= 0;
-            return (
-              <div
-                key={row.fecha}
-                className="p-4 rounded-2xl shadow border border-white/60 bg-white/85 backdrop-blur"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-bold text-purple-700">
-                    {row.fecha}
-                  </h3>
-                  <Badge tone={positive ? "green" : "red"}>
-                    {positive ? "Ganancia" : "Pérdida"}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-y-1 text-sm">
-                  <span className="text-gray-600">Efectivo</span>
-                  <span className="text-right">
-                    {formatCurrency(row.totalSalesCash)}
-                  </span>
-                  <span className="text-gray-600">Transfer</span>
-                  <span className="text-right">
-                    {formatCurrency(row.totalSalesTransfer)}
-                  </span>
-                  <span className="text-gray-600">Gastos Ef.</span>
-                  <span className="text-right text-red-700">
-                    {formatCurrency(row.totalExpensesCash)}
-                  </span>
-                  <span className="text-gray-600">Gastos Tr.</span>
-                  <span className="text-right text-red-700">
-                    {formatCurrency(row.totalExpensesTransfer)}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <p
-                    className={`font-bold ${
-                      positive ? "text-green-700" : "text-red-700"
-                    }`}
+            {/* Cards mobile */}
+            <div className="grid grid-cols-1 gap-4 sm:hidden mt-6">
+              {daily.map((row, idx) => {
+                const positive = row.net >= 0;
+                return (
+                  <div
+                    key={row.fecha}
+                    className="p-4 rounded-2xl shadow border border-white/60 bg-white/85 backdrop-blur"
                   >
-                    {positive ? "+" : ""}
-                    {formatCurrency(row.net)}
-                  </p>
-                  <button
-                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1.5 rounded-lg text-sm shadow"
-                    onClick={() => setSelected(rawDocs[idx])}
-                  >
-                    Ver detalle
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-bold text-purple-700">
+                        {row.fecha}
+                      </h3>
+                      <Badge tone={positive ? "green" : "red"}>
+                        {positive ? "Ganancia" : "Pérdida"}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-1 text-sm">
+                      <span className="text-gray-600">Efectivo</span>
+                      <span className="text-right">
+                        {formatCurrency(row.totalSalesCash)}
+                      </span>
+                      <span className="text-gray-600">Transfer</span>
+                      <span className="text-right">
+                        {formatCurrency(row.totalSalesTransfer)}
+                      </span>
+                      <span className="text-gray-600">Gastos Ef.</span>
+                      <span className="text-right text-red-700">
+                        {formatCurrency(row.totalExpensesCash)}
+                      </span>
+                      <span className="text-gray-600">Gastos Tr.</span>
+                      <span className="text-right text-red-700">
+                        {formatCurrency(row.totalExpensesTransfer)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <p
+                        className={`font-bold ${
+                          positive ? "text-green-700" : "text-red-700"
+                        }`}
+                      >
+                        {positive ? "+" : ""}
+                        {formatCurrency(row.net)}
+                      </p>
+                      <button
+                        className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1.5 rounded-lg text-sm shadow"
+                        onClick={() => setSelected(rawDocs[idx])}
+                      >
+                        Ver detalle
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {selected && (
           <DailyDetail

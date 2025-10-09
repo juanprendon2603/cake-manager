@@ -11,7 +11,7 @@ import {
   computePrice,
   listCategories,
   tryDecrementStockGeneric,
-  buildVariantKey, // si prefieres explícito, puedes usar buildStockKey
+  buildVariantKey,
 } from "../catalog/catalog.service";
 import { buildKeys, registerGenericSale } from "./sales.service";
 
@@ -30,6 +30,7 @@ import { ProTipBanner } from "../../components/ui/ProTipBanner";
 // modal específico
 import NoStockModal from "../../components/NoStockModal";
 import { ShoppingCart } from "lucide-react";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
 
 const getErr = (e: unknown) =>
   e instanceof Error ? e.message : "Error al procesar la venta.";
@@ -44,7 +45,8 @@ type Part = {
 export default function AddSale() {
   const nav = useNavigate();
   const { addToast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, role } = useAuth();
+  const isAdmin = role === "admin";
 
   const sellerName = useMemo(() => {
     const f = (profile?.firstName || "").trim();
@@ -61,7 +63,7 @@ export default function AddSale() {
   const [cats, setCats] = useState<ProductCategory[]>([]);
   const [cat, setCat] = useState<ProductCategory | null>(null);
 
-  // 🚩 antes: steps = solo affectsStock; AHORA: saleSteps = TODOS los pasos
+  // Pasos para venta: TODOS los steps
   const saleSteps = useMemo(() => cat?.steps || [], [cat]);
 
   const [stepIdx, setStepIdx] = useState(-1); // -1: categoría; 0..N-1: steps; N: detalles
@@ -69,7 +71,6 @@ export default function AddSale() {
   const [sel, setSel] = useState<SelectedValues>({});
   const [qty, setQty] = useState("1");
 
-  // 💰 precio se calcula con TODAS las selecciones (computePrice ya usa llave de precio = todos los steps)
   const unitPrice = useMemo(
     () => (cat ? computePrice(cat, sel) : 0),
     [cat, sel]
@@ -165,7 +166,7 @@ export default function AddSale() {
       if (!Number.isFinite(total) || total <= 0)
         throw new Error("Total inválido.");
 
-      // 🔑 para stock: usa SOLO pasos con affectsStock (por compatibilidad, buildVariantKey por defecto ya es 'stock' en tu service)
+      // clave de stock
       const variantKey = buildVariantKey(cat, sel, { mode: "stock" });
       const { dayKey, monthKey } = buildKeys();
 
@@ -183,8 +184,8 @@ export default function AddSale() {
 
       await registerGenericSale({
         categoryId: cat.id,
-        variantKey, // ← llave de stock
-        selections: sel, // ← guarda todas las selecciones para auditoría/precio
+        variantKey,
+        selections: sel,
         quantity: q,
         unitPriceCOP: unitPrice,
         amountCOP: total,
@@ -258,7 +259,75 @@ export default function AddSale() {
     }
   };
 
-  if (loading) return <FullScreenLoader message="Cargando categorías..." />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+        <main className="flex-grow px-6 py-10 sm:p-12 max-w-5xl mx-auto w-full">
+          {/* Hero + Back SIEMPRE */}
+          <div className="relative mb-6">
+            <PageHero
+              icon={<ShoppingCart className="w-8 h-8 text-white-600" />}
+              title="Registrar Venta"
+              subtitle="Vende productos, descuenta inventario y registra el método de pago"
+            />
+            <div className="absolute top-4 left-4 z-20">
+              <BackButton fallback="/sales" />
+            </div>
+          </div>
+          <FullScreenLoader message="Cargando categorías..." />
+          <div className="mt-8">
+            <ProTipBanner
+              title="Tip de caja"
+              text="Antes de confirmar, revisa el método de pago y el precio. El nombre del vendedor se guarda junto con la venta."
+            />
+          </div>
+        </main>
+        <AppFooter appName="InManager" />
+      </div>
+    );
+  }
+
+  // 👉 Estado vacío SIN contenedor blanco (sin doble container)
+  if (cats.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
+        <main className="flex-grow px-6 py-10 sm:p-12 max-w-5xl mx-auto w-full">
+          {/* Hero + Back SIEMPRE */}
+          <div className="relative mb-6">
+            <PageHero
+              icon={<ShoppingCart className="w-8 h-8 text-white-600" />}
+              title="Registrar Venta"
+              subtitle="Vende productos, descuenta inventario y registra el método de pago"
+            />
+            <div className="absolute top-4 left-4 z-20">
+              <BackButton fallback="/sales" />
+            </div>
+          </div>
+
+          <EmptyStateCTA
+            title="No hay categorías"
+            description={
+              isAdmin
+                ? "Crea una categoría de productos para poder registrar ventas."
+                : "Aún no hay categorías disponibles. Pide a un administrador que las cree."
+            }
+            to="/admin/catalog"
+            buttonLabel="➕ Crear categorías"
+            showButton={isAdmin}
+            icon={<ShoppingCart className="w-8 h-8" />}
+          />
+
+          <div className="mt-8">
+            <ProTipBanner
+              title="Tip de caja"
+              text="Cuando tengas categorías, podrás escoger atributos y el sistema calculará precio y stock automáticamente."
+            />
+          </div>
+        </main>
+        <AppFooter appName="InManager" />
+      </div>
+    );
+  }
 
   const onConfirmClick = () => setShowConfirm(true);
 
@@ -278,13 +347,12 @@ export default function AddSale() {
       ? "Selecciona una opción para continuar"
       : "Confirma y registra la venta";
 
-  // Helper para mostrar labels en el modal de confirmación
   const selectedPartsForConfirm: Part[] = cat ? buildSelectedParts(cat, sel) : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow px-6 py-10 sm:p-12 max-w-5xl mx-auto w-full">
-        {/* ====== PageHero + Back ====== */}
+        {/* ====== PageHero + Back (siempre) ====== */}
         <div className="relative mb-6">
           <PageHero
             icon={<ShoppingCart className="w-8 h-8 text-white-600" />}
@@ -296,7 +364,7 @@ export default function AddSale() {
           </div>
         </div>
 
-        {/* ====== Card principal ====== */}
+        {/* ====== Card principal SOLO cuando hay categorías ====== */}
         <div className="bg-white/80 backdrop-blur-xl border-2 border-white/60 rounded-3xl p-8 shadow-2xl space-y-8">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">

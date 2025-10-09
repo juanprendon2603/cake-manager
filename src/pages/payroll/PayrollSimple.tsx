@@ -11,10 +11,12 @@ import {
   markAttendanceForPerson,
 } from "./payroll.service";
 
-// ⬇️ NUEVO: usa los componentes
+// UI
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 import { Users } from "lucide-react";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Helpers para horas
 function hhmmToMinutes(hhmm?: string) {
@@ -34,11 +36,10 @@ function diffHours(from?: string, to?: string) {
 type PerHourDraft = { from?: string; to?: string; hours?: string };
 type DraftByPerson = Record<string, PerHourDraft>;
 
-// Tipos locales para los type guards
+// Tipos locales
 type HoursDay = { kind: "hours"; hours: number; from?: string; to?: string };
 type StringDay = "completo" | "medio";
 
-// Type guards para pintar correctamente el badge
 function isHoursDay(day: unknown): day is HoursDay {
   return (
     !!day &&
@@ -52,6 +53,9 @@ function isStringDay(day: unknown): day is StringDay {
 }
 
 const PayrollSimple: React.FC = () => {
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
+
   const [month] = useState<string>(getLocalMonthString());
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(false);
@@ -157,9 +161,14 @@ const PayrollSimple: React.FC = () => {
     return <FullScreenLoader message="Guardando asistencia..." />;
   }
 
+  const activePeople = people; // ya vienen activos del filtro en load()
+
+  // Ruta para crear/gestionar trabajadores (ajústala a tu app si usas otra)
+  const managePeoplePath = "/admin/people";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col items-center py-10">
-      {/* ⬇️ PageHero (reemplaza el header manual) */}
+      {/* PageHero */}
       <div className="w-full max-w-6xl px-4">
         <PageHero
           icon={<Users className="w-10 h-10" />}
@@ -170,7 +179,7 @@ const PayrollSimple: React.FC = () => {
         />
       </div>
 
-      {/* Actions */}
+      {/* Botones de acciones (se quedan siempre) */}
       <div className="mb-8 flex flex-wrap justify-center gap-4">
         <button
           onClick={() => setShowSummaryModal(true)}
@@ -193,11 +202,26 @@ const PayrollSimple: React.FC = () => {
         </button>
       </div>
 
-      {/* People (solo activos) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl px-4">
-        {people
-          .filter((p) => p.active !== false)
-          .map((p) => {
+      {/* Empty state cuando no hay trabajadores */}
+      {activePeople.length === 0 ? (
+        <div className="w-full max-w-3xl px-4">
+          <EmptyStateCTA
+            title="No hay trabajadores"
+            description={
+              isAdmin
+                ? "Agrega trabajadores para poder marcar asistencia diaria."
+                : "Aún no hay trabajadores registrados. Pídele a un administrador que los agregue."
+            }
+            to={managePeoplePath}
+            buttonLabel="➕ Agregar trabajadores"
+            showButton={isAdmin}
+            icon={<Users className="w-8 h-8" />}
+          />
+        </div>
+      ) : (
+        // Grid de personas
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl px-4">
+          {activePeople.map((p) => {
             const day = p.attendance?.[month]?.[today];
             const hasMarkedToday = day !== undefined;
 
@@ -205,22 +229,12 @@ const PayrollSimple: React.FC = () => {
               if (!day) return null;
               if (isStringDay(day)) {
                 return day === "completo"
-                  ? {
-                      text: "🕐 Turno Completo",
-                      cls: "bg-green-100 text-green-700",
-                    }
-                  : {
-                      text: "⏰ Medio Turno",
-                      cls: "bg-yellow-100 text-yellow-700",
-                    };
+                  ? { text: "🕐 Turno Completo", cls: "bg-green-100 text-green-700" }
+                  : { text: "⏰ Medio Turno", cls: "bg-yellow-100 text-yellow-700" };
               }
               if (isHoursDay(day)) {
-                const extra =
-                  day.from && day.to ? ` (${day.from}–${day.to})` : "";
-                return {
-                  text: `🕒 ${day.hours} h${extra}`,
-                  cls: "bg-blue-100 text-blue-700",
-                };
+                const extra = day.from && day.to ? ` (${day.from}–${day.to})` : "";
+                return { text: `🕒 ${day.hours} h${extra}`, cls: "bg-blue-100 text-blue-700" };
               }
               return null;
             })();
@@ -259,18 +273,14 @@ const PayrollSimple: React.FC = () => {
                 {hasMarkedToday ? (
                   <div className="mb-4">
                     {badge && (
-                      <span
-                        className={`px-4 py-2 rounded-full text-sm font-semibold ${badge.cls}`}
-                      >
+                      <span className={`px-4 py-2 rounded-full text-sm font-semibold ${badge.cls}`}>
                         {badge.text}
                       </span>
                     )}
                   </div>
                 ) : (
                   <p className="text-gray-500 text-sm mb-4">
-                    {isFixed
-                      ? "Pago fijo — no requiere marcar"
-                      : "Pendiente de marcar"}
+                    {isFixed ? "Pago fijo — no requiere marcar" : "Pendiente de marcar"}
                   </p>
                 )}
 
@@ -372,9 +382,10 @@ const PayrollSimple: React.FC = () => {
               </div>
             );
           })}
-      </div>
+        </div>
+      )}
 
-      {/* ⬇️ Tip como componente */}
+      {/* Tip */}
       <div className="w-full max-w-6xl px-4 mt-8">
         <ProTipBanner
           title="Tip"
@@ -392,9 +403,7 @@ const PayrollSimple: React.FC = () => {
           person={selectedPerson}
           shift={selectedShift}
           hoursPreview={selectedShift === "hours" ? hoursPreview : undefined}
-          fromPreview={
-            selectedShift === "hours" ? dForSelected.from : undefined
-          }
+          fromPreview={selectedShift === "hours" ? dForSelected.from : undefined}
           toPreview={selectedShift === "hours" ? dForSelected.to : undefined}
         />
       )}

@@ -1,29 +1,10 @@
-import { useState } from "react";
+import { useDemoModal } from "../hooks/useDemoModal";
 import { useParallax } from "../hooks/useParallax";
-import UsersInfoModal, { DemoSeed } from "./UsersInfoModal";
 import { VideoPreview } from "./VideoPreview";
 
 export function Hero() {
   const offset = useParallax(0.12, 18); // parallax suave
-  const [showDemoModal, setShowDemoModal] = useState(false);
-
-  const seed: DemoSeed = {
-    admins: ["admin@admin.com"],
-    allowlist: ["admin@admin.com", "usuario@usuario.com"],
-    profiles: {
-      "admin@admin.com": {
-        displayName: "Admin Prueba",
-        firstName: "Admin",
-        lastName: "Prueba",
-      },
-      "usuario@usuario.com": {
-        displayName: "Usuario Prueba",
-        firstName: "Usuario",
-        lastName: "Prueba",
-      },
-    },
-    initialized: true,
-  };
+  const { openDemo } = useDemoModal(); // modal global
 
   return (
     <header className="relative overflow-hidden">
@@ -37,6 +18,7 @@ export function Hero() {
           />
         </div>
 
+        {/* Título principal */}
         <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight tracking-tight bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] bg-clip-text text-transparent">
           Tu negocio, simple y bajo control
         </h1>
@@ -46,7 +28,24 @@ export function Hero() {
           sola app. Menos Excel, más acción.
         </p>
 
-        {/* CTAs */}
+        {/* Card adicional: adaptable a más negocios */}
+        <div className="mt-8 max-w-3xl mx-auto bg-white/70 backdrop-blur border border-white/60 rounded-2xl shadow-[0_8px_25px_rgba(142,45,168,0.12)] p-6 text-gray-700">
+          <h3 className="text-xl font-semibold mb-2 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7] bg-clip-text text-transparent">
+            🌸 Pensada para crecer contigo
+          </h3>
+          <p className="text-base sm:text-lg leading-relaxed">
+            InManager nació como una herramienta para una{" "}
+            <span className="font-medium">pastelería</span>, pero hoy se adapta
+            perfectamente a negocios como{" "}
+            <span className="font-medium">heladerías</span>,{" "}
+            <span className="font-medium">floristerías</span> o{" "}
+            <span className="font-medium">tiendas especializadas</span>.
+            Ideal para quienes manejan pocos productos, pero muchas ventas
+            diarias.
+          </p>
+        </div>
+
+        {/* Botones principales */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <a
             href="#precios"
@@ -56,14 +55,14 @@ export function Hero() {
           </a>
 
           <button
-            onClick={() => setShowDemoModal(true)}
+            onClick={openDemo}
             className="px-6 py-3 rounded-2xl bg-white/85 backdrop-blur border border-white/60 hover:bg-white shadow transition focus:outline-none focus:ring-2 focus:ring-[#C084FC]/40"
           >
             Probar demo
           </button>
         </div>
 
-        {/* Preview con parallax y SIN recortes */}
+        {/* Preview con efecto parallax */}
         <div className="relative mt-10">
           <div
             className="mx-auto max-w-3xl rounded-2xl border border-white/70 bg-white/90 backdrop-blur shadow-[0_20px_50px_rgba(142,45,168,0.15)] p-3 transition-transform duration-300"
@@ -76,14 +75,6 @@ export function Hero() {
           </div>
         </div>
       </div>
-
-      {/* Modal de demo con usuarios */}
-      <UsersInfoModal
-        isOpen={showDemoModal}
-        onClose={() => setShowDemoModal(false)}
-        demoUrl="https://inmanager-b5f4c.web.app"
-        seed={seed}
-      />
     </header>
   );
 }

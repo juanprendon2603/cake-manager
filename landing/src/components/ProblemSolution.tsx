@@ -24,7 +24,6 @@ const soluciones = [
     text: "Datos seguros y disponibles desde cualquier dispositivo",
   },
   { icon: Receipt, text: "Ventas y abonos rápidos, con historial y fechas" },
-  { icon: ClipboardList, text: "Cierre de día simple con checklist (próximo)" },
 ];
 
 export function ProblemSolution() {

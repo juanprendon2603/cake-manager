@@ -2,7 +2,6 @@ import {
   BarChart3,
   BellRing,
   CheckSquare,
-  ClipboardCheck,
   Clock4,
   CreditCard,
   Factory,
@@ -77,17 +76,6 @@ const CONTROL_SEGURIDAD: Feature[] = [
     badge: "Próximo",
   },
   {
-    icon: <ClipboardCheck className="w-6 h-6" />,
-    title: "Cierre de turno",
-    desc: "Checklist de caja/limpieza y firma digital.",
-    badge: "Próximo",
-  },
-  {
-    icon: <ShieldCheck className="w-6 h-6" />,
-    title: "Bitácora y auditoría",
-    desc: "Quién hizo qué y cuándo (altas, bajas, cambios de precio).",
-  },
-  {
     icon: <Lock className="w-6 h-6" />,
     title: "Seguridad de datos",
     desc: "Autenticación y respaldos en la nube.",
@@ -120,7 +108,6 @@ function Card({ f, delay = 0 }: { f: Feature; delay?: number }) {
       tabIndex={0}
       aria-label={f.title}
     >
-      {/* borde degradado sutil */}
       <div
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
@@ -147,7 +134,6 @@ function Card({ f, delay = 0 }: { f: Feature; delay?: number }) {
 
         <p className="mt-1 text-gray-700 text-sm leading-relaxed">{f.desc}</p>
 
-        {/* underline hover */}
         <span
           className="mt-3 block h-[2px] w-0 bg-gradient-to-r from-[#8E2DA8] to-[#A855F7]
                          transition-all duration-300 group-hover:w-1/3"
@@ -158,14 +144,12 @@ function Card({ f, delay = 0 }: { f: Feature; delay?: number }) {
 }
 
 export function Features() {
-  // helper para escalonar animaciones
   const withDelay = <T,>(arr: T[], base = 40) =>
     arr.map((item, i) => ({ item, delay: i * base }));
 
   return (
     <section id="features" className="py-12 sm:py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <span
             className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide

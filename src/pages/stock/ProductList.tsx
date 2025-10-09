@@ -8,10 +8,12 @@ import { listCategories } from "../catalog/catalog.service";
 import type { ProductCategory } from "./stock.model";
 
 // ✨ UI consistente
-import { Boxes, Layers, PackageOpen, RotateCcw, Shapes } from "lucide-react";
+import { Boxes, Layers, RotateCcw, Shapes } from "lucide-react";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
+import { useAuth } from "../../contexts/AuthContext";
 
 /* ------------------------------ Helpers UI ------------------------------ */
 function parseVariantParts(
@@ -21,17 +23,11 @@ function parseVariantParts(
   return variantKey.split("|").map((pair) => {
     const idx = pair.indexOf(":") >= 0 ? pair.indexOf(":") : pair.indexOf("=");
     if (idx < 0) return { stepKey: pair.trim(), optKey: "" };
-    return {
-      stepKey: pair.slice(0, idx).trim(),
-      optKey: pair.slice(idx + 1).trim(),
-    };
+    return { stepKey: pair.slice(0, idx).trim(), optKey: pair.slice(idx + 1).trim() };
   });
 }
 
-function chipsFromVariant(
-  variantKey: string,
-  category: ProductCategory | null
-) {
+function chipsFromVariant(variantKey: string, category: ProductCategory | null) {
   const pairs = parseVariantParts(variantKey);
   const steps = category?.steps || [];
   return pairs.map(({ stepKey, optKey }) => {
@@ -49,18 +45,6 @@ function chipsFromVariant(
   });
 }
 
-/* -------------------------------- EmptyState ------------------------------- */
-function EmptyState() {
-  return (
-    <div className="text-center py-16">
-      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg">
-        <PackageOpen className="w-9 h-9" />
-      </div>
-      <p className="mt-4 text-gray-600">No hay variantes registradas.</p>
-    </div>
-  );
-}
-
 /* --------------------------------- StatsBar -------------------------------- */
 function StatCard({
   icon,
@@ -73,9 +57,7 @@ function StatCard({
 }) {
   return (
     <div className="rounded-xl px-4 py-3 text-center bg-white/60 backdrop-blur border border-white/60 shadow">
-      <div className="flex items-center justify-center text-purple-700">
-        {icon}
-      </div>
+      <div className="flex items-center justify-center text-purple-700">{icon}</div>
       <div className="text-xs text-gray-600 mt-1">{title}</div>
       <div className="text-sm font-semibold text-purple-600">{value}</div>
     </div>
@@ -91,16 +73,8 @@ function StatsBar({
 }) {
   const cards = useMemo(
     () => [
-      {
-        icon: <Layers className="w-6 h-6" />,
-        title: "Variantes",
-        value: totalVariants,
-      },
-      {
-        icon: <Boxes className="w-6 h-6" />,
-        title: "Unidades totales",
-        value: totalUnits,
-      },
+      { icon: <Layers className="w-6 h-6" />, title: "Variantes", value: totalVariants },
+      { icon: <Boxes className="w-6 h-6" />, title: "Unidades totales", value: totalUnits },
     ],
     [totalVariants, totalUnits]
   );
@@ -157,11 +131,7 @@ function StockCard({
       </div>
 
       <div className="mt-2">
-        {chips.length ? (
-          <div className="flex flex-wrap gap-2">{chips}</div>
-        ) : (
-          <em className="text-gray-500">—</em>
-        )}
+        {chips.length ? <div className="flex flex-wrap gap-2">{chips}</div> : <em className="text-gray-500">—</em>}
       </div>
 
       <div className="mt-3 bg-[#FDF8FF] border border-[#E8D4F2] rounded-lg p-4 text-center">
@@ -177,6 +147,17 @@ export function ProductList() {
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [loadingCats, setLoadingCats] = useState(true);
 
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
+
+  // Hook SIEMPRE llamado (mismo orden)
+  const categoryId = category?.id ?? "";
+  const { stocks, loading, pendingVariant, resetVariant, stats } = useStock({
+    categoryId,
+    realtime: Boolean(categoryId),
+  });
+
+  // Cargar categorías
   useEffect(() => {
     (async () => {
       try {
@@ -189,29 +170,22 @@ export function ProductList() {
     })();
   }, []);
 
-  const { stocks, loading, pendingVariant, resetVariant, stats } = useStock({
-    categoryId: category?.id || "",
-    realtime: true,
-  });
-
-  if (loadingCats || (loading && !category)) {
-    return <FullScreenLoader message="Cargando inventario..." />;
-  }
-
   const handleReset = async (variantKey: string) => {
-    if (
-      !window.confirm(
-        "¿Seguro que quieres reiniciar el stock de esta variante a 0?"
-      )
-    )
-      return;
+    if (!window.confirm("¿Seguro que quieres reiniciar el stock de esta variante a 0?")) return;
     await resetVariant(variantKey, 0);
   };
+
+  // Paths sugeridos
+  const createCategoryPath = "/admin/catalog";
+  const addStockPath = categoryId ? `/stock/add?categoryId=${encodeURIComponent(categoryId)}` : "/stock/add";
+
+  const hasCategories = categories.length > 0;
+  const hasStocks = (stocks?.length ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
-        {/* ====== Hero + Back ====== */}
+        {/* ====== Hero + Back (siempre visibles) ====== */}
         <div className="relative">
           <PageHero
             icon={<Boxes className="w-10 h-10" />}
@@ -223,67 +197,112 @@ export function ProductList() {
           </div>
         </div>
 
-        {/* ====== Selector de categoría ====== */}
-        <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
-          <div className="max-w-xl mx-auto">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Categoría
-            </label>
-            <select
-              className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
-              value={category?.id || ""}
-              onChange={(e) => {
-                const next =
-                  categories.find((c) => c.id === e.target.value) || null;
-                setCategory(next);
-              }}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+        {/* ====== Loader general debajo del hero ====== */}
+        {loadingCats ? (
+          <div className="mt-6">
+            <FullScreenLoader message="Cargando inventario..." />
           </div>
-        </section>
+        ) : (
+          <>
+            {/* ====== Selector de categoría (solo si hay categorías) ====== */}
+            {hasCategories && (
+              <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+                <div className="max-w-xl mx-auto">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Categoría</label>
+                  <select
+                    className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
+                    value={categoryId}
+                    onChange={(e) => {
+                      const next = categories.find((c) => c.id === e.target.value) || null;
+                      setCategory(next);
+                    }}
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </section>
+            )}
 
-        {/* ====== Resumen ====== */}
-        <div className="mt-6">
-          <StatsBar
-            totalVariants={stats.totalVariants}
-            totalUnits={stats.totalUnits}
-          />
-        </div>
+            {/* ====== Resumen ====== */}
+            {hasCategories && (
+              <div className="mt-6">
+                <StatsBar totalVariants={stats.totalVariants} totalUnits={stats.totalUnits} />
+              </div>
+            )}
 
-        {/* ====== Lista de variantes ====== */}
-        <section className="mt-4 rounded-3xl p-6 sm:p-8 bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
-          {loading ? (
-            <FullScreenLoader message="Cargando variantes..." />
-          ) : stocks.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stocks.map((row) => (
-                <StockCard
-                  key={row.variantKey}
-                  variantKey={row.variantKey}
-                  stock={row.stock}
-                  onReset={handleReset}
-                  isResetting={pendingVariant === row.variantKey}
-                  category={category}
+            {/* ====== Estados vacíos SIN contenedor (sin doble fondo) ====== */}
+            {!hasCategories && (
+              <div className="mt-6">
+                <EmptyStateCTA
+                  title="No hay categorías"
+                  description={
+                    isAdmin
+                      ? "Crea una categoría de productos para empezar a gestionar variantes y stock."
+                      : "Aún no hay categorías disponibles. Pide a un administrador que las cree."
+                  }
+                  to={createCategoryPath}
+                  buttonLabel="➕ Crear categorías"
+                  showButton={isAdmin}
+                  icon={<Boxes className="w-8 h-8" />}
                 />
-              ))}
-            </div>
-          )}
-        </section>
+              </div>
+            )}
 
-        {/* ====== Tip ====== */}
-        <div className="mt-8">
-          <ProTipBanner
-            title="Tip de inventario"
-            text="Usa el buscador por categoría y reinicia variantes obsoletas a 0 para mantener el stock limpio."
-          />
-        </div>
+            {hasCategories && !loading && !hasStocks && (
+              <div className="mt-6">
+                <EmptyStateCTA
+                  title="Sin stock en esta categoría"
+                  description={
+                    isAdmin
+                      ? "Agrega stock para que aparezcan las variantes aquí."
+                      : "No hay stock disponible por ahora."
+                  }
+                  to={addStockPath}
+                  buttonLabel="➕ Agregar stock"
+                  showButton={isAdmin}
+                  icon={<Boxes className="w-8 h-8" />}
+                />
+              </div>
+            )}
+
+            {/* ====== Loader de variantes (cuando hay categoría seleccionada) ====== */}
+            {hasCategories && loading && categoryId && (
+              <div className="mt-6">
+                <FullScreenLoader message="Cargando variantes..." />
+              </div>
+            )}
+
+            {/* ====== Lista de variantes (SOLO aquí usamos el contenedor blanco) ====== */}
+            {hasCategories && hasStocks && (
+              <section className="mt-4 rounded-3xl p-6 sm:p-8 bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {stocks.map((row) => (
+                    <StockCard
+                      key={row.variantKey}
+                      variantKey={row.variantKey}
+                      stock={row.stock}
+                      onReset={handleReset}
+                      isResetting={pendingVariant === row.variantKey}
+                      category={category}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ====== Tip ====== */}
+            <div className="mt-8">
+              <ProTipBanner
+                title="Tip de inventario"
+                text="Usa el filtro por categoría y reinicia variantes obsoletas a 0 para mantener el stock limpio."
+              />
+            </div>
+          </>
+        )}
       </main>
 
       {/* ====== Footer ====== */}

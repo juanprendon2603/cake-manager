@@ -30,6 +30,7 @@ import type { CategoryStep, ProductCategory } from "../stock/stock.model";
 import { AppFooter } from "../../components/AppFooter";
 import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
 
 // Modal reutilizable de “sin stock”
 import { CreditCard } from "lucide-react";
@@ -38,7 +39,8 @@ import NoStockModal from "../../components/NoStockModal";
 export function AddPayment() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, role } = useAuth();
+  const isAdmin = role === "admin";
 
   const [loadingCats, setLoadingCats] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,15 +110,13 @@ export function AddPayment() {
     })();
   }, []);
 
-  // ⚠️ AHORA: usamos TODOS los steps (para capturar atributos de precio y auditoría)
+  // ⚠️ AHORA: usamos TODOS los steps
   const allSteps = useMemo<CategoryStep[]>(() => cat?.steps || [], [cat]);
 
   // Inicializar selections cuando hay categoría (TODOS los steps)
   useEffect(() => {
     if (!cat) return;
-    const baseSel = Object.fromEntries(
-      (cat.steps || []).map((s) => [s.key, ""])
-    );
+    const baseSel = Object.fromEntries((cat.steps || []).map((s) => [s.key, ""]));
     setState((s) => ({ ...s, categoryId: cat.id, selections: baseSel }));
   }, [cat]);
 
@@ -125,8 +125,7 @@ export function AddPayment() {
     if (state.totalAmount && state.partialAmount) {
       setState((s) => ({
         ...s,
-        isTotalPayment:
-          parseFloat(s.partialAmount) === parseFloat(s.totalAmount),
+        isTotalPayment: parseFloat(s.partialAmount) === parseFloat(s.totalAmount),
       }));
     } else {
       setState((s) => ({ ...s, isTotalPayment: false }));
@@ -135,13 +134,11 @@ export function AddPayment() {
 
   const validateBeforeConfirm = (): string | null => {
     if (!cat) return "Selecciona una categoría.";
-    // ✅ Validamos TODOS los steps (incluye los que no afectan stock, p. ej. 'tipo')
     for (const st of allSteps) {
       if (!state.selections[st.key]) return `Selecciona “${st.label}”.`;
     }
     const qty = parseInt(state.quantity, 10);
-    if (!Number.isFinite(qty) || qty <= 0)
-      return "Ingresa una cantidad válida.";
+    if (!Number.isFinite(qty) || qty <= 0) return "Ingresa una cantidad válida.";
     const total = parseFloat(state.totalAmount);
     if (!Number.isFinite(total) || total <= 0)
       return "Ingresa un valor total válido.";
@@ -185,7 +182,7 @@ export function AddPayment() {
     const total = parseFloat(state.totalAmount);
     const paid = state.isTotalPayment ? total : parseFloat(state.partialAmount);
 
-    // 🔑 buildVariantKeyFromSelections devuelve LLAVE DE STOCK (solo steps affectsStock)
+    // LLAVE DE STOCK (solo steps affectsStock)
     const variantKey = buildVariantKeyFromSelections(cat, state.selections);
 
     setSaving(true);
@@ -196,7 +193,7 @@ export function AddPayment() {
         today,
         categoryId: cat.id,
         categoryName: cat.name,
-        selections: state.selections, // guardamos TODO (incluye 'tipo')
+        selections: state.selections, // guardamos TODO
         variantKey, // para stock/reconciliación
         quantity: qty,
         totalAmount: total,
@@ -213,7 +210,6 @@ export function AddPayment() {
       };
 
       if (state.deductFromStock) {
-        // Descontar con LLAVE DE STOCK
         const dec = await tryDecrementStockGeneric(cat.id, variantKey, qty);
         if (!dec.decremented) {
           setPendingInput(baseInput);
@@ -292,12 +288,12 @@ export function AddPayment() {
   const patch = (p: Partial<PaymentFormState>) =>
     setState((s) => ({ ...s, ...p }));
 
-  if (loadingCats) return <FullScreenLoader message="Cargando catálogo..." />;
+  const hasCategories = cats.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-6xl mx-auto w-full">
-        {/* PageHero + Back */}
+        {/* ===== Hero + Back (siempre) ===== */}
         <div className="relative mb-6">
           <PageHero
             icon={<CreditCard className="w-10 h-10" />}
@@ -309,34 +305,59 @@ export function AddPayment() {
           </div>
         </div>
 
-        {/* Formulario */}
-        <AddPaymentForm
-          state={state}
-          setState={patch}
-          errorMessage={errorMessage}
-          onClickOpenConfirm={openConfirm}
-          loading={saving}
-          categories={cats}
-          selectedCategory={cat}
-          onChangeCategory={setCat}
-          steps={allSteps} // ⬅️ ahora pasamos TODOS los steps
-        />
+        {/* ===== Loader debajo del hero ===== */}
+        {loadingCats ? (
+          <FullScreenLoader message="Cargando catálogo..." />
+        ) : (
+          <>
+            {/* ===== Estado vacío SIN contenedor (sin doble fondo) ===== */}
+            {!hasCategories ? (
+              <EmptyStateCTA
+                title="No hay categorías"
+                description={
+                  isAdmin
+                    ? "Crea una categoría de productos para poder registrar abonos/pagos."
+                    : "Aún no hay categorías disponibles. Pide a un administrador que las cree."
+                }
+                to="/admin/catalog"
+                buttonLabel="➕ Crear categorías"
+                showButton={isAdmin}
+                icon={<CreditCard className="w-8 h-8" />}
+              />
+            ) : (
+              <>
+                {/* ===== Formulario ===== */}
+                <AddPaymentForm
+                  state={state}
+                  setState={patch}
+                  errorMessage={errorMessage}
+                  onClickOpenConfirm={openConfirm}
+                  loading={saving}
+                  categories={cats}
+                  selectedCategory={cat}
+                  onChangeCategory={setCat}
+                  steps={allSteps}
+                />
 
-        {/* Tip */}
-        <div className="mt-8">
-          <ProTipBanner
-            title="Tip de abonos"
-            text="Si el cliente paga el total, marca ‘Pago total’ para cerrar el pedido automáticamente al finalizar."
-          />
-        </div>
+                {/* ===== Tip ===== */}
+                <div className="mt-8">
+                  <ProTipBanner
+                    title="Tip de abonos"
+                    text="Si el cliente paga el total, marca ‘Pago total’ para cerrar el pedido automáticamente al finalizar."
+                  />
+                </div>
+              </>
+            )}
+          </>
+        )}
       </main>
 
-      {/* Footer */}
+      {/* ===== Footer ===== */}
       <AppFooter appName="InManager" />
 
-      {/* Modal de confirmación */}
+      {/* ===== Modal de confirmación ===== */}
       <PaymentConfirmModal
-        isOpen={showConfirm}
+        isOpen={!!showConfirm}
         onClose={() => setShowConfirm(false)}
         categoryName={cat?.name || ""}
         selections={state.selections}
@@ -352,12 +373,11 @@ export function AddPayment() {
         }
         onConfirm={onConfirm}
         loading={saving}
-        // aunque el prop se llame affectingSteps, le pasamos TODOS para que muestre 'tipo' también
-        affectingSteps={allSteps}
+        affectingSteps={allSteps} // mostramos todos
         sellerName={sellerName}
       />
 
-      {/* Modal: continuar sin stock */}
+      {/* ===== Modal: continuar sin stock ===== */}
       <NoStockModal
         isOpen={showNoStock}
         onClose={() => {

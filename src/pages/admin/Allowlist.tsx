@@ -26,7 +26,6 @@ type AppAuthConfig = {
   profiles?: Record<string, { firstName?: unknown; lastName?: unknown; displayName?: unknown }>;
 };
 
-
 function normEmail(v: string) {
   return v.toLowerCase().trim();
 }
@@ -38,6 +37,9 @@ function mkDisplayName(firstName?: string, lastName?: string) {
   const f = (firstName || "").trim();
   const l = (lastName || "").trim();
   return [f, l].filter(Boolean).join(" ") || undefined;
+}
+function hasText(s?: string) {
+  return Boolean((s ?? "").trim());
 }
 
 export default function AllowlistAdmin() {
@@ -70,14 +72,14 @@ export default function AllowlistAdmin() {
     (async () => {
       const snap = await getDoc(doc(db, "app_config", "auth"));
       const cfg: AppAuthConfig = snap.exists() ? (snap.data() as AppAuthConfig) : {};
-  
+
       const allowlist = Array.isArray(cfg.allowlist) ? cfg.allowlist : [];
       const adminsList = Array.isArray(cfg.admins) ? cfg.admins : [];
       const rawProfiles = cfg.profiles ?? {};
-  
+
       setAllow(allowlist.map(x => normEmail(String(x))));
       setAdmins(adminsList.map(x => normEmail(String(x))));
-  
+
       const normalized: ProfilesMap = {};
       for (const [key, val] of Object.entries(rawProfiles)) {
         const ek = normEmail(key);
@@ -88,15 +90,14 @@ export default function AllowlistAdmin() {
           typeof p.displayName === "string" && p.displayName.trim()
             ? p.displayName
             : mkDisplayName(firstName, lastName);
-  
+
         normalized[ek] = { firstName, lastName, displayName };
       }
-  
+
       setProfiles(normalized);
       setLoading(false);
     })();
   }, []);
-  
 
   const entries = useMemo(() => {
     const set = new Set([...allow.map(normEmail), ...admins.map(normEmail)]);
@@ -105,11 +106,7 @@ export default function AllowlistAdmin() {
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
-  async function save(
-    nextAllow: string[],
-    nextAdmins: string[],
-    nextProfiles?: ProfilesMap
-  ) {
+  async function save(nextAllow: string[], nextAdmins: string[], nextProfiles?: ProfilesMap) {
     await setDoc(
       doc(db, "app_config", "auth"),
       {
@@ -136,6 +133,14 @@ export default function AllowlistAdmin() {
       setErrorMsg("Correo inválido.");
       return;
     }
+
+    const f = firstInput.trim();
+    const l = lastInput.trim();
+    if (!f || !l) {
+      setErrorMsg("Nombre y Apellido son obligatorios.");
+      return;
+    }
+
     const already = allow.includes(e) || admins.includes(e);
     if (already) {
       setInfoMsg("Ese correo ya está autorizado.");
@@ -146,6 +151,14 @@ export default function AllowlistAdmin() {
 
   async function confirmAdd() {
     const e = normEmail(input);
+    const f = firstInput.trim();
+    const l = lastInput.trim();
+
+    if (!f || !l) {
+      setErrorMsg("Nombre y Apellido son obligatorios.");
+      setConfirmAddOpen(false);
+      return;
+    }
 
     const nextAllow =
       roleSel === "admin"
@@ -154,23 +167,18 @@ export default function AllowlistAdmin() {
     const nextAdmins =
       roleSel === "admin" ? Array.from(new Set([...admins, e])) : admins;
 
-    const f = firstInput.trim();
-    const l = lastInput.trim();
-    let nextProfiles: ProfilesMap | undefined = profiles;
-    if (f || l) {
-      nextProfiles = {
-        ...profiles,
-        [e]: {
-          firstName: f || undefined,
-          lastName: l || undefined,
-          displayName: mkDisplayName(f, l),
-        },
-      };
-      setProfiles(nextProfiles);
-    }
+    const nextProfiles: ProfilesMap = {
+      ...profiles,
+      [e]: {
+        firstName: f,
+        lastName: l,
+        displayName: mkDisplayName(f, l),
+      },
+    };
 
     setAllow(nextAllow);
     setAdmins(nextAdmins);
+    setProfiles(nextProfiles);
     setConfirmAddOpen(false);
     setInput("");
     setFirstInput("");
@@ -207,9 +215,7 @@ export default function AllowlistAdmin() {
     const nextAdmins = admins.filter((x) => x !== e);
 
     const nextProfiles: ProfilesMap = { ...profiles };
-    if (nextProfiles[e]) {
-      delete nextProfiles[e];
-    }
+    if (nextProfiles[e]) delete nextProfiles[e];
 
     setAllow(nextAllow);
     setAdmins(nextAdmins);
@@ -230,22 +236,25 @@ export default function AllowlistAdmin() {
     setEditOpen(true);
   }
 
+  // === Validación obligatoria también al editar ===
   async function confirmEditProfile() {
     if (!editEmail) return;
     const f = editFirst.trim();
     const l = editLast.trim();
+
+    if (!f || !l) {
+      setErrorMsg("Nombre y Apellido son obligatorios para guardar cambios.");
+      return;
+    }
+
     const nextProfiles: ProfilesMap = {
       ...profiles,
       [editEmail]: {
-        firstName: f || undefined,
-        lastName: l || undefined,
+        firstName: f,
+        lastName: l,
         displayName: mkDisplayName(f, l),
       },
     };
-    const p = nextProfiles[editEmail];
-    if (!p.firstName && !p.lastName) {
-      delete nextProfiles[editEmail];
-    }
 
     setProfiles(nextProfiles);
     setEditOpen(false);
@@ -256,6 +265,17 @@ export default function AllowlistAdmin() {
     await save(allow, admins, nextProfiles);
     setInfoMsg("Datos de usuario actualizados.");
   }
+
+  const canAdd =
+    isValidEmail(normEmail(input)) && hasText(firstInput) && hasText(lastInput);
+
+  // para ayudas visuales en inputs
+  const showFirstError = firstInput !== "" && !hasText(firstInput);
+  const showLastError = lastInput !== "" && !hasText(lastInput);
+
+  const editCanSave = hasText(editFirst) && hasText(editLast);
+  const showEditFirstError = editFirst !== "" && !hasText(editFirst);
+  const showEditLastError = editLast !== "" && !hasText(editLast);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
@@ -292,45 +312,58 @@ export default function AllowlistAdmin() {
 
               <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow mb-6">
                 <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
-                  <label className="text-sm font-semibold text-gray-700 sm:col-span-1">
-                    Correo electrónico
+                  <label className="text-sm font-semibold text-gray-700">
+                    Correo electrónico <span className="text-rose-600">*</span>
                     <input
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       placeholder="correo@empresa.com"
+                      aria-required="true"
                       className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
                       type="email"
                     />
                   </label>
 
                   <label className="text-sm font-semibold text-gray-700">
-                    Nombre (opcional)
+                    Nombre <span className="text-rose-600">*</span>
                     <input
                       value={firstInput}
                       onChange={(e) => setFirstInput(e.target.value)}
                       placeholder="Nombre"
-                      className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+                      aria-required="true"
+                      className={[
+                        "mt-1 w-full rounded-xl border bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2",
+                        showFirstError ? "border-rose-300 focus:ring-rose-300" : "border-white/70 focus:ring-purple-300",
+                      ].join(" ")}
                       type="text"
                     />
+                    {!hasText(firstInput) && firstInput !== "" && (
+                      <p className="text-xs text-rose-600 mt-1">Este campo es obligatorio.</p>
+                    )}
                   </label>
 
                   <label className="text-sm font-semibold text-gray-700">
-                    Apellido (opcional)
+                    Apellido <span className="text-rose-600">*</span>
                     <input
                       value={lastInput}
                       onChange={(e) => setLastInput(e.target.value)}
                       placeholder="Apellido"
-                      className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+                      aria-required="true"
+                      className={[
+                        "mt-1 w-full rounded-xl border bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2",
+                        showLastError ? "border-rose-300 focus:ring-rose-300" : "border-white/70 focus:ring-purple-300",
+                      ].join(" ")}
                       type="text"
                     />
+                    {!hasText(lastInput) && lastInput !== "" && (
+                      <p className="text-xs text-rose-600 mt-1">Este campo es obligatorio.</p>
+                    )}
                   </label>
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                   <div>
-                    <div className="text-sm font-semibold text-gray-700 mb-1">
-                      Rol
-                    </div>
+                    <div className="text-sm font-semibold text-gray-700 mb-1">Rol</div>
                     <div className="flex rounded-xl overflow-hidden border border-white/70 bg-white/70 shadow-inner">
                       <button
                         type="button"
@@ -357,15 +390,36 @@ export default function AllowlistAdmin() {
                         Admin
                       </button>
                     </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Campos marcados con <span className="text-rose-600">*</span> son obligatorios.
+                    </p>
                   </div>
 
+                  {/* Botón con tooltip cuando está deshabilitado */}
                   <div className="sm:col-span-1 flex justify-end">
-                    <button
-                      onClick={openConfirmAdd}
-                      className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC] hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]"
-                    >
-                      <span>➕</span> Agregar
-                    </button>
+                    <span className="relative group">
+                      <button
+                        onClick={openConfirmAdd}
+                        disabled={!canAdd}
+                        title={!canAdd ? "Completa correo válido, nombre y apellido" : ""}
+                        aria-disabled={!canAdd}
+                        className={[
+                          "inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-[#8E2DA8] via-[#A855F7] to-[#C084FC]",
+                          !canAdd ? "opacity-60 cursor-not-allowed" : "hover:shadow-[0_12px_30px_rgba(142,45,168,0.35)]",
+                        ].join(" ")}
+                      >
+                        <span>➕</span> Agregar
+                      </button>
+
+                      {!canAdd && (
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute -top-10 right-0 hidden whitespace-nowrap rounded-lg bg-gray-900/90 px-3 py-1.5 text-[11px] font-medium text-white shadow-md group-hover:block"
+                        >
+                          Completa correo válido, nombre y apellido
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -383,10 +437,7 @@ export default function AllowlistAdmin() {
                       const profile = profiles[e];
                       const display = profile?.displayName;
                       return (
-                        <li
-                          key={e}
-                          className="px-4 py-3 flex items-center justify-between"
-                        >
+                        <li key={e} className="px-4 py-3 flex items-center justify-between">
                           <div className="min-w-0">
                             <div className="font-semibold text-gray-900 truncate">
                               {display || e}
@@ -402,9 +453,7 @@ export default function AllowlistAdmin() {
                                 ].join(" ")}
                               >
                                 {isAdmin ? "Administrador" : "Usuario"}
-                                {isMe && (
-                                  <span className="opacity-70">(tú)</span>
-                                )}
+                                {isMe && <span className="opacity-70">(tú)</span>}
                               </span>
                             </div>
                           </div>
@@ -436,13 +485,14 @@ export default function AllowlistAdmin() {
         <div className="mt-8">
           <ProTipBanner
             title="Tip de administración"
-            text="Puedes guardar el nombre y apellido para que las iniciales y el nombre mostrado en la app sean consistentes, incluso si el displayName de Firebase está vacío."
+            text="El nombre y apellido son obligatorios para mantener consistencia en la app y evitar registros incompletos."
           />
         </div>
       </main>
 
       <AppFooter appName="InManager" />
 
+      {/* Modal: Confirmar nuevo usuario */}
       <BaseModal
         isOpen={confirmAddOpen}
         onClose={() => setConfirmAddOpen(false)}
@@ -450,10 +500,7 @@ export default function AllowlistAdmin() {
         title="Confirmar nuevo usuario"
         description="Verifica que los datos sean correctos."
         primaryAction={{ label: "Agregar", onClick: confirmAdd }}
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => setConfirmAddOpen(false),
-        }}
+        secondaryAction={{ label: "Cancelar", onClick: () => setConfirmAddOpen(false) }}
         size="md"
       >
         <div className="space-y-3">
@@ -477,52 +524,80 @@ export default function AllowlistAdmin() {
               {roleSel === "admin" ? "Administrador" : "Usuario"}
             </div>
           </div>
-          <p className="text-xs text-gray-500">
-            El usuario podrá iniciar sesión si ya existe o crear cuenta si aún
-            no la tiene.
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Recuerda: <b>Nombre</b> y <b>Apellido</b> son obligatorios.
           </p>
         </div>
       </BaseModal>
 
+      {/* Modal: Editar nombre */}
       <BaseModal
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
         headerAccent="indigo"
         title="Editar nombre del usuario"
         description={editEmail || ""}
-        primaryAction={{ label: "Guardar", onClick: confirmEditProfile }}
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => setEditOpen(false),
+        primaryAction={{
+          label: "Guardar",
+          onClick: confirmEditProfile, // Bloquea si faltan datos
         }}
+        secondaryAction={{ label: "Cancelar", onClick: () => setEditOpen(false) }}
         size="md"
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-semibold text-gray-700">
-            Nombre
+            Nombre <span className="text-rose-600">*</span>
             <input
               value={editFirst}
               onChange={(e) => setEditFirst(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+              className={[
+                "mt-1 w-full rounded-xl border bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2",
+                showEditFirstError ? "border-rose-300 focus:ring-rose-300" : "border-white/70 focus:ring-purple-300",
+              ].join(" ")}
               type="text"
+              aria-required="true"
             />
+            {!hasText(editFirst) && editFirst !== "" && (
+              <p className="text-xs text-rose-600 mt-1">Este campo es obligatorio.</p>
+            )}
           </label>
           <label className="text-sm font-semibold text-gray-700">
-            Apellido
+            Apellido <span className="text-rose-600">*</span>
             <input
               value={editLast}
               onChange={(e) => setEditLast(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-300"
+              className={[
+                "mt-1 w-full rounded-xl border bg-white/70 px-4 py-3 shadow-inner focus:outline-none focus:ring-2",
+                showEditLastError ? "border-rose-300 focus:ring-rose-300" : "border-white/70 focus:ring-purple-300",
+              ].join(" ")}
               type="text"
+              aria-required="true"
             />
+            {!hasText(editLast) && editLast !== "" && (
+              <p className="text-xs text-rose-600 mt-1">Este campo es obligatorio.</p>
+            )}
           </label>
         </div>
-        <p className="text-xs text-gray-500 mt-3">
-          Si dejas ambos campos vacíos, se eliminará el nombre guardado para
-          este correo.
-        </p>
+
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Para guardar, completa <b>Nombre</b> y <b>Apellido</b>.
+          </p>
+
+          {/* Tooltip “falso” para el botón Guardar (no podemos tocar el botón del BaseModal) */}
+          {!editCanSave && (
+            <span
+              role="tooltip"
+              className="text-[11px] text-gray-600"
+              title="Completa nombre y apellido para poder guardar"
+            >
+              ℹ️ Completa ambos campos
+            </span>
+          )}
+        </div>
       </BaseModal>
 
+      {/* Modal: Eliminar usuario */}
       <BaseModal
         isOpen={confirmDelOpen}
         onClose={() => setConfirmDelOpen(false)}
@@ -530,10 +605,7 @@ export default function AllowlistAdmin() {
         title="Eliminar usuario"
         description="Esta acción revoca el acceso del correo a la aplicación."
         primaryAction={{ label: "Eliminar", onClick: confirmDelete }}
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => setConfirmDelOpen(false),
-        }}
+        secondaryAction={{ label: "Cancelar", onClick: () => setConfirmDelOpen(false) }}
         size="md"
       >
         <div className="space-y-3">
@@ -543,8 +615,7 @@ export default function AllowlistAdmin() {
           </div>
           {toDelete && admins.includes(normEmail(toDelete)) && (
             <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 text-sm">
-              Estás eliminando a un <b>Administrador</b>. Asegúrate de que quede
-              al menos un admin activo.
+              Estás eliminando a un <b>Administrador</b>. Asegúrate de que quede al menos un admin activo.
             </div>
           )}
         </div>

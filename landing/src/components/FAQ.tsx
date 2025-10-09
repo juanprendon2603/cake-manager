@@ -100,16 +100,6 @@ const RAW_FAQS: Faq[] = [
     tag: "Próximo",
   },
   {
-    q: "¿Cierre de turno con checklist/firma?",
-    a: (
-      <>
-        Planeado. Cierre con checklist (caja, desperdicios, limpieza) y
-        confirmación para auditoría. (<strong>Próximo</strong>).
-      </>
-    ),
-    tag: "Próximo",
-  },
-  {
     q: "¿Funciona sin internet?",
     a: (
       <>
