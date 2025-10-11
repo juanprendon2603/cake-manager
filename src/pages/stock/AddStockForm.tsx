@@ -34,23 +34,6 @@ type PrimaryGroup = { primaryOpt: string; rows: LineRow[] };
 type PrettyForm = { categoryId: string; date: string; groups: PrimaryGroup[] };
 type Props = { defaultCategoryId?: string };
 
-/* --------------------------- Clases reutilizables -------------------------- */
-/** Evita que el navegador “oscurezca” el control en modo oscuro y fija colores. */
-const fieldBase =
-  "rounded-xl border-2 p-2 focus:outline-none focus:ring-2 " +
-  "text-gray-900 placeholder-gray-500 border-purple-200 focus:ring-purple-400 " +
-  "bg-white/90 " +
-  // Modo oscuro propio (si quisieras usar fondos oscuros)
-  "dark:text-neutral-100 dark:placeholder-neutral-400 dark:border-neutral-700 " +
-  // Safari/iOS: usa el color actual para el texto real del input
-  "[-webkit-text-fill-color:currentColor] " +
-  // Fuerza esquema claro en el control para que NO lo invierta el navegador
-  "[color-scheme:light]";
-
-const inputCls = `w-full ${fieldBase}`;
-const selectCls = `w-full ${fieldBase}`;
-const numberCls = `text-center ${fieldBase}`;
-
 /* -------------------------------- Componente ------------------------------ */
 export function AddStockForm({ defaultCategoryId }: Props) {
   const { addToast } = useToast();
@@ -205,7 +188,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
     !!cat && !!primaryStep && primaryOptions.length === 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
       <main className="flex-grow p-6 sm:p-12 max-w-7xl mx-auto w-full">
         {/* ======= Hero + Back (siempre visibles) ======= */}
         <div className="relative">
@@ -228,9 +211,9 @@ export function AddStockForm({ defaultCategoryId }: Props) {
           <>
             {/* Selector solo si hay categorías */}
             {hasCategories && (
-              <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 dark:bg-neutral-800/70 dark:border-neutral-700 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+              <section className="mt-6 rounded-3xl border-2 border-white/60 bg-white/80 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
                 <div className="max-w-xl mx-auto">
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Categoría
                   </label>
                   <select
@@ -240,7 +223,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
                         cats.find((c) => c.id === e.target.value) || null;
                       setCat(next);
                     }}
-                    className={selectCls}
+                    className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
                   >
                     {cats.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -315,20 +298,20 @@ export function AddStockForm({ defaultCategoryId }: Props) {
                 <section className="relative">
                   {/* capa decorativa sin bloquear clics */}
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5 pointer-events-none" />
-                  <div className="relative z-10 p-6 sm:p-8 rounded-3xl bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl border-2 border-white/60 dark:border-neutral-700 shadow-2xl">
+                  <div className="relative z-10 p-6 sm:p-8 rounded-3xl bg-white/70 backdrop-blur-xl border-2 border-white/60 shadow-2xl">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                       <div>
                         <h3 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                           {cat?.name}
                         </h3>
-                        <p className="text-gray-600 dark:text-neutral-300">
+                        <p className="text-gray-600">
                           Selecciona opciones y cantidades por{" "}
                           {primaryStep.label.toLowerCase()}
                         </p>
                       </div>
                       {/* Fecha */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
                           Fecha (acumulado diario)
                         </label>
                         <Controller
@@ -337,7 +320,7 @@ export function AddStockForm({ defaultCategoryId }: Props) {
                           render={({ field }) => (
                             <input
                               type="date"
-                              className={inputCls}
+                              className="rounded-xl border-2 border-purple-200 bg-white/80 p-2"
                               {...field}
                             />
                           )}
@@ -467,7 +450,7 @@ function PrimaryGroupCard({
   });
 
   return (
-    <div className="group relative rounded-2xl border-2 border-purple-200/50 bg-gradient-to-br from-white/80 to-purple-50/40 dark:from-neutral-800/70 dark:to-neutral-800/40 dark:border-neutral-700 backdrop-blur-sm p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+    <div className="group relative rounded-2xl border-2 border-purple-200/50 bg-gradient-to-br from-white/80 to-purple-50/40 backdrop-blur-sm p-6 shadow-lg hover:shadow-xl transition-all duration-300">
       <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-2xl opacity-10 pointer-events-none" />
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
@@ -476,7 +459,7 @@ function PrimaryGroupCard({
               <Package className="w-6 h-6" />
             </div>
             <div>
-              <label className="block font-bold text-xl text-gray-800 dark:text-neutral-100">
+              <label className="block font-bold text-xl text-gray-800">
                 {primaryStep.label}
               </label>
               <Controller
@@ -485,7 +468,7 @@ function PrimaryGroupCard({
                 render={({ field }) => {
                   const opt = options.find((o) => o.key === field.value);
                   return (
-                    <div className="text-sm text-gray-600 dark:text-neutral-300 capitalize">
+                    <div className="text-sm text-gray-600 capitalize">
                       {opt?.label || field.value}
                     </div>
                   );
@@ -505,7 +488,7 @@ function PrimaryGroupCard({
                 qty: "",
               })
             }
-            className="px-3 py-2 rounded-lg border-2 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-400/50 dark:text-purple-200 dark:hover:bg-purple-400/10 inline-flex items-center gap-2"
+            className="px-3 py-2 rounded-lg border-2 border-purple-300 text-purple-700 hover:bg-purple-50 inline-flex items-center gap-2"
             title="Agregar fila"
           >
             <Plus className="w-4 h-4" />
@@ -517,12 +500,12 @@ function PrimaryGroupCard({
           {fields.map((row, rIdx) => (
             <div
               key={row._k}
-              className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end bg-white/70 dark:bg-neutral-800/70 rounded-xl p-4 border border-purple-200/50 dark:border-neutral-700"
+              className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end bg-white/70 rounded-xl p-4 border border-purple-200/50"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {restSteps.map((s) => (
                   <div key={s.key}>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-neutral-300 mb-1">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
                       {s.label}
                     </label>
                     <Controller
@@ -532,7 +515,7 @@ function PrimaryGroupCard({
                       }
                       render={({ field }) => (
                         <select
-                          className={selectCls}
+                          className="w-full rounded-xl border-2 border-purple-200 bg-white/90 p-2"
                           value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value)}
                         >
@@ -553,7 +536,7 @@ function PrimaryGroupCard({
 
               <div className="flex items-end gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 dark:text-neutral-300 mb-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
                     Cantidad
                   </label>
                   <Controller
@@ -564,7 +547,7 @@ function PrimaryGroupCard({
                         type="number"
                         min={0}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={`w-28 ${numberCls}`}
+                        className="w-28 text-center rounded-xl border-2 border-purple-200 bg-white/90 p-2"
                         value={field.value ?? ""}
                         onChange={(e) => {
                           const v =
@@ -580,7 +563,7 @@ function PrimaryGroupCard({
                 <button
                   type="button"
                   onClick={() => remove(rIdx)}
-                  className="h-[38px] px-3 rounded-lg border-2 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-400/50 dark:text-rose-200 dark:hover:bg-rose-400/10 inline-flex items-center gap-2"
+                  className="h-[38px] px-3 rounded-lg border-2 border-rose-300 text-rose-700 hover:bg-rose-50 inline-flex items-center gap-2"
                   title="Eliminar fila"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -591,7 +574,7 @@ function PrimaryGroupCard({
           ))}
 
           {fields.length === 0 && (
-            <div className="text-sm text-gray-500 dark:text-neutral-400 italic">
+            <div className="text-sm text-gray-500 italic">
               No hay filas. Usa “Agregar” para crear una combinación.
             </div>
           )}

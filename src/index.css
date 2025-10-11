@@ -1,13 +1,15 @@
-/* ================== BASE APP ================== */
+/* ========== BASE APP (solo modo claro) ========== */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  /* ❗ Evita auto-darkening global. Deja la UI oscura por colores, no por color-scheme */
-  /* color-scheme: light dark;  <- quítalo */
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* ❗ Fuerza esquema CLARO en toda la app (sin auto-dark de iOS/Android) */
+  color-scheme: light;
+
+  /* Colores de la app en modo claro */
+  color: #213547;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,114 +17,62 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Tipografía y enlaces */
+/* Links */
 a { font-weight: 500; color: #646cff; text-decoration: inherit; }
 a:hover { color: #535bf2; }
 
+/* Títulos */
 h1 { font-size: 3.2em; line-height: 1.1; }
 
-/* Botones */
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover { border-color: #646cff; }
-button:focus, button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
+/* ========== ⚠️ IMPORTANTE: NO forzar estilos globales a <button> ========== */
+/* El template de Vite añade un bloque que pone fondo #1a1a1a, quítalo.      */
+/* Si quieres mantener focus accesible, deja solo esto: */
+button:focus,
+button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
 
-/* Modo claro de tu app (si lo usas) */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover { color: #747bff; }
-  button { background-color: #f9f9f9; }
-}
-
-/* ================== FORMS “BLINDADOS” ================== */
-/* 1) Fuerza esquema claro SOLO en controles de formulario (evita inversión automática) */
+/* ========== FORM FIX (light-only) ========== */
+/* Mantén los formularios SIEMPRE claros; NO toca <button> */
 input, select, textarea {
-  color-scheme: light;                /* clave para iOS/Android */
-  background-color: #ffffff;          /* fondo claro consistente */
-  color: #111827;                     /* texto visible (gray-900) */
-  border: 2px solid #e9d5ff;          /* borde suave (morado claro) */
-  border-radius: 0.75rem;             /* 12px */
-  padding: 0.5rem 0.75rem;            /* p-2~p-3 */
-  outline: none;
-  /* Safari: usa el color de texto real, no el “tinte” del UA */
-  -webkit-text-fill-color: currentColor;
+  color-scheme: light;
+  background: #ffffff;
+  color: #111827;
+  border: 2px solid #e9d5ff;          /* lila suave */
+  border-radius: 12px;
+  padding: 8px 12px;
+  -webkit-text-fill-color: currentColor; /* iOS Safari */
+  caret-color: #111827;
 }
 
-/* 2) Placeholder legible en ambos modos */
 input::placeholder,
 textarea::placeholder {
-  color: #6b7280; /* gray-500 */
-  opacity: 1;     /* asegúralo visible en iOS */
+  color: #6b7280; /* gris 500 */
+  opacity: 1;
 }
 
-/* 3) Estados de focus accesibles */
 input:focus, select:focus, textarea:focus {
-  border-color: #c084fc;  /* morado medio */
-  box-shadow: 0 0 0 3px rgba(192, 132, 252, 0.35); /* “ring” */
+  border-color: #c084fc; /* lila medio */
+  box-shadow: 0 0 0 3px rgba(192,132,252,.35);
+  outline: none;
 }
 
-/* 4) Número centrado cuando aplique */
-input[type="number"] { text-align: center; }
-
-/* 5) Autofill (Safari/Chrome móvil) – que no “pinte” amarillo ilegible */
+/* Autofill (Safari/Chrome móvil) */
 input:-webkit-autofill,
 select:-webkit-autofill,
 textarea:-webkit-autofill {
   -webkit-text-fill-color: #111827 !important;
-  transition: background-color 5000s ease-in-out 0s; /* truco */
   box-shadow: 0 0 0 1000px #ffffff inset !important;
-  caret-color: #111827;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
-/* 6) Si quieres UI oscura pero campos claros, mantenlos así:
-      en dark mode NO cambies fondo/colores de los inputs */
-@media (prefers-color-scheme: dark) {
-  /* El resto de tu UI puede seguir oscura */
-  body { background-color: #242424; }
-
-  /* Labels y textos alrededor de campos */
-  label { color: #e5e7eb; } /* gray-200 */
-
-  /* Opcional: si quieres selects con menú claro legible */
-  select, input, textarea {
-    background-color: #ffffff;
-    color: #111827;
-    border-color: #e9d5ff;
-    -webkit-text-fill-color: currentColor;
-  }
-
-  /* Autofill en dark */
-  input:-webkit-autofill,
-  select:-webkit-autofill,
-  textarea:-webkit-autofill {
-    -webkit-text-fill-color: #111827 !important;
-    box-shadow: 0 0 0 1000px #ffffff inset !important;
-  }
-}
-
-/* 7) Selects en iOS a veces heredan color del <option> */
-select option { color: #111827; background-color: #ffffff; }
-
-/* 8) Inputs de fecha/hora: fuerza legibilidad de la parte “renderizada por el UA” */
+/* Widgets nativos claros (date/time) */
 input[type="date"],
 input[type="time"],
-input[type="datetime-local"] {
-  color-scheme: light;
-}
+input[type="datetime-local"] { color-scheme: light; }
 
-/* 9) Desactiva el zoom por tamaño de fuente pequeño en iOS (opcional) */
+/* Evita zoom al foco en iOS */
 @supports (-webkit-touch-callout: none) {
   input, select, textarea { font-size: 16px; }
 }
+
+/* Opciones de <select> claras */
+select option { color: #111827; background: #ffffff; }
