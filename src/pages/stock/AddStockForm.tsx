@@ -13,6 +13,8 @@ import { PageHero } from "../../components/ui/PageHero";
 import { ProTipBanner } from "../../components/ui/ProTipBanner";
 
 import { Package, Plus, Save, Trash2 } from "lucide-react";
+import { EmptyStateCTA } from "../../components/EmptyStateCTA";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   buildVariantKey,
   listCategories,
@@ -25,8 +27,6 @@ import {
   type CategoryStep,
   type ProductCategory,
 } from "./stock.model";
-import { EmptyStateCTA } from "../../components/EmptyStateCTA";
-import { useAuth } from "../../contexts/AuthContext";
 
 /* ------------------------------- Tipos Form ------------------------------- */
 type LineRow = { selections: Record<string, string>; qty: number | "" };
@@ -184,7 +184,8 @@ export function AddStockForm({ defaultCategoryId }: Props) {
   // 🧩 Derivados para estados vacíos / inválidos
   const hasCategories = cats.length > 0;
   const noAffectingSteps = !!cat && !primaryStep;
-  const noPrimaryOptions = !!cat && !!primaryStep && primaryOptions.length === 0;
+  const noPrimaryOptions =
+    !!cat && !!primaryStep && primaryOptions.length === 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 flex flex-col">
@@ -218,7 +219,8 @@ export function AddStockForm({ defaultCategoryId }: Props) {
                   <select
                     value={cat?.id || ""}
                     onChange={(e) => {
-                      const next = cats.find((c) => c.id === e.target.value) || null;
+                      const next =
+                        cats.find((c) => c.id === e.target.value) || null;
                       setCat(next);
                     }}
                     className="w-full rounded-xl border-2 border-purple-200 bg-white/80 p-3"
@@ -289,7 +291,10 @@ export function AddStockForm({ defaultCategoryId }: Props) {
 
             {/* Formulario */}
             {hasCategories && !!primaryStep && primaryOptions.length > 0 && (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 mt-8">
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="space-y-12 mt-8"
+              >
                 <section className="relative">
                   {/* capa decorativa sin bloquear clics */}
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-5 pointer-events-none" />

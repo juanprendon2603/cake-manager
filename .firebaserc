@@ -3,6 +3,17 @@
     "default": "cakemanager-6f280",
     "test": "inmanager-b5f4c"
   },
-  "targets": {},
+  "targets": {
+    "cakemanager-6f280": {
+      "hosting": {
+        "app": [
+          "cakemanager-6f280"
+        ],
+        "landing": [
+          "inmanager-landing"
+        ]
+      }
+    }
+  },
   "etags": {}
 }
